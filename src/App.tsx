@@ -14,7 +14,7 @@ import type { TickerHistory } from './types/indicator'
 import type { ETFReplayWeek } from './types/replay'
 import type { ForwardReturnRecord } from './types/research'
 import type { ETFRecommendation, RegimeClass, StockSignalLabel } from './types/signal'
-import { getETFLabelDisplay, getRegimeBanner, getStockLabelDisplay } from './ui/labelDisplay'
+import { getETFLabelDisplay, getStockLabelDisplay } from './ui/labelDisplay'
 import './styles/dashboard.css'
 import './styles/global.css'
 
@@ -914,7 +914,6 @@ export default function App() {
     activeTab === 'Stock Screener' || activeTab === 'Stock Replay' || activeTab === 'Stock Research'
       ? stockState.regime
       : weeklyState.regime
-  const regimeBanner = getRegimeBanner(activeRegime)
   const heroLoadedCount = activeTab === 'Stock Screener' ? stockState.rows.length : isResearchTab ? researchState.records.length : Object.keys(weeklyState.histories).length
   const heroFailedCount = activeTab === 'Stock Screener' ? stockState.failedTickers.length : isResearchTab ? 0 : weeklyState.failedTickers.length
   const heroUpdatedAt = activeTab === 'Stock Screener' ? stockState.lastUpdated : isResearchTab ? researchState.lastUpdated : weeklyState.lastUpdated
@@ -956,14 +955,6 @@ export default function App() {
           <h1>{intro.title}</h1>
           <p className="subtle">{intro.description}</p>
           <p className="zh-subtitle">{intro.zhSubtitle}</p>
-
-          <div className={`regime-banner ${regimeBanner.colorClass}`}>
-            <span className="regime-banner__emoji">{regimeBanner.emoji}</span>
-            <div>
-              <strong>{regimeBanner.zhText}</strong>
-              <div className="regime-en">Market Regime · {regimeBanner.enText}</div>
-            </div>
-          </div>
 
           <div className="status-row">
             <span className="status-chip">

@@ -1761,9 +1761,6 @@ td select { min-width: 92px; }
     gap: 8px;
   }
 
-  .regime-banner { padding: 9px 13px; }
-  .regime-en { font-size: 0.74rem; }
-
   /* Status chips: single-row horizontal scroll, no wrap */
   .status-row {
     flex-wrap: nowrap;
@@ -1819,6 +1816,19 @@ td select { min-width: 92px; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
+
+  /* ETF cards: hide redundant code badge, clamp long names to 2 lines */
+  .etf-card__code { display: none; }
+
+  .etf-card__name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Stock cards: hide sector tag to save height */
+  .stock-card__sector { display: none; }
 }
 
 @media (max-width: 480px) {
@@ -1840,9 +1850,6 @@ td select { min-width: 92px; }
   .summary-card { padding: 10px 11px 8px; }
   .summary-card h2 { margin-bottom: 4px; }
   .summary-card strong { font-size: 1.5rem; }
-
-  /* Regime banner: tighter */
-  .regime-banner { padding: 8px 11px; font-size: 0.88rem; }
 
   /* Hero metrics: compact */
   .hero-metric { min-height: 68px; padding: 9px 9px 7px; }
@@ -1867,4 +1874,8 @@ td select { min-width: 92px; }
   .etf-card__ticker { font-size: 1.05rem; }
 
   .etf-card__name { font-size: 0.72rem; }
+
+  /* Summary cards in 2-col: single-line label + number only, drop description */
+  .summary-card h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .summary-card > span { display: none; }
 }
