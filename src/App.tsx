@@ -705,6 +705,7 @@ export default function App() {
   const [showGateLegend, setShowGateLegend] = useState(false)
   const [selectedResearchLabel, setSelectedResearchLabel] = useState<StockSignalLabel | 'ALL'>('ALL')
   const [stockViewMode, setStockViewMode] = useState<'table' | 'cards'>('cards')
+  const [etfViewMode, setEtfViewMode] = useState<'table' | 'cards'>('cards')
   const [onboardingStep, setOnboardingStep] = useState<number | null>(() =>
     typeof window !== 'undefined' && window.localStorage.getItem('onboarding_v1_done') ? null : 1
   )
@@ -1054,51 +1055,84 @@ export default function App() {
                   </p>
                 </div>
                 <div className="header-actions">
+                  <div className="view-toggle">
+                    <button type="button" className={`view-toggle__btn${etfViewMode === 'cards' ? ' view-toggle__btn--active' : ''}`} onClick={() => setEtfViewMode('cards')}>卡片</button>
+                    <button type="button" className={`view-toggle__btn${etfViewMode === 'table' ? ' view-toggle__btn--active' : ''}`} onClick={() => setEtfViewMode('table')}>列表</button>
+                  </div>
                   <button type="button" className="refresh-button" disabled={isLoadingWeekly} onClick={() => void loadWeeklyData()}>
                     {isLoadingWeekly ? 'Refreshing...' : 'Refresh Live Data'}
                   </button>
                 </div>
               </div>
 
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Ticker</th>
-                      <th>Name</th>
-                      <th>信號 Label</th>
-                      <th>13W Return</th>
-                      <th>Price / 40W MA</th>
-                      <th>Reason 原因</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {weeklyState.rows.map(row => {
-                      const disp = getETFLabelDisplay(row.label)
-                      return (
-                        <tr key={row.ticker}>
-                          <td>{row.ticker}</td>
-                          <td>{row.name}</td>
-                          <td>
-                            <div className="label-cell">
-                              <span className={`label-pill label-pill--${row.label.toLowerCase()}`}>
-                                {disp.lightEmoji} {disp.zhText}
-                              </span>
-                              <span className="label-code">{row.label}</span>
-                            </div>
-                          </td>
-                          <td>{formatPercent(row.return13w)}</td>
-                          <td>{formatRatio(row.priceVs40wMa)}</td>
-                          <td className="reason-cell">
-                            <span className="reason-plain">{disp.plainReason}</span>
-                            <span className="reason-technical">{row.reason}</span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              {etfViewMode === 'cards' ? (
+                <div className="etf-card-grid">
+                  {weeklyState.rows.map(row => {
+                    const disp = getETFLabelDisplay(row.label)
+                    const retPos = row.return13w !== null && row.return13w > 0
+                    const retNeg = row.return13w !== null && row.return13w < 0
+                    return (
+                      <article key={row.ticker} className={`etf-card etf-card--${row.label.toLowerCase()}`}>
+                        <div className="etf-card__top">
+                          <span className={`label-pill label-pill--${row.label.toLowerCase()}`}>
+                            {disp.lightEmoji} {disp.zhText}
+                          </span>
+                          <span className="etf-card__code">{row.label}</span>
+                        </div>
+                        <div>
+                          <div className="etf-card__ticker">{row.ticker}</div>
+                          <div className="etf-card__name">{row.name}</div>
+                        </div>
+                        <div className="etf-card__metrics">
+                          <span className="etf-card__metric">13W <strong className={retPos ? 'ret-pos' : retNeg ? 'ret-neg' : ''}>{formatPercent(row.return13w)}</strong></span>
+                          <span className="etf-card__metric">40W <strong>{formatRatio(row.priceVs40wMa)}</strong></span>
+                        </div>
+                        <div className="etf-card__reason">{disp.plainReason}</div>
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Ticker</th>
+                        <th>Name</th>
+                        <th>信號 Label</th>
+                        <th>13W Return</th>
+                        <th>Price / 40W MA</th>
+                        <th>Reason 原因</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {weeklyState.rows.map(row => {
+                        const disp = getETFLabelDisplay(row.label)
+                        return (
+                          <tr key={row.ticker}>
+                            <td>{row.ticker}</td>
+                            <td>{row.name}</td>
+                            <td>
+                              <div className="label-cell">
+                                <span className={`label-pill label-pill--${row.label.toLowerCase()}`}>
+                                  {disp.lightEmoji} {disp.zhText}
+                                </span>
+                                <span className="label-code">{row.label}</span>
+                              </div>
+                            </td>
+                            <td>{formatPercent(row.return13w)}</td>
+                            <td>{formatRatio(row.priceVs40wMa)}</td>
+                            <td className="reason-cell">
+                              <span className="reason-plain">{disp.plainReason}</span>
+                              <span className="reason-technical">{row.reason}</span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           </>
 
