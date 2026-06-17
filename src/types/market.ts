@@ -1,18 +1,11 @@
-export type IndicatorSource = 'AUTO' | 'MANUAL'
-
 export type RegimeInputs = {
+  spyAboveEma50: boolean | null
+  qqqAboveEma50: boolean | null
   vixLevel: number | null
-  vixSource: IndicatorSource
-  sp500Above200Ma: boolean | null
-  sp500Source: IndicatorSource
-  hkMarketAbove200Ma: boolean | null
-  hkMarketSource: IndicatorSource
-  goldAbove200Ma: boolean | null
-  goldSource: IndicatorSource
-  creditSpreadWidening: boolean | null
-  creditSpreadSource: IndicatorSource
-  inflationRising: boolean | null
-  inflationSource: IndicatorSource
+  hkMarketAboveEma40w: boolean | null
+  goldAboveEma40w: boolean | null
 }
 
 export type MarketRegime = 'RISK_ON' | 'NEUTRAL' | 'RISK_OFF'
+
+export type RegimeClass = 'long_friendly' | 'short_friendly' | 'neutral'

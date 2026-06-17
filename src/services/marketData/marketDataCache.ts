@@ -1,11 +1,8 @@
-import type { FxCache, FxRate } from '../../types/fx'
 import type { ETFPriceData, PriceCache } from '../../types/price'
 
 export const PRICE_CACHE_TTL_MS = 4 * 60 * 60 * 1000
-export const FX_CACHE_TTL_MS = 4 * 60 * 60 * 1000
 
 const priceKey = (ticker: string) => `priceCache:${ticker}`
-const fxKey = 'fxCache:USDHKD'
 
 const canUseStorage = () => typeof window !== 'undefined' && Boolean(window.localStorage)
 
@@ -38,43 +35,10 @@ export function writePriceCache(ticker: string, data: ETFPriceData): void {
   window.localStorage.setItem(priceKey(ticker), JSON.stringify(cache))
 }
 
-export function readFxCache(): FxCache | null {
-  if (!canUseStorage()) return null
-
-  const raw = window.localStorage.getItem(fxKey)
-  if (!raw) return null
-
-  try {
-    return JSON.parse(raw) as FxCache
-  } catch {
-    return null
-  }
-}
-
-export function writeFxCache(data: FxRate): void {
-  if (!canUseStorage()) return
-
-  const cache: FxCache = {
-    pair: 'USDHKD',
-    data,
-    fetchedAt: new Date().toISOString()
-  }
-
-  window.localStorage.setItem(fxKey, JSON.stringify(cache))
-}
-
 export function markPriceAsCached(data: ETFPriceData): ETFPriceData {
   return {
     ...data,
     source: 'CACHE',
     isStale: isOlderThan(data.fetchedAt, PRICE_CACHE_TTL_MS)
-  }
-}
-
-export function markFxAsCached(data: FxRate): FxRate {
-  return {
-    ...data,
-    source: 'CACHE',
-    isStale: isOlderThan(data.fetchedAt, FX_CACHE_TTL_MS)
   }
 }

@@ -1,803 +1,774 @@
-# Global ETF Command Centre - Implementation Plan
+# ETF + US Stocks Signal App — Plan
 
-## 1. Product Goal
+## 1. Product Reset
 
-Build a personal ETF portfolio command centre that helps with weekly review:
+This app is no longer a portfolio management tool.
 
-- Monitor ETF holdings in HKD base currency.
-- Compare actual year-to-date performance against a 10% annual target.
-- Generate clear weekly actions: `ADD`, `HOLD`, `WAIT`, `TRIM`, `REDUCE`, or `REVIEW`.
-- Record executed or ignored decisions in a local journal.
-- Start with real end-of-day price data, with mock data used only for tests and fallback.
+It becomes a recommendation and research tool with two separate tracks:
 
-This project is a decision-support tool, not an automated trading system.
+- `ETF Weekly Advisor`: weekly ETF recommendations only
+- `US Stock Tactical Screener`: short-term US stock signal research and screening
+
+The product does not manage positions, trade sizes, cash balances, weights, or execution records.
+
+---
 
 ## 2. Confirmed Scope
 
 | Item | Decision |
 | --- | --- |
-| Base currency | HKD |
-| Broker | Broker-agnostic in Phase 1 |
-| Review frequency | Weekly |
-| Annual target | 10% |
-| Phase 1 data | Yahoo Finance EOD prices via Vite proxy + manual holdings input |
-| Cash handling | Track explicit HKD cash balance as part of portfolio value and deployment plan |
-| First persistence layer | `localStorage` plus JSON/CSV export |
-| First frontend stack | Vite + React + TypeScript |
-
-## 3. Core Product Principle
-
-The dashboard is not the product. The `Signal Engine` is the product.
-
-The UI should only make the engine output easy to understand:
-
-- `Action Centre`: what should I do this week?
-- `Portfolio Monitor`: what do I own now?
-- `Signal Feed`: why did the engine produce each signal?
-- `ETF Universe`: what instruments are available?
-- `Journal`: what did I actually decide?
-
-## 4. Phase 0: Specification Before UI
-
-Before building the interface, define the engine contract and test cases.
-
-### 4.1 Required Decisions
-
-- Define how YTD return is calculated.
-- Define how deposits, withdrawals, dividends, and FX are handled in Phase 1.
-- Define rule precedence when signals conflict.
-- Define target allocation presets.
-- Define test portfolios that should produce predictable signals.
-
-### 4.2 Phase 1 Return Formula
-
-Phase 1 should use a simple, transparent approximation:
-
-```typescript
-portfolioReturn =
-  (currentPortfolioValueHkd - startingPortfolioValueHkd - netContributionHkd)
-  / startingPortfolioValueHkd
-```
-
-Definitions:
-
-- `startingPortfolioValueHkd`: portfolio value at start of year or first app setup.
-- `currentPortfolioValueHkd`: calculated from holdings, fetched prices, and FX rate.
-- `netContributionHkd`: deposits minus withdrawals.
-- Dividends are included only if manually entered as cash or reinvested value.
-- FX rate is fetched automatically when available, with manual override if the fetch fails or the user wants to lock a rate.
-
-**FX lock-in rule**: `startingPortfolioValueHkd` is a one-time user input captured at first setup. It must not be recalculated with the current FX rate. Recalculating it would introduce USD/HKD movement into the YTD return figure and make it impossible to separate ETF performance from currency effects. To isolate ETF performance from FX movement, Portfolio Monitor should display both the raw USD return per US ETF and the HKD-converted return separately.
-
-This is not a perfect time-weighted return, but it is understandable and good enough for Phase 1.
-
-### 4.3 Target Tracking
-
-```typescript
-proRatedTarget = annualTarget * elapsedYearRatio
-targetGap = actualYtdReturn - proRatedTarget
-```
-
-Example:
-
-- Annual target: `10%`
-- Month: June
-- Pro-rated target: `5%`
-- Actual YTD: `4.2%`
-- Gap: `-0.8%`
-- Status: `slightly behind`
-
-### 4.4 Return Status
-
-| Status | Condition | Engine Behaviour |
-| --- | --- | --- |
-| `AHEAD` | `targetGap > +2%` | Consider harvesting risk, but only if overweight or high-risk exposure exists |
-| `ON_TRACK` | `targetGap between -2% and +2%` | Normal rebalance logic |
-| `BEHIND` | `targetGap between -5% and -2%` | Run attribution review before adding risk |
-| `FAR_BEHIND` | `targetGap < -5%` | Trigger strategy review, not automatic growth buying |
-
-Important: being behind target should not automatically mean buying more high-risk assets. The engine must first check whether the gap is caused by allocation drift, market weakness, cash drag, FX movement, or missing data.
-
-## 5. Signal Engine Architecture
-
-```text
-inputs
-  current holdings
-  target allocation
-  return tracker
-  market regime
-  ETF universe
-  real EOD price data
-  FX data
-  user settings
-
-engine modules
-  returnTracker
-  rebalance
-  marketRegime
-  scoring
-  riskGuards
-  signalResolver
-
-outputs
-  final action list
-  full signal feed
-  blocked/suppressed signals
-  portfolio health summary
-```
-
-### 5.1 Signal Types
-
-| Signal | Meaning |
-| --- | --- |
-| `ADD` | Increase position toward target allocation |
-| `HOLD` | No action needed |
-| `WAIT` | Desired action is blocked by market regime or weak score |
-| `WATCH` | No action yet, but condition is close to threshold |
-| `TRIM` | Reduce part of an overweight or high-risk position |
-| `REDUCE` | Reduce position because risk or allocation breach is material |
-| `REVIEW` | Human decision required before action |
-
-### 5.2 Signal Fields
-
-```typescript
-type Signal = {
-  id: string
-  ticker: string
-  action: SignalAction
-  priority: 'HIGH' | 'MEDIUM' | 'LOW'
-  reason: string
-  ruleId: string
-  category: ETFCategory
-  currentWeight: number
-  targetWeight: number
-  weightGap: number
-  suggestedAmountHkd?: number
-  suggestedPostTradeWeight?: number
-  blockedBy?: string[]
-  createdAt: string
-}
-```
-
-For a HKD 1M mandate, signals should also respect portfolio policy:
-
-- Minimum trade size to avoid tiny rebalances.
-- Cash reserve target so the engine does not fully deploy dry powder.
-- Maximum single ETF concentration limit.
-- Maximum first-tranche size for new positions.
-
-### 5.3 Rule Precedence
-
-When multiple rules conflict, resolve them in this order:
-
-1. Hard risk guard
-2. Portfolio concentration rule
-3. Market regime suppression
-4. Return status adjustment
-5. Rebalance signal
-6. ETF opportunity score
-7. Display priority sort
-
-Example:
-
-- QQQ is underweight, so rebalance suggests `ADD`.
-- VIX is above 25, so regime blocks equity adds.
-- Final output becomes `WAIT QQQ`, with `blockedBy: ['RISK_OFF_REGIME']`.
-
-## 6. Engine Rules
-
-### 6.1 Rebalance Rules
-
-| Condition | Raw Signal |
-| --- | --- |
-| `weight > target + 5%` | `REDUCE` |
-| `weight < target - 5%` | `ADD` |
-| `weight within +/-2%` | `HOLD` |
-| `weight gap between 2% and 5%` | `WATCH` |
-
-### 6.2 Return-Based Rules
-
-| Condition | Signal |
-| --- | --- |
-| `YTD > proRatedTarget + 2%` | Check whether high-risk assets are overweight |
-| `YTD > 9%` | `HARVEST_REVIEW` before adding more risk |
-| `YTD < proRatedTarget - 5%` | `REVIEW`, not automatic buying |
-| `position P/L < -15%` | `REVIEW` |
-
-### 6.3 Market Regime Rules
-
-| Condition | Effect |
-| --- | --- |
-| `VIX > 25` | Suppress equity, sector, HK/China, and high-yield `ADD` signals |
-| `S&P 500 below 200MA` | Add caution flag to VOO/QQQ adds |
-| `credit spread widening` | Suppress HYG/JNK adds |
-| `HK trend weak` | Suppress HK/China adds |
-| `gold trend positive and equity weak` | Allow gold add even in defensive regime |
-| `inflation rising` | Allow gold, broad commodities, and energy exposure if enabled in preset |
-
-**Regime indicator sources**: Some indicators are auto-derived from price data already being fetched. Others require manual input in Phase 1.
-
-| Indicator | Source | Method |
-| --- | --- | --- |
-| VIX level | Yahoo Finance `^VIX` | Auto-fetch (add to ticker list) |
-| S&P 500 vs 200MA | VOO or SPY price history | Auto-derived from existing fetch |
-| HK market trend | 2800.HK price vs 200MA | Auto-derived from existing fetch |
-| Gold trend | GLD or 2840.HK price vs 200MA | Auto-derived from existing fetch |
-| Credit spread | No free real-time source | Manual input; Phase 5 via FRED `BAMLH0A0HYM2` |
-| Inflation expectation | No free real-time source | Manual input; Phase 5 via FRED `T5YIE` |
-
-The `marketRegime.ts` module accepts a `RegimeInputs` object that mixes auto-derived values and manual overrides. The UI must clearly label each indicator as `AUTO` or `MANUAL` so the user knows what the engine is acting on.
-
-### 6.4 Risk Protection Rules
-
-| Condition | Signal |
-| --- | --- |
-| `portfolio drawdown > 8%` | `REDUCE_RISK_REVIEW` |
-| `single ETF > 30%` | `CONCENTRATION_REVIEW` |
-| `cash/treasury below minimum buffer` | `BUFFER_REVIEW` |
-| `unknown ticker or missing price` | `DATA_REVIEW` |
-
-## 7. Scoring Model
-
-Do not merge rebalancing and market timing into one opaque score.
-
-Use two separate outputs:
-
-### 7.1 Rebalance Score
-
-Measures whether the holding is far from target allocation.
-
-| Factor | Weight |
-| --- | --- |
-| Allocation gap | 70% |
-| Position size impact | 30% |
-
-### 7.2 Opportunity Score
-
-Measures whether now is a reasonable time to add.
-
-| Factor | Weight |
-| --- | --- |
-| 3M / 6M momentum | 40% |
-| Price above moving average | 25% |
-| Macro/regime fit | 35% |
-
-### 7.3 Final Decision Logic
-
-```typescript
-if (riskGuardTriggered) return REVIEW
-if (rebalanceSignal === 'ADD' && opportunityScore < 45) return WAIT
-if (rebalanceSignal === 'ADD' && regimeBlocksAdd) return WAIT
-if (rebalanceSignal === 'ADD') return ADD
-if (rebalanceSignal === 'REDUCE') return REDUCE
-return HOLD
-```
-
-## 8. ETF Universe
-
-### 8.1 Required Core Categories
-
-Every preset should include target weights for:
-
-- `US_TREASURY`: SGOV, SHY, IEF, BND, AGG, LQD
-- `US_EQUITY_CORE`: VOO, VTI, QQQ, QQQM
-
-### 8.2 Optional Satellite Categories
-
-Satellite categories can be enabled or disabled by preset:
-
-- `HY_BOND`: HYG, JNK
-- `INTL_EQUITY`: VXUS, EFA, EEM, IEMG, ACWI
-- `HK_CHINA`: 2800.HK, 3067.HK, 3033.HK, 2828.HK, 3188.HK
-- `GOLD`: GLD, IAU, 2840.HK
-- `COMMODITY`: PDBC, DBC
-- `REIT`: VNQ
-- `SECTOR`: SMH, XLV, XLE
-- `DIVIDEND`: SCHD, VIG
-
-### 8.3 ETF Data Shape
-
-Two separate types. Static definition lives in `data/etfUniverse.ts`. Price data is fetched at runtime and never stored in the ETF definition.
-
-```typescript
-// Static — defined once in data/etfUniverse.ts
-type ETF = {
-  ticker: string
-  name: string
-  category: ETFCategory
-  currency: 'USD' | 'HKD'
-  assetClass: string
-  region: string
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
-  enabledInPresets: string[]
-}
-
-// Dynamic — populated by YahooFinancePriceProvider at runtime
-type ETFPriceData = {
-  ticker: string
-  currentPrice: number
-  previousClose: number
-  movingAverage50: number
-  movingAverage200: number
-  oneMonthReturn: number
-  threeMonthReturn: number
-  sixMonthReturn: number
-  oneYearReturn: number
-  fetchedAt: string       // ISO timestamp
-  isStale: boolean        // true if age > TTL or last fetch failed
-}
-
-// Merged type used by Signal Engine at runtime
-type ETFWithPrice = ETF & {
-  priceData: ETFPriceData | null   // null triggers DATA_REVIEW signal
-}
-```
-
-The Signal Engine always operates on `ETFWithPrice`. If `priceData` is null or `isStale` is true, the engine emits `DATA_REVIEW` instead of any buy or sell signal for that ticker.
-
-### 8.4 ETF Universe Governance
-
-The ETF universe is curated manually. It is not an auto-discovered list and it is not refreshed by the app on a schedule.
-
-#### Inclusion Criteria
-
-An ETF should be added only if it meets most of these conditions:
-
-- It has a clear portfolio role: core growth, treasury defense, yield, gold hedge, regional exposure, or satellite theme.
-- It fits one of the supported `ETFCategory` values already used by the engine.
-- It has stable ticker support in the current market data layer.
-- It is liquid and mainstream enough for a personal weekly review workflow.
-- It is not a redundant duplicate of an existing ETF unless there is a strong currency, cost, or market-access reason.
-- It can be mapped cleanly into one or more presets through `enabledInPresets`.
-
-#### Removal Criteria
-
-An ETF should be reviewed for removal if:
-
-- Its ticker no longer resolves reliably in the data layer.
-- It has become too illiquid, niche, or structurally risky for this project.
-- It overlaps too heavily with another ETF already in the universe and no longer adds decision value.
-- It no longer matches any preset role or regime rule used by the engine.
-
-#### Review Cadence
-
-- Review the ETF universe once per month.
-- This review is manual, not automated.
-- Monthly review should check ticker validity, data-source reliability, role clarity, overlap, and whether preset coverage still makes sense.
-- Changes to the universe should be intentional and low-frequency. Avoid changing the list simply because of short-term market noise.
-
-#### Operational Rule
-
-- The app may use real prices daily, but the ETF universe list itself is governed monthly.
-- Adding or removing an ETF should also trigger a quick review of affected presets, target weights, and market regime rules.
-
-## 9. Portfolio Presets
-
-Start with three presets. Exact weights can be adjusted later, but each preset must sum to 100%.
-
-| Preset | Purpose |
-| --- | --- |
-| `Defensive` | Lower volatility, more treasury and cash-like exposure |
-| `Balanced` | Default weekly review preset |
-| `Growth` | Higher equity and technology exposure |
-
-The engine should always validate:
-
-- total target weight equals `100%`
-- no single ETF target exceeds `30%`
-- required core categories are present
-- disabled categories cannot generate `ADD` signals
-
-## 10. UI Structure
-
-### 10.1 Tab 1: Action Centre
-
-Primary question: what should I do this week?
-
-Required display:
-
-- Last reviewed date
-- Market regime
-- Actual YTD return
-- Pro-rated target return
-- Target gap
-- Number of high-priority actions
-- Top action list
-- Suppressed signals count
-- `Mark Reviewed` action
-
-### 10.2 Tab 2: Portfolio Monitor
-
-Required features:
-
-- Add/edit/delete holdings
-- Ticker, shares, average cost, current price, currency
-- Editable FX rate for USD/HKD
-- Current value in HKD
-- Current weight
-- Target weight
-- Weight gap
-- Position gain/loss
-- Import/export JSON backup
-
-### 10.3 Tab 3: Signal Feed
-
-Required features:
-
-- List all generated signals
-- Show action, ticker, priority, reason, rule matched, and blockers
-- Filter by action
-- Filter by priority
-- Filter blocked/suppressed signals
-- Mark as executed
-- Mark as ignored
-- Send executed/ignored decision to Journal
-
-### 10.4 Tab 4: ETF Universe
-
-Required features:
-
-- Table of ETF definitions
-- Category, region, asset class, currency, risk level
-- Price-derived momentum and editable regime fit
-- Rebalance score
-- Opportunity score
-- Verdict badge
-- Filter by category, region, and risk level
-
-### 10.5 Tab 5: Journal
-
-Required features:
-
-- Decision history
-- Date, action, ticker, amount, price, reason, regime
-- Source signal ID
-- Executed vs ignored status
-- Notes field
-- Export CSV
-- Export JSON
-
-## 11. Real Data Layer: Yahoo Finance via Vite Proxy
-
-### 11.1 Why This Works Locally
-
-This is a personal tool running on `localhost`. The Vite dev server acts as a reverse proxy, so there is no CORS issue in development. No backend is required.
-
-```text
-Browser → Vite proxy (/api/yahoo) → query1.finance.yahoo.com
-```
-
-For production deployment (optional future step), a Cloudflare Worker or Vercel Edge Function can replace the Vite proxy with one free function.
-
-### 11.2 Vite Proxy Config
-
-```typescript
-// vite.config.ts
-export default defineConfig({
-  server: {
-    proxy: {
-      '/api/yahoo': {
-        target: 'https://query1.finance.yahoo.com',
-        changeOrigin: true,
-        rewrite: path => path.replace(/^\/api\/yahoo/, '')
-      }
-    }
-  }
-})
-```
-
-### 11.3 What to Fetch
-
-Two endpoints per ticker:
-
-```text
-// Current price and basic info
-GET /api/yahoo/v8/finance/chart/{ticker}
-
-// Historical closes for MA calculation and period returns
-GET /api/yahoo/v8/finance/chart/{ticker}?interval=1d&range=1y
-```
-
-From these two calls, derive locally:
-
-- `currentPrice`
-- `previousClose`
-- `oneMonthReturn`, `threeMonthReturn`, `sixMonthReturn`, `oneYearReturn`
-- `movingAverage50`
-- `movingAverage200`
-
-For USD/HKD FX, use the Yahoo Finance chart endpoint with `HKD=X` first. If that fails, fall back to the user's manual FX override.
-
-### 11.4 HK ETF Ticker Format
-
-Yahoo Finance uses the `.HK` suffix for HKEX-listed ETFs:
-
-| ETF | Yahoo Finance ticker |
-| --- | --- |
-| 2800 (Tracker Fund) | `2800.HK` |
-| 3067 (CSOP Hang Seng TECH) | `3067.HK` |
-| 2840 (SPDR Gold HK) | `2840.HK` |
-| 3188 (ChinaAMC CSI 300) | `3188.HK` |
-
-HK ETF prices are returned in HKD. US ETF prices are returned in USD. The currency field on each ETF record determines which FX rate to apply.
-
-### 11.5 Cache Strategy
-
-Fetch on page load if cached data is older than the TTL. For a weekly review tool, a long TTL is acceptable.
-
-```typescript
-interface PriceCache {
-  ticker: string
-  data: ETFPriceData
-  fetchedAt: string  // ISO timestamp
-}
-
-const CACHE_TTL_MS = 4 * 60 * 60 * 1000  // 4 hours
-
-function isCacheStale(cache: PriceCache): boolean {
-  return Date.now() - new Date(cache.fetchedAt).getTime() > CACHE_TTL_MS
-}
-```
-
-Cached prices are stored in `localStorage` under key `priceCache:{ticker}`.
-
-If a fetch fails, the app falls back to the last cached value and shows a warning badge in the Header.
-
-FX data is cached separately under `fxCache:USDHKD`.
-
-### 11.6 Batch Fetch on Page Load
-
-On app start, fetch all tickers in the active ETF universe in parallel:
-
-```typescript
-const prices = await Promise.allSettled(
-  activeTickers.map(ticker => yahooProvider.getPrice(ticker))
-)
-// Fulfilled → update cache
-// Rejected → use cached or show stale warning
-```
-
-Do not re-fetch on every tab switch. Only re-fetch when user clicks the `Refresh Prices` button in the Header, or when TTL has expired.
-
-### 11.7 DataProvider Interface
-
-```typescript
-// src/services/marketData/PriceProvider.ts
-interface PriceProvider {
-  getPrice(ticker: string): Promise<ETFPriceData>
-  getBatch(tickers: string[]): Promise<Map<string, ETFPriceData>>
-}
-
-interface FxProvider {
-  getUsdHkd(): Promise<FxRate>
-}
-
-// Phase 1
-class YahooFinancePriceProvider implements PriceProvider { ... }
-class YahooFinanceFxProvider implements FxProvider { ... }
-
-// Fallback (used if fetch fails or in unit tests)
-class MockPriceProvider implements PriceProvider { ... }
-class ManualFxProvider implements FxProvider { ... }
-```
-
-The Signal Engine depends only on normalized market data, not on the Yahoo Finance implementation directly.
-
-### 11.8 What Remains Manual (Holdings)
-
-Price data is automatic. Holdings data is always manual:
-
-| Data | Source | When updated |
-| --- | --- | --- |
-| Current price, MA, returns | Yahoo Finance auto-fetch | Page load / refresh |
-| Ticker, shares, average cost | User input | After each trade |
-| FX rate (USD/HKD) | Yahoo Finance `HKD=X`, with manual override | Page load / refresh / user override |
-| Start-of-year portfolio value | User input once | January or first setup |
-| Net contributions | User input | After each deposit/withdrawal |
+| Portfolio / position management | Out of scope |
+| Options flow | Out of scope |
+| Options contracts, greeks, IV, chain analysis | Out of scope |
+| ETF function | Weekly recommendation only |
+| ETF historical mode | Replay recommendations over the last 6 months |
+| US stock function | Tactical screening and signal research |
+| US stock data | Free data sources only in early phases |
+| Signal style | Explainable rule-based signals, not black-box scores |
+| First frontend | Keep Vite + React + TypeScript |
 
 ---
 
-## 12. File Structure
+## 3. Core Product Principle
+
+The product is not a dashboard of holdings.
+
+The product is a signal workspace that answers:
+
+1. Which ETFs are favoured this week?
+2. If I replay the same ETF rules over the last 6 months, what would they have recommended each week?
+3. Which US stocks currently show strong or early tactical setups?
+4. Which stock indicators are worth keeping after evidence review?
+
+---
+
+## 4. Explicit Non-Goals
+
+The following are removed from the roadmap:
+
+- holdings input
+- position sizing
+- average cost tracking
+- cash reserve logic
+- FX impact on account equity
+- rebalance logic
+- executed vs ignored journal
+- broker import
+- options flow ingestion
+- option trade recommendation
+
+If the app later returns to execution support, that should be a new product phase, not hidden inside this scope.
+
+---
+
+## 5. Product Structure
+
+### 5.1 Track A: ETF Weekly Advisor
+
+Purpose:
+
+- Review a curated ETF universe once per week
+- Produce recommendation labels for each ETF
+- Replay those labels week by week over the last 6 months
+
+### 5.2 Track B: US Stock Tactical Screener
+
+Purpose:
+
+- Screen a US stock universe or watchlist for short-term setups
+- Use only free market data in early phases
+- Start from hypothesis-driven indicators inspired by the attached stock screener
+- Validate indicators before locking the final signal rules
+
+---
+
+## 6. Shared Design Rules
+
+- Recommendations must be explainable in plain language.
+- Every signal must show which indicators passed or failed.
+- Every rule must be testable on historical data.
+- Weekly ETF logic and tactical stock logic must remain separate engines.
+- The app should prefer a small number of robust indicators over many opaque ones.
+- Universe size must be driven by data source constraints, not the other way around.
+- No signal is promoted to production until it passes the statistical gate in `BUY_SHORT_TIMING_RESEARCH.md` Section 10.
+
+---
+
+## 7. ETF Weekly Advisor
+
+### 7.1 Objective
+
+For each ETF in the curated universe, classify the current weekly stance as one of:
+
+- `FAVOUR`
+- `WATCH`
+- `WAIT`
+- `AVOID`
+- `REVIEW`
+
+These are recommendation labels, not trade instructions.
+
+### 7.2 ETF Review Frequency
+
+- Run the recommendation process on weekly data.
+- Default review anchor: latest completed trading week.
+- Use daily data as the raw source, then aggregate or derive weekly features.
+
+### 7.3 ETF Universe Governance
+
+The ETF universe remains manually curated and low-frequency.
+
+- Universe review cadence: monthly
+- Recommendation cadence: weekly
+- ETF list changes should not be driven by short-term market noise
+- Target size: 20–30 ETFs (manageable within free API limits)
+
+The existing `src/data/etfUniverse.ts` concept still fits this requirement.
+
+### 7.4 ETF Data Inputs
+
+Required per ticker:
+
+- symbol
+- name
+- category
+- currency
+- daily OHLCV history
+- weekly close series derived from daily data
+
+Required benchmark or regime series:
+
+- `SPY` or `VOO`
+- `QQQ`
+- `2800.HK` for HK trend context
+- `GLD`
+- `^VIX`
+
+### 7.5 ETF Indicators
+
+Phase 1 indicator set should stay simple. All indicators computed locally from raw OHLCV — no remote indicator API calls.
+
+- `13-week return`
+- `26-week return`
+- `price vs 10-week moving average`
+- `price vs 40-week moving average`
+- `relative strength vs SPY` or category benchmark
+- `VIX risk regime`
+
+Optional later:
+
+- `max drawdown over 26 weeks`
+- `trend slope of 10-week MA`
+- `breadth proxy` for broad market ETFs
+
+### 7.6 ETF Recommendation Rules
+
+Initial working rules:
+
+- `FAVOUR`
+  - price above 10W MA
+  - 10W MA above 40W MA or rising
+  - 13W return positive
+  - not blocked by regime rule
+- `WATCH`
+  - trend improving but not fully confirmed
+  - mixed momentum across 13W and 26W
+- `WAIT`
+  - structurally acceptable ETF but regime is unfriendly
+  - example: equity ETF trend is fine but `^VIX` is elevated
+- `AVOID`
+  - price below 40W MA and momentum weak
+  - repeated underperformance vs benchmark
+- `REVIEW`
+  - missing or stale data (more than 2 trading days old)
+  - insufficient history (fewer than 40 weeks)
+  - abnormal indicator conflict
+
+### 7.7 ETF Regime Rules
+
+Regime is only a recommendation filter, not an allocation engine.
+
+Suggested first-pass rules:
+
+- If `^VIX > 25`, downgrade risk-on equity ETFs by one level
+- If `SPY` is below 40W MA, suppress aggressive growth ETF recommendations
+- If `2800.HK` is below 40W MA, downgrade HK / China ETF recommendations
+- If `GLD` is above 40W MA while equity regime is weak, allow gold to remain `FAVOUR` or `WATCH`
+
+### 7.8 ETF Historical Replay
+
+The app must support a 6-month replay mode.
+
+Definition:
+
+- Look back roughly 26 completed weeks
+- For each week, recompute the recommendation using only data available up to that week (no look-ahead)
+- Store weekly output snapshots for comparison
+
+Look-ahead bias prevention:
+
+- For `week_ending_date = W`, only use data with `close_date <= W`
+- Moving average lookback must not exceed the available history at that week
+- Forward return is computed from the next week's open, not the signal week's close
+- Survivorship bias: only include tickers that were in the universe at that point in time
+
+Replay output should show:
+
+- week ending date
+- per-ETF recommendation label
+- key indicators behind the label
+- next 1-week return
+- next 4-week return
+
+This is not a trading backtest with capital curves. It is a recommendation replay and evidence layer.
+
+### 7.9 ETF Success Metrics
+
+Use evidence, not opinion:
+
+- share of weeks where `FAVOUR` outperformed `AVOID`
+- average next 1-week return by label
+- average next 4-week return by label
+- hit rate of `FAVOUR` vs benchmark
+- max drawdown during `FAVOUR` periods
+- count of `REVIEW` weeks caused by bad data
+
+---
+
+## 8. US Stock Tactical Screener
+
+### 8.1 Objective
+
+The US stock side is a tactical screener for short-horizon ideas, not a portfolio engine.
+
+Signal labels use a three-tier ladder plus transition and review labels:
+
+**Long signals:**
+
+- `LONG_WATCH` — early reversal sign, needs further confirmation
+- `LONG_SETUP` — conditions forming, not yet fully confirmed
+- `LONG_CONFIRM` — strong confirmation, all conditions met
+- `UP_PROMOTION` — yesterday `LONG_SETUP`, today `LONG_CONFIRM`; highest signal quality
+
+**Short signals:**
+
+- `SHORT_WATCH` — early weakening, exit warning for existing longs
+- `SHORT_SETUP` — conditions forming, needs human review before acting
+- `SHORT_CONFIRM` — strong breakdown confirmation, still subject to event filter
+- `DOWN_PROMOTION` — yesterday `SHORT_SETUP`, today `SHORT_CONFIRM`
+
+**Non-directional:**
+
+- `NEUTRAL` — mixed or conflicting indicators
+- `AVOID_CHOP` — price crossing EMA repeatedly, no trend
+- `REVIEW_DATA` — missing, stale, or insufficient data
+- `REVIEW_EVENT` — earnings within 3 trading days or extreme gap
+
+The mapping from OptionFlow screener labels:
+
+| OptionFlow Label | This App Label |
+| --- | --- |
+| Strong UP | `LONG_CONFIRM` |
+| Early UP | `LONG_WATCH` / `LONG_SETUP` |
+| Strong DOWN | `SHORT_CONFIRM` |
+| Early DOWN | `SHORT_WATCH` / `SHORT_SETUP` |
+| Promoted | `UP_PROMOTION` / `DOWN_PROMOTION` |
+| Neutral | `NEUTRAL` |
+| (new) | `AVOID_CHOP` |
+| (new) | `REVIEW_DATA` / `REVIEW_EVENT` |
+
+### 8.2 Current Constraint
+
+Options data is excluded. Therefore the app cannot directly copy:
+
+- option flow
+- smart money derived from options positioning
+- greeks / IV logic
+
+Instead, we use free price-volume proxies and validate whether they are good enough. See `BUY_SHORT_TIMING_RESEARCH.md` for the full indicator framework.
+
+### 8.3 US Stock Universe
+
+Start with two layers:
+
+- `Core universe`: 50 liquid names (S&P 500 subset or manually curated). Upper bound is driven by data source limits — see Section 10.
+- `Watchlist overlay`: user-maintained tickers, 10–20 names, always screened
+
+Do not start from the entire US market. Keep the first screening universe small enough to inspect manually and within free API quotas.
+
+### 8.4 US Stock Data Inputs
+
+Required:
+
+- daily OHLCV (previous 12 months minimum for indicator lookback)
+- benchmark series: `SPY`, `QQQ`, `IWM`
+- `^VIX`
+- earnings dates from free source (Finnhub)
+
+Useful but optional:
+
+- sector / industry tag
+- average daily dollar volume (for liquidity filter)
+
+Intraday (4H) data: deferred to Phase C after daily research proves baseline edge. Do not invest in intraday data infrastructure before that gate.
+
+### 8.5 Indicator Framework
+
+All indicators computed locally from raw OHLCV. No remote indicator API calls.
+
+**Trend structure:**
+
+- `EMA(20)`, `EMA(50)`
+- `price vs EMA(20)`, `price vs EMA(50)`
+- `EMA(20) slope` (5-bar)
+- `breakout above 20-day high`
+- `breakdown below 20-day low`
+
+**Momentum:**
+
+- `RSI(14)`
+- `MACD histogram`
+- `relative strength vs SPY` (20-day rolling)
+
+**Volume / flow proxies:**
+
+- `RVOL` (vs 20-day average volume)
+- `CMF(20)`
+- `OBV slope` (10-bar regression)
+- `CLV` (close location value)
+
+**Regime filters:**
+
+- `SPY EMA(50)` trend
+- `QQQ EMA(50)` trend
+- `^VIX` level
+
+**Event filters:**
+
+- earnings within N days
+- extreme gap (> 3 ATR)
+- missing or thin-volume symbols
+
+Full calculation formulas are in `BUY_SHORT_TIMING_RESEARCH.md` Section 4.
+
+### 8.6 Timeframe Model
+
+Phase 1 (daily only):
+
+- `1D` as primary decision timeframe
+- `1W` as context and regime only
+
+Phase 3 and beyond (if daily research proves edge):
+
+- `4H` as early trigger
+- `1D` remains main decision timeframe
+- `1W` remains context only
+
+### 8.7 Signal Classification Logic
+
+This is a research hypothesis, not the final production rule. Full thresholds are in `BUY_SHORT_TIMING_RESEARCH.md` Section 5.
+
+Summary:
+
+- `LONG_WATCH`: RSI crosses above 50, MACD histogram turns positive, CMF turns positive. V-shape detection.
+- `LONG_SETUP`: close > EMA(20), EMA(20) slope positive, RSI > 55, RVOL > 1.2, CMF > 0, regime not hostile.
+- `LONG_CONFIRM`: breakout above 20D high, RVOL > 1.5, CMF > 0.05, CLV > 0.65, EMA(20) > EMA(50), regime long-friendly, no earnings within 5 days.
+- `UP_PROMOTION`: previous day `LONG_SETUP`, today `LONG_CONFIRM`.
+- `SHORT_WATCH`: close loses EMA(20), RSI crosses below 50, relative strength vs SPY weakening.
+- `SHORT_SETUP`: close < EMA(20), EMA(20) slope negative, RSI < 45, CMF < 0, regime not long-friendly.
+- `SHORT_CONFIRM`: breakdown below 20D low, RVOL > 1.5, CMF < -0.05, CLV < 0.35, EMA(20) < EMA(50), regime short-friendly, no earnings within 5 days.
+- `DOWN_PROMOTION`: previous day `SHORT_SETUP`, today `SHORT_CONFIRM`.
+- `AVOID_CHOP`: price crosses EMA(20) more than twice in 5 days, RSI 45–55, low RVOL.
+- `REVIEW_DATA`: missing OHLCV, stale data, insufficient lookback.
+- `REVIEW_EVENT`: earnings within 3 trading days, extreme gap event.
+
+Label priority when conflicts arise:
 
 ```text
-vite.config.ts
+REVIEW_DATA > REVIEW_EVENT > AVOID_CHOP > directional labels
+LONG_CONFIRM > LONG_SETUP > LONG_WATCH
+SHORT_CONFIRM > SHORT_SETUP > SHORT_WATCH
+UP_PROMOTION and DOWN_PROMOTION are additive labels, not replacements
+```
+
+---
+
+## 9. US Stock Indicator Research Plan
+
+### 9.1 Research Goal
+
+Decide which free-data indicators are actually useful for tactical stock screening. No indicator enters production until it passes the statistical gate.
+
+### 9.2 Research Dataset Fields
+
+For each stock on each review date, store:
+
+```text
+signal_date, ticker, signal_class
+close_at_signal
+ret_1d, ret_3d, ret_5d, ret_10d
+ret_5d_vs_spy, ret_10d_vs_spy
+mfe_5d, mfe_10d
+mae_5d, mae_10d
+earnings_in_window
+regime_at_signal
+rvol_at_signal, atr_at_signal
+```
+
+### 9.3 Research Questions
+
+- Does `RVOL + RSI + trend` identify better setups than trend alone?
+- Does adding `CMF` or `OBV` improve signal quality?
+- Is `4H` worth the data complexity, or is `1D + 1W` enough?
+- Do `UP_PROMOTION` signals have materially better forward returns than ordinary `LONG_CONFIRM`?
+- Which indicator combinations produce too many false positives?
+- Should `EARLY` / `WATCH` signals exist at all, or only `CONFIRM` signals?
+- Does the regime filter reduce false positives significantly?
+
+### 9.4 Statistical Acceptance Gate
+
+An indicator is accepted into v1 production rules only when it passes all gates defined in `BUY_SHORT_TIMING_RESEARCH.md` Section 10:
+
+- Sample size ≥ 100 instances
+- Mean 5D return directionally correct
+- Mean 5D return exceeds SPY mean + 0.5%
+- Consistent direction in both halves of the sample
+- Positive mean return in neutral regime (not only in long-friendly)
+- Mean MAE (5D) below 3%
+
+### 9.5 Research Deliverables
+
+- indicator definition sheet with calculation formulas
+- signal replay dataset
+- hit-rate summary by signal class
+- regime-split return table
+- recommendation: which indicators to keep, remove, or demote to optional
+
+### 9.6 Decision Gate
+
+Do not lock the tactical screener rules until the evidence review is done.
+
+---
+
+## 10. Data Strategy
+
+### 10.1 API Limit Reality
+
+Free data sources have hard constraints that drive universe sizing. Do not design around imagined unlimited access.
+
+| Source | Free Limit | History | Primary Use |
+| --- | --- | --- | --- |
+| Alpha Vantage | 25 calls/day | 20+ years | Fallback OHLCV only |
+| Polygon.io free | 5 calls/min, unlimited/day | 2 years | Primary US stock OHLCV |
+| Finnhub | 60 calls/min | limited | Earnings calendar |
+| Yahoo Finance (yfinance) | Unofficial, unstable | Multi-year | Research / prototype only |
+| Stooq | CSV download, no API | Multi-year | Historical batch download |
+
+**Critical constraint:**
+
+If using Alpha Vantage as primary, 25 calls/day means universe ≤ 21 stocks (after reserving 4 calls for benchmarks). With Polygon.io, the practical limit is 50–100 stocks per daily batch at 5 calls/min.
+
+**Strategy:**
+
+- Research phase: yfinance for speed
+- Production: Polygon.io free tier as primary, Alpha Vantage as fallback
+- Earnings: Finnhub
+- All indicators: computed locally from raw OHLCV — never use remote indicator endpoints
+
+### 10.2 Universe Size Constraints
+
+```text
+ETF universe:         20–30 tickers
+Stock core universe:  50 tickers (hard ceiling at Phase 1)
+Stock watchlist:      10–20 tickers (user-defined)
+Benchmark series:     SPY, QQQ, IWM, VIX (4 tickers, daily must-fetch)
+```
+
+Universe expansion beyond 50 stocks requires either a paid data source or a rotating fetch schedule (update 30% of tickers per day, use cached data for the rest).
+
+### 10.3 Local Cache Requirements
+
+Cache is a first-class design constraint, not an optimisation.
+
+```text
+Cache structure:
+  data/cache/{ticker}/daily/{YYYY-MM-DD}.json
+  data/cache/earnings/{ticker}.json
+  data/cache/benchmark/{ticker}/daily/{YYYY-MM-DD}.json
+
+Cache rules:
+  Read cache first, call API only on cache miss
+  Daily OHLCV: update once after market close, never expire
+  Earnings: refresh weekly
+  Stale check: if newest cache date is more than 2 trading days old, output REVIEW_DATA
+```
+
+### 10.4 Data Health Rules
+
+Every engine must expose:
+
+- missing data
+- stale data
+- derived timeframe availability
+- source used
+
+Any unresolved data problem produces `REVIEW_DATA`, not a false-confidence signal.
+
+---
+
+## 11. Application Information Architecture
+
+### 11.1 ETF Weekly
+
+- current week recommendation table
+- regime summary
+- indicator breakdown per ETF
+- filter by category / market
+
+### 11.2 ETF Replay
+
+- last 26 weeks of recommendation snapshots
+- label distribution over time
+- next-week and next-4-week outcome table per label
+
+### 11.3 Stock Screener
+
+- current signal classes (all 12 labels)
+- watchlist overlay
+- filter by class
+- per-stock indicator breakdown showing which conditions passed or failed
+
+### 11.4 Stock Research
+
+- forward return summary by signal class
+- regime-split return table
+- MAE / MFE distribution
+- indicator gate status (passed / experimental / rejected)
+- `UP_PROMOTION` vs ordinary `LONG_CONFIRM` comparison
+
+### 11.5 Data Health
+
+- last refresh time per ticker
+- source used per ticker
+- stale or missing tickers
+- API call count remaining (if trackable)
+
+---
+
+## 12. Engine Architecture
+
+Keep the provider and normalization separation already established in the repo.
+
+```text
 src/
   engine/
-    returnTracker.ts
-    rebalance.ts
+    etfWeeklyEngine.ts
+    etfReplayEngine.ts
+    stockScreenerEngine.ts
+    stockResearchEngine.ts
     marketRegime.ts
-    scoring.ts
-    riskGuards.ts
-    signalResolver.ts
-    signalEngine.ts
+    signalClassifier.ts
+    indicatorEngine.ts        (all local indicator calculations)
   data/
     etfUniverse.ts
-    portfolioPresets.ts
-    mockPortfolio.ts
-    testScenarios.ts
+    stockUniverse.ts
+    watchlist.ts
   services/
     marketData/
       PriceProvider.ts
-      FxProvider.ts
-      yahooFinanceProvider.ts
-      mockPriceProvider.ts
-      manualFxProvider.ts
+      HistoryProvider.ts
+      earningsProvider.ts
       normalizeMarketData.ts
-      marketDataCache.ts
+      marketDataCache.ts      (local cache layer, first-class)
   types/
     etf.ts
-    portfolio.ts
-    signal.ts
-    journal.ts
+    stock.ts
+    signal.ts                 (includes all 12 signal label types)
+    indicator.ts
     market.ts
-    price.ts
-    fx.ts
-  components/
-    ActionCentre.tsx
-    PortfolioMonitor.tsx
-    SignalFeed.tsx
-    ETFUniverseTable.tsx
-    Journal.tsx
-    Header.tsx
-    TabNav.tsx
-    StatusBadge.tsx
-    SummaryCard.tsx
-    ReturnTracker.tsx
-  utils/
-    currency.ts
-    csv.ts
-    formatting.ts
-    localStorage.ts
-  App.tsx
-  main.tsx
-  styles/
-    global.css
-    dashboard.css
+    replay.ts
+    research.ts
 ```
+
+`indicatorEngine.ts` computes all technical indicators (EMA, RSI, MACD, CMF, OBV, RVOL, CLV, ATR) from raw OHLCV locally. No remote indicator API calls anywhere in the codebase.
+
+---
 
 ## 13. Development Phases
 
-### Phase 0: Real Data and Engine Specification
+### Phase 0: Scope Reset and Spec Rewrite
 
-- TypeScript types
-- Return formula
-- Rule precedence
-- Yahoo Finance price provider through Vite proxy
-- USD/HKD FX provider with manual override
-- Market data cache and stale warning rules
-- ETF universe
-- Manual holdings schema
-- Mock provider only for unit tests and fetch fallback
-- Test scenario matrix
+- Remove portfolio-management concepts from the plan
+- Define new signal labels (12-label system)
+- Define two-engine architecture
+- Define replay and research outputs
+- Confirm data strategy and universe size limits
 
 Exit criteria:
 
-- Engine inputs and outputs are documented.
-- Real EOD prices can be fetched for US and HK ETFs.
-- USD/HKD can be fetched or manually overridden.
-- At least 8 deterministic test scenarios are defined.
+- No remaining dependency on holdings, weights, or cash
+- Options explicitly out of scope everywhere
+- Signal label taxonomy matches `BUY_SHORT_TIMING_RESEARCH.md`
 
-### Phase 1: Real-Data Headless Engine
+### Phase 1: Data Source Validation
 
-- `returnTracker`
-- `rebalance`
-- `marketRegime`
-- `riskGuards`
-- `scoring`
-- `signalResolver`
-- `signalEngine`
-- normalized price data input
-- stale/missing price handling
+- Confirm ETF free data path
+- Evaluate free US stock data options (Polygon.io vs yfinance)
+- Test daily history coverage for 50-stock universe + 4 benchmarks
+- Confirm Finnhub earnings calendar integration
+- Document rate limits, gaps, and caching strategy
+- Confirm local cache layer works correctly
 
 Exit criteria:
 
-- Running the engine on manually entered holdings and fetched prices returns final action list and full signal feed.
-- Missing or stale price data produces `DATA_REVIEW`, not unreliable buy/sell signals.
-- Conflicting rules resolve predictably.
-- No UI is required yet.
+- Chosen data path is documented with known limits
+- Cache layer stores and retrieves daily OHLCV correctly
+- Earnings calendar returns correct dates for test set
 
-### Phase 2: Core Dashboard
+### Phase 2: Local Indicator Engine
 
-- Action Centre
-- Portfolio Monitor
-- Signal Feed
-- Basic tab navigation
-- Local state persistence
+- Implement all indicators locally from OHLCV: EMA, RSI, MACD, CMF, OBV slope, RVOL, CLV, ATR
+- Write unit tests for each calculation against known reference values
+- Validate ETF indicator outputs with manual sanity check (5–10 ETFs, compare to charting tool)
 
 Exit criteria:
 
-- Opening the app answers the three weekly review questions.
-- User can edit holdings, refresh prices, and immediately see updated signals.
+- Indicator outputs match reference values within tolerance
+- No remote indicator API calls exist in the codebase
 
-### Phase 3: Persistence and Journal
+### Phase 3: ETF Weekly Engine
 
-- Journal
-- Mark signal as executed/ignored
-- CSV export
-- JSON import/export backup
-- Last reviewed tracking
+- Implement ETF weekly recommendation labels
+- Implement regime downgrade rules
+- Implement `REVIEW` output for data quality issues
 
 Exit criteria:
 
-- Weekly decisions survive page refresh.
-- User can export a complete decision history.
+- Every ETF can be classified for the latest completed week
+- Every label is explainable from indicator values
+- VIX and SPY regime rules correctly downgrade labels
 
-### Phase 4: ETF Universe and Presets
+### Phase 4: ETF Replay Engine
 
-- ETF Universe table
-- Preset switching
-- Editable market regime inputs
-- Score breakdown display
-- Monthly ETF universe review process
-
-Exit criteria:
-
-- User can compare ETF candidates and understand why each one is `ADD`, `WAIT`, or `AVOID`.
-- ETF universe governance rules are documented and can be applied once per month without changing engine behaviour unexpectedly.
-
-### Phase 5: Broker and Data Integrations
-
-- Futu CSV import
-- IBKR CSV import
-- Additional price provider fallback
-- FRED macro data provider
-- Google Sheets sync
+- Generate rolling weekly snapshots for the last 26 weeks
+- Enforce look-ahead bias prevention rules (data cutoff per week, survivorship control)
+- Compute label outcome tables (next 1W and 4W return)
 
 Exit criteria:
 
-- Manual holdings entry is no longer required for standard weekly review.
+- User can inspect historical recommendations week by week
+- No look-ahead bias: each week's output uses only data available at that week
+- Outcome table shows return by label with sample counts
 
-## 14. Test Scenario Matrix
+### Phase 5: US Stock Research Engine
+
+- Ingest free stock history for core universe (50 stocks)
+- Calculate all candidate indicators via local indicator engine
+- Generate provisional signal classes using hypothesis rules from `BUY_SHORT_TIMING_RESEARCH.md`
+- Store forward-return research dataset (all fields in Section 9.2)
+
+Exit criteria:
+
+- Research dataset exists for at least 3 months of history
+- Candidate indicators can be compared empirically
+- Forward return fields are computed without look-ahead
+
+### Phase 6: Research Review and Rule Lock
+
+- Evaluate each indicator against the statistical gate (Section 9.4)
+- Remove or demote indicators that fail
+- Compare `UP_PROMOTION` vs ordinary `LONG_CONFIRM` forward returns
+- Freeze v1 tactical stock classification rules
+
+Exit criteria:
+
+- All production signal rules have passed the statistical gate
+- Experimental indicators are marked `EXPERIMENTAL` in the UI
+- Final v1 rule set is simpler than the research candidate set
+
+### Phase 7: US Stock Screener UI
+
+- Current stock screen with all 12 signal classes
+- Watchlist overlay
+- Class filters
+- Per-stock indicator breakdown (showing which conditions passed or failed)
+
+Exit criteria:
+
+- User can scan current setups quickly
+- User can understand why a stock is in any given class
+- `REVIEW_DATA` and `REVIEW_EVENT` are visible, not hidden
+
+### Phase 8: Research Review UI
+
+- Forward return summary by signal class
+- Regime-split return table
+- MAE / MFE distribution charts
+- `UP_PROMOTION` vs ordinary `LONG_CONFIRM` comparison panel
+
+---
+
+## 14. Test Matrix
+
+### ETF Weekly
 
 | Scenario | Expected Result |
 | --- | --- |
-| Underweight IEF in neutral regime | `ADD IEF` |
-| Underweight QQQ while VIX > 25 | `WAIT QQQ`, blocked by risk-off regime |
-| QQQ above 30% portfolio weight | `CONCENTRATION_REVIEW` |
-| YTD ahead by more than 2% and QQQ overweight | `TRIM QQQ` or `HARVEST_REVIEW` |
-| YTD behind by more than 5% | `REVIEW`, not automatic buying |
-| HYG underweight while credit spreads widen | `WAIT HYG` |
-| Gold trend positive while equities weak | `ADD GLD` if underweight and enabled |
-| Missing current price | `DATA_REVIEW` |
-| Stale cached price after failed refresh | Use stale value, show warning, and downgrade action confidence |
-| HK trend weak and 3067.HK underweight | `WAIT 3067.HK` |
-| Portfolio drawdown greater than 8% | `REDUCE_RISK_REVIEW` |
+| ETF above 10W and 40W MA, positive 13W return | `FAVOUR` |
+| ETF above 10W MA but weak 26W momentum | `WATCH` |
+| Equity ETF trend fine but `^VIX > 25` | downgrade to `WAIT` or `WATCH` |
+| ETF below 40W MA with weak benchmark-relative strength | `AVOID` |
+| Missing weekly history | `REVIEW` |
 
-## 15. Weekly Review Success Criteria
+### US Stocks — Signal Classification
 
-The dashboard is useful only if it can answer these within five seconds:
+| Scenario | Expected Result |
+| --- | --- |
+| RSI crosses above 50, MACD histogram turns positive, CMF turns positive | `LONG_WATCH` |
+| close > EMA(20), EMA(20) slope positive, RSI > 55, RVOL > 1.2 | `LONG_SETUP` |
+| breakout above 20D high, RVOL > 1.5, CMF > 0.05, CLV > 0.65, regime long-friendly | `LONG_CONFIRM` |
+| previous day `LONG_SETUP`, today `LONG_CONFIRM` | `UP_PROMOTION` + `LONG_CONFIRM` |
+| close loses EMA(20), RSI crosses below 50 | `SHORT_WATCH` |
+| close < EMA(20), RSI < 45, CMF < 0 | `SHORT_SETUP` |
+| breakdown below 20D low, RVOL > 1.5, CMF < -0.05, regime short-friendly | `SHORT_CONFIRM` |
+| indicator conflict (RSI high, CMF negative) | `NEUTRAL` |
+| price crosses EMA(20) 3 times in 5 days, RSI 45–55 | `AVOID_CHOP` |
+| earnings in 3 days | `REVIEW_EVENT` |
+| stale or missing OHLCV | `REVIEW_DATA` |
 
-1. Am I ahead, on track, or behind the 10% annual target?
-2. Which ETF actions should I consider this week?
-3. Which suggested actions are blocked by market regime or risk controls?
-4. What changed since the last review?
-5. What decisions did I execute or ignore?
-6. Are any prices stale, missing, or manually overridden?
+### Look-ahead Bias
 
-If these are unclear, the phase is not complete.
+| Scenario | Expected Result |
+| --- | --- |
+| Replay week W uses data from W+1 | Test fails (data cutoff enforced) |
+| EMA computed with only 10 bars of history | `REVIEW_DATA` (insufficient lookback) |
+| Forward return starts from signal_date close | Test fails (must start from next day) |
 
-## 16. Codex Build Strategy
+---
 
-### Task 1: Scaffold and Real Data Layer
+## 15. Success Criteria
 
-Create Vite + React + TypeScript, configure the Yahoo Finance Vite proxy, define market data types, build price/FX providers, caching, stale warnings, and test scenarios. No polished UI yet.
+The app is useful only if it can answer these quickly:
 
-### Task 2: Headless Signal Engine
+1. Which ETFs look strongest this week?
+2. How would these ETF rules have behaved over the last 6 months?
+3. Which US stocks deserve attention right now?
+4. Which tactical indicators actually earned their place?
+5. Which signals are trustworthy, and which are provisional or data-limited?
 
-Build the headless Signal Engine against normalized real price data and manual holdings. Include mock providers only for tests and fallback.
+---
 
-### Task 3: Core UI
+## 16. Immediate Next Build Tasks
 
-Build Action Centre, Portfolio Monitor, and Signal Feed. Keep the UI dense, dashboard-like, and built for weekly use.
+1. Confirm data pipeline: choose between Polygon.io and yfinance, validate coverage for 50-stock core universe.
+2. Build local indicator engine (`indicatorEngine.ts`) and write unit tests.
+3. Build the ETF weekly classifier using the indicator engine.
+4. Build the 6-month ETF replay with look-ahead bias prevention.
+5. Run the US stock free-data collection and research engine before finalising screener rules.
+6. Review indicator gate results before any production rule is locked.
 
-### Task 4: Persistence and Journal
-
-Add localStorage persistence, Journal, executed/ignored decisions, CSV export, JSON backup, and last reviewed state.
-
-### Task 5: ETF Universe and Polish
-
-Add ETF Universe, score breakdowns, preset switching, editable market regime inputs, responsive layout, and visible disclaimer.
+---
 
 ## 17. Disclaimer
 
-This dashboard is for personal portfolio planning and decision support only. It does not provide financial advice, automated trading, guaranteed returns, or broker execution. Price data may be delayed, stale, unavailable, or manually overridden. Projected returns and market indicators are scenario estimates only.
+This app is for market observation, recommendation research, and rule evaluation only. It does not manage a live portfolio, execute trades, size positions, provide options analysis, or provide financial advice. Historical replay is not proof of future performance.
