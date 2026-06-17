@@ -173,11 +173,17 @@ h2 {
 /* ── Tab Navigation ──────────────────────────────────────────────────── */
 .tab-nav {
   display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
   gap: 4px;
   margin-top: 18px;
   border-bottom: 1px solid var(--border-faint);
   padding-bottom: 0;
 }
+
+.tab-nav::-webkit-scrollbar { display: none; }
 
 .tab-nav button {
   position: relative;
@@ -649,6 +655,20 @@ label {
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+.table-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  background: linear-gradient(to left, rgba(2, 7, 6, 0.55), transparent);
+  pointer-events: none;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
 }
 
 table {
@@ -1583,12 +1603,6 @@ td select { min-width: 92px; }
 }
 
 @media (max-width: 900px) {
-  .tab-nav {
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .tab-nav::-webkit-scrollbar { display: none; }
-
   .market-controls,
   .settings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1605,29 +1619,29 @@ td select { min-width: 92px; }
 }
 
 @media (max-width: 640px) {
-  .app-shell { padding: 16px 16px 48px; }
+  .app-shell { padding: 14px 14px 48px; }
 
-  h1 { font-size: 1.5rem; }
+  h1 { font-size: 1.45rem; }
 
   .page-header,
   .section-header { display: block; }
 
   .header-actions,
   .row-actions,
-  .filter-row { margin-top: 12px; }
+  .filter-row { margin-top: 10px; }
 
   .dashboard-grid,
   .market-controls,
-  .settings-grid { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  .panel { margin-top: 12px; }
+  .panel { margin-top: 10px; }
 
   .stock-card-grid {
     grid-template-columns: 1fr;
   }
 
   .hero-card {
-    padding: 22px 20px;
+    padding: 18px 16px;
   }
 
   .stock-card__header {
@@ -1638,4 +1652,41 @@ td select { min-width: 92px; }
     width: 88px;
     height: 32px;
   }
+}
+
+@media (max-width: 480px) {
+  .app-shell { padding: 10px 12px 44px; }
+
+  h1 { font-size: 1.25rem; }
+
+  .panel { padding: 14px 14px; border-radius: 16px; }
+
+  .hero-card { padding: 16px 14px; }
+
+  .hero-metric-strip { gap: 8px; }
+
+  .hero-metric {
+    padding: 12px 14px 10px;
+    min-height: 90px;
+  }
+
+  .hero-metric__value { font-size: 1.6rem; }
+
+  .dashboard-grid,
+  .market-controls,
+  .settings-grid { grid-template-columns: 1fr; }
+
+  .summary-card strong { font-size: 1.7rem; }
+
+  .status-chip { font-size: 0.72rem; padding: 5px 10px; }
+
+  .tab-nav button { padding: 8px 13px; font-size: 0.82rem; }
+
+  table { font-size: 0.8rem; }
+
+  th, td { padding: 8px 8px; }
+
+  .stock-card-grid { gap: 12px; }
+
+  .stock-card { padding: 14px 14px 12px; min-height: 200px; }
 }
