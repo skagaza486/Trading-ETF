@@ -15,6 +15,7 @@ import type { ETFReplayWeek } from './types/replay'
 import type { ForwardReturnRecord } from './types/research'
 import type { ETFRecommendation, RegimeClass, StockSignalLabel } from './types/signal'
 import { getETFLabelDisplay, getStockLabelDisplay } from './ui/labelDisplay'
+import type { ETFCategory } from './types/etf'
 import './styles/dashboard.css'
 import './styles/global.css'
 
@@ -23,6 +24,7 @@ type TabId = 'ETF Weekly' | 'ETF Replay' | 'Stock Screener' | 'Stock Replay' | '
 type WeeklyRow = {
   ticker: string
   name: string
+  category: ETFCategory
   label: ETFRecommendation['label']
   return13w: number | null
   priceVs40wMa: number | null
@@ -91,6 +93,24 @@ type SummaryTone = 'gain' | 'info' | 'warn' | 'loss' | 'violet'
 
 const tabs: TabId[] = ['ETF Weekly', 'ETF Replay', 'Stock Screener', 'Stock Replay', 'Stock Research']
 const BENCHMARK_TICKERS = ['SPY', 'QQQ', '^VIX']
+
+const CATEGORY_ORDER: ETFCategory[] = [
+  'US_EQUITY_CORE', 'SECTOR', 'DIVIDEND', 'HK_CHINA', 'INTL_EQUITY',
+  'GOLD', 'COMMODITY', 'REIT', 'HY_BOND', 'US_TREASURY'
+]
+
+const CATEGORY_NAMES: Record<ETFCategory, string> = {
+  US_TREASURY:    '美國國債 / 債券',
+  US_EQUITY_CORE: '美股核心 / 因子',
+  HY_BOND:        '高收益債',
+  INTL_EQUITY:    '國際股票',
+  HK_CHINA:       '港股 / 中國',
+  GOLD:           '黃金 / 貴金屬',
+  COMMODITY:      '商品',
+  REIT:           'REIT 房產',
+  SECTOR:         '板塊 ETF',
+  DIVIDEND:       '股息 ETF'
+}
 const STOCK_BENCHMARK_TICKERS = ['SPY', 'QQQ', 'IWM', '^VIX', 'GLD', '2800.HK']
 const REPLAY_WEEKS = 26
 
@@ -123,6 +143,7 @@ function buildWeeklyRows(histories: Record<string, TickerHistory>, regime: Regim
         return {
           ticker: etf.ticker,
           name: etf.name,
+          category: etf.category,
           label: 'REVIEW' as const,
           return13w: null,
           priceVs40wMa: null,
@@ -135,6 +156,7 @@ function buildWeeklyRows(histories: Record<string, TickerHistory>, regime: Regim
       return {
         ticker: etf.ticker,
         name: etf.name,
+        category: etf.category,
         label: recommendation.label,
         return13w: recommendation.indicators.return13w,
         priceVs40wMa: recommendation.indicators.priceVs40wMa,
@@ -283,10 +305,10 @@ function AnimatedMetricValue({ value, className }: { value: string; className?: 
   return <span className={className}>{parsed ? displayValue : value}</span>
 }
 
-function buildSparklinePath(history: TickerHistory | undefined): { line: string; area: string } | null {
+function buildSparklinePath(history: TickerHistory | undefined, count = 24): { line: string; area: string } | null {
   if (!history) return null
 
-  const closes = history.bars.slice(-24).map(bar => bar.close).filter(close => Number.isFinite(close))
+  const closes = history.bars.slice(-count).map(bar => bar.close).filter(close => Number.isFinite(close))
   if (closes.length < 2) return null
 
   const min = Math.min(...closes)
@@ -307,6 +329,22 @@ function buildSparklinePath(history: TickerHistory | undefined): { line: string;
   const area = `${line} L ${last.x.toFixed(2)} ${height} L ${first.x.toFixed(2)} ${height} Z`
 
   return { line, area }
+}
+
+function ETFSparkline({ ticker, histories, label }: { ticker: string; histories: Record<string, TickerHistory>; label: ETFRecommendation['label'] }) {
+  const history = histories[ticker]
+  const sparkline = buildSparklinePath(history, 65)
+  if (!sparkline) return null
+
+  const colorKey = label === 'FAVOUR' ? 'long' : label === 'AVOID' ? 'short' : 'neutral'
+  return (
+    <div className={`etf-card__sparkline etf-card__sparkline--${colorKey}`} aria-hidden="true">
+      <svg viewBox="0 0 120 36" preserveAspectRatio="none">
+        <path className="etf-card__sparkline-area" d={sparkline.area} />
+        <path className="etf-card__sparkline-line" d={sparkline.line} />
+      </svg>
+    </div>
+  )
 }
 
 function StockSparkline({ history, group }: { history: TickerHistory | undefined; group: string }) {
@@ -400,16 +438,18 @@ function buildStockRows(
     switch (label) {
       case 'UP_PROMOTION': return 0
       case 'LONG_CONFIRM': return 1
-      case 'LONG_SETUP': return 2
-      case 'LONG_WATCH': return 3
-      case 'DOWN_PROMOTION': return 4
-      case 'SHORT_CONFIRM': return 5
-      case 'SHORT_SETUP': return 6
-      case 'SHORT_WATCH': return 7
-      case 'NEUTRAL': return 8
-      case 'AVOID_CHOP': return 9
-      case 'REVIEW_EVENT': return 10
-      case 'REVIEW_DATA': return 11
+      case 'LONG_VCP': return 2
+      case 'LONG_SETUP': return 3
+      case 'LONG_PULLBACK': return 4
+      case 'LONG_WATCH': return 5
+      case 'DOWN_PROMOTION': return 6
+      case 'SHORT_CONFIRM': return 7
+      case 'SHORT_SETUP': return 8
+      case 'SHORT_WATCH': return 9
+      case 'NEUTRAL': return 10
+      case 'AVOID_CHOP': return 11
+      case 'REVIEW_EVENT': return 12
+      case 'REVIEW_DATA': return 13
     }
   }
 
@@ -480,16 +520,18 @@ function stockResearchLabelPriority(label: StockSignalLabel): number {
   switch (label) {
     case 'UP_PROMOTION': return 0
     case 'LONG_CONFIRM': return 1
-    case 'LONG_SETUP': return 2
-    case 'LONG_WATCH': return 3
-    case 'DOWN_PROMOTION': return 4
-    case 'SHORT_CONFIRM': return 5
-    case 'SHORT_SETUP': return 6
-    case 'SHORT_WATCH': return 7
-    case 'NEUTRAL': return 8
-    case 'AVOID_CHOP': return 9
-    case 'REVIEW_EVENT': return 10
-    case 'REVIEW_DATA': return 11
+    case 'LONG_VCP': return 2
+    case 'LONG_SETUP': return 3
+    case 'LONG_PULLBACK': return 4
+    case 'LONG_WATCH': return 5
+    case 'DOWN_PROMOTION': return 6
+    case 'SHORT_CONFIRM': return 7
+    case 'SHORT_SETUP': return 8
+    case 'SHORT_WATCH': return 9
+    case 'NEUTRAL': return 10
+    case 'AVOID_CHOP': return 11
+    case 'REVIEW_EVENT': return 12
+    case 'REVIEW_DATA': return 13
   }
 }
 
@@ -712,6 +754,17 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false)
   const [etfReplayExpanded, setEtfReplayExpanded] = useState(false)
   const [stockReplayExpanded, setStockReplayExpanded] = useState(false)
+  const [expandedEtfCategories, setExpandedEtfCategories] = useState<Set<ETFCategory>>(
+    () => new Set(CATEGORY_ORDER)
+  )
+
+  function toggleEtfCategory(category: ETFCategory) {
+    setExpandedEtfCategories(prev => {
+      const next = new Set(prev)
+      if (next.has(category)) { next.delete(category) } else { next.add(category) }
+      return next
+    })
+  }
 
   async function loadWeeklyData() {
     setIsLoadingWeekly(true)
@@ -1057,29 +1110,60 @@ export default function App() {
               </div>
 
               {etfViewMode === 'cards' ? (
-                <div className="etf-card-grid">
-                  {weeklyState.rows.map(row => {
-                    const disp = getETFLabelDisplay(row.label)
-                    const retPos = row.return13w !== null && row.return13w > 0
-                    const retNeg = row.return13w !== null && row.return13w < 0
+                <div className="etf-accordion">
+                  {CATEGORY_ORDER.map(category => {
+                    const categoryRows = weeklyState.rows.filter(row => row.category === category)
+                    if (categoryRows.length === 0) return null
+                    const isOpen = expandedEtfCategories.has(category)
+                    const hasFavour = categoryRows.some(row => row.label === 'FAVOUR')
+                    const hasWatch = categoryRows.some(row => row.label === 'WATCH')
                     return (
-                      <article key={row.ticker} className={`etf-card etf-card--${row.label.toLowerCase()}`}>
-                        <div className="etf-card__top">
-                          <span className={`label-pill label-pill--${row.label.toLowerCase()}`}>
-                            {disp.lightEmoji} {disp.zhText}
+                      <div key={category} className="etf-accordion__group">
+                        <button
+                          type="button"
+                          className={`etf-accordion__header${isOpen ? ' is-open' : ''}`}
+                          onClick={() => toggleEtfCategory(category)}
+                        >
+                          <span className="etf-accordion__title">
+                            {CATEGORY_NAMES[category]}
+                            <span className="etf-accordion__count">{categoryRows.length}</span>
                           </span>
-                          <span className="etf-card__code">{row.label}</span>
-                        </div>
-                        <div>
-                          <div className="etf-card__ticker">{row.ticker}</div>
-                          <div className="etf-card__name">{row.name}</div>
-                        </div>
-                        <div className="etf-card__metrics">
-                          <span className="etf-card__metric">13W <strong className={retPos ? 'ret-pos' : retNeg ? 'ret-neg' : ''}>{formatPercent(row.return13w)}</strong></span>
-                          <span className="etf-card__metric">40W <strong>{formatRatio(row.priceVs40wMa)}</strong></span>
-                        </div>
-                        <div className="etf-card__reason">{disp.plainReason}</div>
-                      </article>
+                          <span className="etf-accordion__signals">
+                            {hasFavour && <span className="etf-accordion__tag etf-accordion__tag--favour">FAVOUR</span>}
+                            {hasWatch && <span className="etf-accordion__tag etf-accordion__tag--watch">WATCH</span>}
+                          </span>
+                          <span className="etf-accordion__chevron">{isOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {isOpen && (
+                          <div className="etf-card-grid">
+                            {categoryRows.map(row => {
+                              const disp = getETFLabelDisplay(row.label)
+                              const retPos = row.return13w !== null && row.return13w > 0
+                              const retNeg = row.return13w !== null && row.return13w < 0
+                              return (
+                                <article key={row.ticker} className={`etf-card etf-card--${row.label.toLowerCase()}`}>
+                                  <div className="etf-card__top">
+                                    <span className={`label-pill label-pill--${row.label.toLowerCase()}`}>
+                                      {disp.lightEmoji} {disp.zhText}
+                                    </span>
+                                    <span className="etf-card__code">{row.label}</span>
+                                  </div>
+                                  <div>
+                                    <div className="etf-card__ticker">{row.ticker}</div>
+                                    <div className="etf-card__name">{row.name}</div>
+                                  </div>
+                                  <div className="etf-card__metrics">
+                                    <span className="etf-card__metric">13W <strong className={retPos ? 'ret-pos' : retNeg ? 'ret-neg' : ''}>{formatPercent(row.return13w)}</strong></span>
+                                    <span className="etf-card__metric">40W <strong>{formatRatio(row.priceVs40wMa)}</strong></span>
+                                  </div>
+                                  <ETFSparkline ticker={row.ticker} histories={weeklyState.histories} label={row.label} />
+                                  <div className="etf-card__reason">{disp.plainReason}</div>
+                                </article>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -1622,12 +1706,12 @@ export default function App() {
             <section className="panel wide">
               <div className="section-header">
                 <div>
-                  <h2>Gate Summary 六關卡驗證</h2>
+                  <h2>Gate Summary 七關卡驗證</h2>
                   <p className="subtle">
-                    G1 n≥100 樣本量 · G2 方向正確 · G3 跑贏大市&gt;0.5% · G4 前後半一致 · G5 中性市仍正確 · G6 MAE&lt;3%
+                    G1 n≥100 樣本量 · G2 方向正確 · G3 跑贏大市&gt;0.5% · G4 前後半一致 · G5 中性市仍正確 · G6 MAE&lt;3% · G7 止損命中率&lt;30%
                   </p>
                   <p className="subtle">
-                    六個 Gate 全 ✓ 才算通過，目前所有 label 仍在研究階段。
+                    七個 Gate 全 ✓ 才算通過，目前所有 label 仍在研究階段。
                   </p>
                 </div>
                 <div className="header-actions">
@@ -1657,8 +1741,10 @@ export default function App() {
                     <dd>即使 regime 為 neutral（大市普通），信號的方向仍然正確。需要 ≥ 5 個 neutral 樣本才評估；不足則顯示 INSUFFICIENT。</dd>
                     <dt>G6 — MAE 受控</dt>
                     <dd>5D 內的最大逆向波動（Maximum Adverse Excursion）平均 &lt; 3%。</dd>
+                    <dt>G7 — 止損命中率</dt>
+                    <dd>Long 信號在 5D 內被 2×ATR14 止損的比率 &lt; 30%。命中率過高代表信號容易被震倉，實盤難跟。需要 ≥ 10 個有效止損樣本才評估。</dd>
                   </dl>
-                  <p className="gate-legend__note">所有 label 必須通過 G1–G6 才能正式建議。目前所有 label 仍屬研究階段。</p>
+                  <p className="gate-legend__note">所有 label 必須通過 G1–G7 才能正式建議。目前所有 label 仍屬研究階段。</p>
                 </div>
               )}
 
@@ -1678,6 +1764,7 @@ export default function App() {
                       <th title="前後半一致">G4</th>
                       <th title="中性市仍正確">G5</th>
                       <th title="MAE < 3%">G6</th>
+                      <th title="止損命中率 < 30%">G7</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -1703,6 +1790,7 @@ export default function App() {
                         <td className={gateClass(item.gate4Consistent)}>{gateIcon(item.gate4Consistent)}</td>
                         <td className={gateClass(item.gate5NeutralRegime)}>{gateIcon(item.gate5NeutralRegime)}</td>
                         <td className={gateClass(item.gate6Mae)}>{gateIcon(item.gate6Mae)}</td>
+                        <td className={gateClass(item.gate7StopLossHitRate)} title={item.stopLossHitRate !== null ? `${(item.stopLossHitRate * 100).toFixed(0)}%` : undefined}>{gateIcon(item.gate7StopLossHitRate)}</td>
                         <td>
                           <span className={`status-badge status-badge--${item.status.toLowerCase()}`}>
                             {item.status}

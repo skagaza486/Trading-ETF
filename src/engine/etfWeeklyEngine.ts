@@ -1,6 +1,6 @@
 import type { TickerHistory } from '../types/indicator'
 import type { ETFRecommendation, RegimeClass } from '../types/signal'
-import { aggregateWeeklyHistory, closes, latestBar, percentChange, rollingMean } from './historyUtils'
+import { aggregateWeeklyHistory, closes, latestBar, percentChange, regressionSlope, rollingMean } from './historyUtils'
 
 const SAFE_HAVEN_TICKERS = new Set(['GLD', 'IAU', 'GLDM', 'SGOV', 'SHY', 'IEF', 'TLT', 'BIL', 'TIP'])
 
@@ -18,8 +18,9 @@ function classifyBaseLabel(input: {
   priceVs40wMa: number | null
   ma10Slope: number | null
   relStrengthVsSpy: number | null
+  rsSlope: number | null
 }): ETFRecommendation['label'] {
-  const { return13w, return26w, priceVs10wMa, priceVs40wMa, ma10Slope, relStrengthVsSpy } = input
+  const { return13w, return26w, priceVs10wMa, priceVs40wMa, ma10Slope, relStrengthVsSpy, rsSlope } = input
 
   if (
     priceVs40wMa !== null &&
@@ -38,7 +39,8 @@ function classifyBaseLabel(input: {
     priceVs40wMa >= 1 &&
     (return13w ?? 0) > 0 &&
     ((ma10Slope ?? 0) > 0 || (return26w ?? 0) > 0) &&
-    (relStrengthVsSpy ?? 0) > 0
+    (relStrengthVsSpy ?? 0) > 0 &&
+    (rsSlope === null || rsSlope > 0)
   ) {
     return 'FAVOUR'
   }
@@ -88,6 +90,7 @@ export function classifyETF(
         priceVs10wMa: null,
         priceVs40wMa: null,
         relStrengthVsSpy: null,
+        rsSlope: null,
         vixLevel
       },
       reason: 'Insufficient weekly history or missing benchmark data.'
@@ -112,13 +115,28 @@ export function classifyETF(
   const ma10Slope =
     latestMa10 !== null && previousMa10 !== null && previousMa10 !== 0 ? (latestMa10 - previousMa10) / previousMa10 : null
 
+  // RS Ratio Line: ETF close / SPY close per weekly bar (Mansfield RS slope)
+  const spyWeeklyCloseMap = new Map<string, number>()
+  for (const bar of spyWeekly.bars) {
+    spyWeeklyCloseMap.set(bar.date, bar.close)
+  }
+  const rsRatioLine: number[] = []
+  for (const bar of weeklyBars) {
+    const spyClose = spyWeeklyCloseMap.get(bar.date)
+    if (spyClose && spyClose > 0) {
+      rsRatioLine.push(bar.close / spyClose)
+    }
+  }
+  const rsSlope = rsRatioLine.length >= 10 ? regressionSlope(rsRatioLine.slice(-10)) : null
+
   const baseLabel = classifyBaseLabel({
     return13w,
     return26w,
     priceVs10wMa,
     priceVs40wMa,
     ma10Slope,
-    relStrengthVsSpy
+    relStrengthVsSpy,
+    rsSlope
   })
   const label = vixLevel !== null && vixLevel > 25 ? downgradeForRegime(baseLabel, history.ticker, 'short_friendly') : downgradeForRegime(baseLabel, history.ticker, regime)
 
@@ -128,6 +146,7 @@ export function classifyETF(
     `Price/10W MA ${priceVs10wMa === null ? 'n/a' : priceVs10wMa.toFixed(2)}`,
     `Price/40W MA ${priceVs40wMa === null ? 'n/a' : priceVs40wMa.toFixed(2)}`,
     `RS vs SPY ${relStrengthVsSpy === null ? 'n/a' : `${(relStrengthVsSpy * 100).toFixed(1)}%`}`,
+    `RS Slope ${rsSlope === null ? 'n/a' : rsSlope > 0 ? '↑' : '↓'}`,
     `Regime ${regime}`
   ]
 
@@ -141,6 +160,7 @@ export function classifyETF(
       priceVs10wMa,
       priceVs40wMa,
       relStrengthVsSpy,
+      rsSlope,
       vixLevel
     },
     reason: reasonParts.join(' | ')

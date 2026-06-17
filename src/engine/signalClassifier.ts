@@ -83,6 +83,8 @@ export function resolveStockLabel(
     const priorLong =
       previousLabel === 'LONG_WATCH' ||
       previousLabel === 'LONG_SETUP' ||
+      previousLabel === 'LONG_VCP' ||
+      previousLabel === 'LONG_PULLBACK' ||
       previousLabel === 'LONG_CONFIRM' ||
       previousLabel === 'UP_PROMOTION'
     if (priorLong) {
@@ -90,8 +92,33 @@ export function resolveStockLabel(
     }
   }
 
+  // VCP: Volatility Contraction Pattern — volume dried up then breakout on volume
+  const longVcp =
+    indicators.aboveEma200 === true &&
+    indicators.atrSlope50 !== null && indicators.atrSlope50 < 0 &&
+    indicators.rvolRecentAvg10 !== null && indicators.rvolRecentAvg10 < 0.8 &&
+    indicators.breakout20d === true &&
+    rvol > 1.5 &&
+    regime !== 'short_friendly'
+
+  if (longVcp) {
+    return 'LONG_VCP'
+  }
+
   if (longSetup) {
     return 'LONG_SETUP'
+  }
+
+  // Pullback: trend intact, price pulled back to EMA20 support with bounce close
+  const longPullback =
+    regime === 'long_friendly' &&
+    indicators.ema50Slope !== null && indicators.ema50Slope > 0 &&
+    indicators.ema20 !== null && indicators.low <= indicators.ema20 * 1.02 &&
+    rsi14 >= 40 && rsi14 <= 50 &&
+    clv > 0.8
+
+  if (longPullback) {
+    return 'LONG_PULLBACK'
   }
 
   if (longWatch) {

@@ -91,6 +91,7 @@ function buildIndicatorSnapshot(
   const ema50 = computeEMA(history.bars, 50)
   const ema200 = computeEMA(history.bars, 200)
   const ema20Slope = computeEMASlope(ema20, 5)
+  const ema50Slope = computeEMASlope(ema50, 5)
   const rsi14 = computeRSI(history.bars, 14)
   const macd = computeMACD(history.bars)
   const rvol = computeRVOL(history.bars, 20)
@@ -98,7 +99,18 @@ function buildIndicatorSnapshot(
   const clv = computeCLV(history.bars)
   const atr = computeATR(history.bars, 14)
 
+  // ATR contraction slope over last 50 bars (negative = contracting volatility)
+  const atrDefined = atr.filter((v): v is number => v !== null)
+  const atrSlope50 = atrDefined.length >= 10 ? regressionSlope(atrDefined.slice(-50)) : null
+
+  // Prior 10-bar average RVOL (excludes current bar) for VCP contraction check
+  const rvolPrior10 = rvol.slice(-11, -1).filter((v): v is number => v !== null)
+  const rvolRecentAvg10 = rvolPrior10.length >= 5
+    ? rvolPrior10.reduce((s, v) => s + v, 0) / rvolPrior10.length
+    : null
+
   const latestClose = latestBar(history)?.close ?? 0
+  const latestLow = latestBar(history)?.low ?? 0
   const latestEma200 = latestValue(ema200)
   const bars = history.bars
   const high52w = bars.length > 0
@@ -107,16 +119,20 @@ function buildIndicatorSnapshot(
 
   return {
     close: latestClose,
+    low: latestLow,
     ema20: latestValue(ema20),
     ema50: latestValue(ema50),
     ema200: latestEma200,
     ema20Slope: latestValue(ema20Slope),
+    ema50Slope: latestValue(ema50Slope),
     rsi14: latestValue(rsi14),
     macdHistogram: macd.at(-1)?.histogram ?? null,
     rvol: latestValue(rvol),
     cmf20: latestValue(cmf20),
     obvSlope: obvSlopeValue(history),
     clv: clv.at(-1) ?? null,
+    atrSlope50,
+    rvolRecentAvg10,
     breakout20d: computeBreakout20d(history, latestValue(atr)),
     breakdown20d: computeBreakdown20d(history, latestValue(atr)),
     relStrengthVsSpy: computeRelativeStrengthVsSpy(history, benchmarks.SPY, 20),
@@ -141,16 +157,20 @@ export function classifyStock(
       label: 'REVIEW_DATA',
       indicators: {
         close: latestBar(history)?.close ?? 0,
+        low: latestBar(history)?.low ?? 0,
         ema20: null,
         ema50: null,
         ema200: null,
         ema20Slope: null,
+        ema50Slope: null,
         rsi14: null,
         macdHistogram: null,
         rvol: null,
         cmf20: null,
         obvSlope: null,
         clv: null,
+        atrSlope50: null,
+        rvolRecentAvg10: null,
         breakout20d: null,
         breakdown20d: null,
         relStrengthVsSpy: null,

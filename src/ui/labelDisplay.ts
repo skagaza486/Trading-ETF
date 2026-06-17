@@ -33,10 +33,24 @@ const STOCK_LABEL_MAP: Record<StockSignalLabel, Omit<StockLabelDisplay, 'enCode'
     action: '值得研究',
     actionGroup: 'consider'
   },
+  LONG_VCP: {
+    lightEmoji: '🟢',
+    zhText: '縮量突破，值得留意',
+    plainReason: '量縮至極後放量突破，強勢信號',
+    action: '值得研究',
+    actionGroup: 'consider'
+  },
   LONG_SETUP: {
     lightEmoji: '🟢',
     zhText: '接近買入點',
     plainReason: '升勢成形，留意入場',
+    action: '值得研究',
+    actionGroup: 'consider'
+  },
+  LONG_PULLBACK: {
+    lightEmoji: '🟢',
+    zhText: '升勢回調，趁低吸納',
+    plainReason: '升勢完好，回調至支撐，收市反彈',
     action: '值得研究',
     actionGroup: 'consider'
   },

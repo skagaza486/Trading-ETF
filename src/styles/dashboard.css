@@ -1279,12 +1279,98 @@ td select { min-width: 92px; }
   animation: pillPulse 2.8s ease-in-out infinite;
 }
 
+/* ── ETF Accordion ───────────────────────────────────────────────────── */
+.etf-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.etf-accordion__group {
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.etf-accordion__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(255,255,255,0.04);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.etf-accordion__header:hover {
+  background: rgba(255,255,255,0.07);
+}
+
+.etf-accordion__header.is-open {
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.055);
+}
+
+.etf-accordion__title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+}
+
+.etf-accordion__count {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+
+.etf-accordion__signals {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.etf-accordion__tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.etf-accordion__tag--favour {
+  background: rgba(52, 211, 153, 0.18);
+  color: rgb(52, 211, 153);
+}
+
+.etf-accordion__tag--watch {
+  background: rgba(251, 191, 36, 0.18);
+  color: rgb(251, 191, 36);
+}
+
+.etf-accordion__chevron {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
 /* ── ETF Cards ───────────────────────────────────────────────────────── */
 .etf-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 12px;
   margin-top: 14px;
+  padding: 12px;
 }
 
 .etf-card {
@@ -1368,6 +1454,42 @@ td select { min-width: 92px; }
   padding-top: 8px;
   line-height: 1.4;
 }
+
+/* ── ETF Sparklines ──────────────────────────────────────────────────── */
+.etf-card__sparkline {
+  width: 100%;
+  height: 36px;
+  margin: 6px 0 2px;
+  opacity: 0.75;
+}
+
+.etf-card__sparkline svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.etf-card__sparkline-line {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.etf-card__sparkline-area {
+  stroke: none;
+  opacity: 0.15;
+}
+
+.etf-card__sparkline--long .etf-card__sparkline-line { stroke: rgb(52, 211, 153); }
+.etf-card__sparkline--long .etf-card__sparkline-area { fill: rgb(52, 211, 153); }
+
+.etf-card__sparkline--neutral .etf-card__sparkline-line { stroke: rgb(148, 163, 184); }
+.etf-card__sparkline--neutral .etf-card__sparkline-area { fill: rgb(148, 163, 184); }
+
+.etf-card__sparkline--short .etf-card__sparkline-line { stroke: rgb(248, 113, 113); }
+.etf-card__sparkline--short .etf-card__sparkline-area { fill: rgb(248, 113, 113); }
 
 /* ── Gate Legend ─────────────────────────────────────────────────────── */
 .gate-legend {
@@ -1814,7 +1936,8 @@ td select { min-width: 92px; }
 
   .etf-card-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
+    padding: 8px;
   }
 
   /* ETF cards: hide redundant code badge, clamp long names to 2 lines */
@@ -1826,6 +1949,8 @@ td select { min-width: 92px; }
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  .etf-accordion__header { padding: 9px 12px; font-size: 0.83rem; }
 
   /* Stock cards: hide sector tag to save height */
   .stock-card__sector { display: none; }

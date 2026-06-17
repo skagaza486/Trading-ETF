@@ -19,4 +19,6 @@ export type ForwardReturnRecord = {
   regimeAtSignal: RegimeClass
   rvolAtSignal: number | null
   atrAtSignal: number | null
+  suggestedStopLoss: number | null
+  stopLossHit: boolean | null
 }

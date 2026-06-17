@@ -68,6 +68,17 @@ export function buildForwardReturnRecord(
     const excursion5d = favorableAndAdverseExcursions(signal, history, signalIndex, 5)
     const excursion10d = favorableAndAdverseExcursions(signal, history, signalIndex, 10)
 
+    // ATR-based dynamic stop loss for long signals: entry - 2×ATR14
+    const atrAtSignal = signal.indicators.atr
+    const isLong = !isShortLabel(signal.label) &&
+      signal.label !== 'NEUTRAL' && signal.label !== 'AVOID_CHOP' &&
+      signal.label !== 'REVIEW_DATA' && signal.label !== 'REVIEW_EVENT'
+    const suggestedStopLoss = isLong && atrAtSignal !== null ? entryPrice - 2 * atrAtSignal : null
+    const window5dBars = history.bars.slice(signalIndex + 1, signalIndex + 6)
+    const stopLossHit = suggestedStopLoss !== null && window5dBars.length > 0
+      ? window5dBars.some(bar => bar.low <= suggestedStopLoss)
+      : null
+
     return [
       {
         signalDate: signal.signalDate,
@@ -87,7 +98,9 @@ export function buildForwardReturnRecord(
         earningsInWindow: signal.earningsWithinWindow,
         regimeAtSignal: signal.regime,
         rvolAtSignal: signal.indicators.rvol,
-        atrAtSignal: signal.indicators.atr
+        atrAtSignal,
+        suggestedStopLoss,
+        stopLossHit
       }
     ]
   })

@@ -19,12 +19,16 @@ export type LabelGateResult = {
   gate4Consistent: boolean | null
   gate5NeutralRegime: boolean | null
   gate6Mae: boolean | null
+  stopLossHitRate: number | null
+  gate7StopLossHitRate: boolean | null
   status: GateStatus
 }
 
 const DIRECTIONAL_LABELS: ReadonlySet<StockSignalLabel> = new Set([
   'LONG_WATCH',
   'LONG_SETUP',
+  'LONG_VCP',
+  'LONG_PULLBACK',
   'LONG_CONFIRM',
   'UP_PROMOTION',
   'SHORT_WATCH',
@@ -43,7 +47,9 @@ const SHORT_LABELS: ReadonlySet<StockSignalLabel> = new Set([
 const LABEL_ORDER: StockSignalLabel[] = [
   'LONG_CONFIRM',
   'UP_PROMOTION',
+  'LONG_VCP',
   'LONG_SETUP',
+  'LONG_PULLBACK',
   'LONG_WATCH',
   'SHORT_CONFIRM',
   'DOWN_PROMOTION',
@@ -136,6 +142,12 @@ export function evaluateAllGates(records: ForwardReturnRecord[]): LabelGateResul
       ? (avgMae5d !== null && avgMae5d < 0.03)
       : null
 
+    // G7: Stop loss hit rate < 30% (long signals only — records where stopLossHit !== null)
+    const stopLossRows = rows.filter(r => r.stopLossHit !== null)
+    const stopLossHitCount = stopLossRows.filter(r => r.stopLossHit === true).length
+    const stopLossHitRate = stopLossRows.length >= 10 ? stopLossHitCount / stopLossRows.length : null
+    const gate7StopLossHitRate = stopLossHitRate !== null ? stopLossHitRate < 0.3 : null
+
     // Overall status
     let status: GateStatus
     if (!gate1SampleSize) {
@@ -145,7 +157,8 @@ export function evaluateAllGates(records: ForwardReturnRecord[]): LabelGateResul
       gate3VsSpy === true &&
       gate4Consistent === true &&
       gate5NeutralRegime !== false &&
-      gate6Mae === true
+      gate6Mae === true &&
+      gate7StopLossHitRate !== false
     ) {
       status = 'PASS'
     } else {
@@ -168,6 +181,8 @@ export function evaluateAllGates(records: ForwardReturnRecord[]): LabelGateResul
       gate4Consistent,
       gate5NeutralRegime,
       gate6Mae,
+      stopLossHitRate,
+      gate7StopLossHitRate,
       status,
     }
   })
