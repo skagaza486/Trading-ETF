@@ -38,6 +38,7 @@ export type StockSignal = {
   signalDate: string
   label: StockSignalLabel
   previousLabel?: StockSignalLabel
+  patternTag?: 'BASE_BREAK'
   indicators: StockIndicatorSnapshot
   regime: RegimeClass
   earningsWithinWindow: boolean
@@ -54,6 +55,7 @@ export type ETFIndicatorSnapshot = {
   relStrengthVsSpy: number | null
   rsSlope: number | null
   vixLevel: number | null
+  rankScore: number | null
 }
 
 export type StockIndicatorSnapshot = {

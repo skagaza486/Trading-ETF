@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { etfUniverse } from './data/etfUniverse'
 import { stockWatchlist } from './data/watchlist'
 import { replayETF } from './engine/etfReplayEngine'
 import { classifyETF } from './engine/etfWeeklyEngine'
-import { classifyRegime, deriveRegimeInputsFromHistories } from './engine/marketRegime'
+import { classifyRegime, computeProxyWeakBreadth, deriveRegimeInputsFromHistories } from './engine/marketRegime'
 import { buildForwardReturnRecord, buildHistoricalSignals } from './engine/stockResearchEngine'
 import { evaluateAllGates } from './engine/researchGate'
 import type { LabelGateResult } from './engine/researchGate'
@@ -19,7 +19,8 @@ import type { ETFCategory } from './types/etf'
 import './styles/dashboard.css'
 import './styles/global.css'
 
-type TabId = 'ETF Weekly' | 'ETF Replay' | 'Stock Screener' | 'Stock Replay' | 'Stock Research'
+type TabId = 'Dashboard' | 'Stocks' | 'ETFs' | 'Quant Lab'
+type QuantLabSubTab = 'ETF Replay' | 'Stock Replay' | 'Stock Research'
 
 type WeeklyRow = {
   ticker: string
@@ -28,6 +29,7 @@ type WeeklyRow = {
   label: ETFRecommendation['label']
   return13w: number | null
   priceVs40wMa: number | null
+  rankScore: number | null
   reason: string
 }
 
@@ -37,6 +39,7 @@ type WeeklyState = {
   histories: Record<string, TickerHistory>
   failedTickers: string[]
   regime: RegimeClass
+  proxyWeakBreadth: boolean
   lastUpdated: string | null
 }
 
@@ -60,6 +63,7 @@ type StockRow = {
   name: string
   sector: string
   label: StockSignalLabel
+  patternTag?: 'BASE_BREAK'
   regime: RegimeClass
   earningsDate: string | null
   rsi14: number | null
@@ -91,8 +95,8 @@ type HeroMetric = {
 
 type SummaryTone = 'gain' | 'info' | 'warn' | 'loss' | 'violet'
 
-const tabs: TabId[] = ['ETF Weekly', 'ETF Replay', 'Stock Screener', 'Stock Replay', 'Stock Research']
-const BENCHMARK_TICKERS = ['SPY', 'QQQ', '^VIX']
+const tabs: TabId[] = ['Dashboard', 'Stocks', 'ETFs', 'Quant Lab']
+const BENCHMARK_TICKERS = ['SPY', 'QQQ', '^VIX', 'RSP']
 
 const CATEGORY_ORDER: ETFCategory[] = [
   'US_EQUITY_CORE', 'SECTOR', 'DIVIDEND', 'HK_CHINA', 'INTL_EQUITY',
@@ -147,6 +151,7 @@ function buildWeeklyRows(histories: Record<string, TickerHistory>, regime: Regim
           label: 'REVIEW' as const,
           return13w: null,
           priceVs40wMa: null,
+          rankScore: null,
           reason: 'History fetch failed.'
         }
       }
@@ -160,14 +165,16 @@ function buildWeeklyRows(histories: Record<string, TickerHistory>, regime: Regim
         label: recommendation.label,
         return13w: recommendation.indicators.return13w,
         priceVs40wMa: recommendation.indicators.priceVs40wMa,
+        rankScore: recommendation.indicators.rankScore,
         reason: recommendation.reason
       }
     })
     .sort((left, right) => {
       const pDiff = etfLabelPriority(left.label) - etfLabelPriority(right.label)
       if (pDiff !== 0) return pDiff
-      const rDiff = (right.return13w ?? Number.NEGATIVE_INFINITY) - (left.return13w ?? Number.NEGATIVE_INFINITY)
-      if (rDiff !== 0) return rDiff
+      // Within same label, sort by rankScore (risk-adjusted momentum) descending
+      const rsDiff = (right.rankScore ?? Number.NEGATIVE_INFINITY) - (left.rankScore ?? Number.NEGATIVE_INFINITY)
+      if (rsDiff !== 0) return rsDiff
       return left.ticker.localeCompare(right.ticker)
     })
 }
@@ -480,6 +487,7 @@ function buildStockRows(
         name: stock.name,
         sector: stock.sector,
         label: signal.label,
+        patternTag: signal.patternTag,
         regime: signal.regime,
         earningsDate,
         rsi14: signal.indicators.rsi14,
@@ -613,21 +621,21 @@ function returnClass(ret: number | null, label: StockSignalLabel): string {
 
 function pageIntro(activeTab: TabId, stockState: StockState): { eyebrow: string; title: string; description: string; zhSubtitle: string } {
   switch (activeTab) {
-    case 'ETF Weekly':
+    case 'Dashboard':
       return {
-        eyebrow: 'DataHealth',
+        eyebrow: 'Overview',
         title: 'ETF + US Stocks Signal App',
+        description: 'Market regime · today\'s top signals · sector snapshot — all in one view.',
+        zhSubtitle: '市場總覽 — 大市基調 · 今日焦點 · 板塊快覽'
+      }
+    case 'ETFs':
+      return {
+        eyebrow: 'ETF Weekly',
+        title: 'ETF Weekly Advisor',
         description: 'ETF Weekly is reading live Yahoo history and classifying the current universe.',
         zhSubtitle: '每週 ETF 評級 — 🟢 值得留意  🟡 先觀察  🔴 避開'
       }
-    case 'ETF Replay':
-      return {
-        eyebrow: 'Replay',
-        title: 'ETF Recommendation Replay',
-        description: 'Replay shows the last 26 completed weeks using only data available at each point in time.',
-        zhSubtitle: '過去 26 週信號回放，驗證每個評級的實際表現'
-      }
-    case 'Stock Screener':
+    case 'Stocks':
       return {
         eyebrow: 'Screener',
         title: 'US Stock Tactical Screener',
@@ -636,19 +644,12 @@ function pageIntro(activeTab: TabId, stockState: StockState): { eyebrow: string;
           : 'Daily stock signals are live from Yahoo history. Add Finnhub earnings risk by configuring FINNHUB_API_KEY.',
         zhSubtitle: '每日股票信號 — 升降分析（研究階段，非投資建議）'
       }
-    case 'Stock Replay':
-      return {
-        eyebrow: 'Stock Replay',
-        title: 'Stock Signal History',
-        description: 'Per-ticker signal replay: every past signal label with its actual forward return outcome.',
-        zhSubtitle: '個股信號歷史回放 — 觀察過去每個信號實際結果'
-      }
-    case 'Stock Research':
+    case 'Quant Lab':
       return {
         eyebrow: 'Research',
-        title: 'Signal Research Workspace',
-        description: 'Research mode will store forward returns and indicator evidence before locking production rules.',
-        zhSubtitle: '信號統計驗證工作區 — 六關卡 Gate 系統'
+        title: 'Quant Lab',
+        description: 'Signal replay, forward-return research, and seven-gate validation in one workspace.',
+        zhSubtitle: '量化研究工作區 — 信號回放 · 統計驗證 · 七關卡 Gate'
       }
   }
 }
@@ -681,47 +682,43 @@ function buildHeroMetrics(input: {
   } = input
 
   switch (activeTab) {
-    case 'ETF Weekly':
+    case 'Dashboard':
+      return [
+        { label: 'Favour ETFs', value: String(counts.FAVOUR), note: '值得留意', tone: 'gain' },
+        { label: 'Active Long', value: String(stockCounts.LONG), note: '今日升勢焦點', tone: 'info' },
+        { label: 'Avoid ETFs', value: String(counts.AVOID), note: '走勢偏弱', tone: 'warn' }
+      ]
+    case 'ETFs':
       return [
         { label: 'Favour', value: String(counts.FAVOUR), note: '值得留意', tone: 'gain' },
         { label: 'Watch', value: String(counts.WATCH), note: '留意觀望', tone: 'info' },
         { label: 'Avoid', value: String(counts.AVOID), note: '走勢偏弱', tone: 'warn' }
       ]
-    case 'ETF Replay':
-      return [
-        { label: 'Replay Rows', value: String(filteredReplayRows.length), note: '回放樣本', tone: 'info' },
-        { label: 'Favour > SPY 4W', value: formatPercent(replayAnalytics.favourBeatSpy4wRate), note: '勝率', tone: 'gain' },
-        { label: 'Avg 4W Excess', value: formatPercent(replayAnalytics.favourExcess4w), note: '超額回報', tone: 'violet' }
-      ]
-    case 'Stock Screener':
+    case 'Stocks':
       return [
         { label: 'Active Long', value: String(stockCounts.LONG), note: '今日升勢焦點', tone: 'gain' },
         { label: 'Neutral Flow', value: String(stockCounts.NEUTRAL), note: '等待進一步確認', tone: 'info' },
         { label: 'Earnings Guard', value: earningsConfigured ? 'ON' : 'OFF', note: '財報風險過濾', tone: 'warn' }
       ]
-    case 'Stock Replay':
-      return [
-        { label: 'Ticker', value: stockReplayTicker, note: '回放標的', tone: 'info' },
-        { label: 'Signals', value: String(stockReplaySummary.total), note: '歷史信號數', tone: 'gain' },
-        { label: '5D Win Rate', value: formatPercent(stockReplaySummary.longWinRate5d), note: '長邊方向勝率', tone: 'violet' }
-      ]
-    case 'Stock Research':
+    case 'Quant Lab':
       return [
         { label: 'Records', value: String(researchRecords), note: '研究樣本', tone: 'info' },
-        { label: 'Pass Labels', value: String(passedLabels), note: '通過六關卡', tone: 'gain' },
+        { label: 'Pass Labels', value: String(passedLabels), note: '通過七關卡', tone: 'gain' },
         { label: 'Long Excess 5D', value: formatPercent(longExcess5d), note: '升勢超額回報', tone: 'violet' }
       ]
   }
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('ETF Weekly')
+  const [activeTab, setActiveTab] = useState<TabId>('Dashboard')
+  const [quantLabSubTab, setQuantLabSubTab] = useState<QuantLabSubTab>('ETF Replay')
   const [weeklyState, setWeeklyState] = useState<WeeklyState>({
     rows: [],
     replayRows: [],
     histories: {},
     failedTickers: [],
     regime: 'neutral',
+    proxyWeakBreadth: false,
     lastUpdated: null
   })
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(false)
@@ -789,6 +786,7 @@ export default function App() {
 
       const regimeInputs = deriveRegimeInputsFromHistories(histories)
       const regime = classifyRegime(regimeInputs)
+      const proxyWeakBreadth = computeProxyWeakBreadth(regimeInputs)
       const rows = buildWeeklyRows(histories, regime)
       const replayRows = buildReplayRows(histories)
 
@@ -798,6 +796,7 @@ export default function App() {
         histories,
         failedTickers,
         regime,
+        proxyWeakBreadth,
         lastUpdated: new Date().toISOString()
       })
 
@@ -885,7 +884,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (activeTab === 'Stock Screener' && stockState.rows.length === 0 && !isLoadingStocks) {
+    if ((activeTab === 'Stocks' || activeTab === 'Dashboard') && stockState.rows.length === 0 && !isLoadingStocks) {
       void loadStockData()
     }
   }, [activeTab, stockState.rows.length, isLoadingStocks])
@@ -941,7 +940,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if ((activeTab === 'Stock Research' || activeTab === 'Stock Replay') && researchState.records.length === 0 && !isLoadingResearch) {
+    if (activeTab === 'Quant Lab' && researchState.records.length === 0 && !isLoadingResearch) {
       void loadResearchData()
     }
   }, [activeTab, researchState.records.length, isLoadingResearch, stockState.histories])
@@ -962,14 +961,14 @@ export default function App() {
   const gateResults = evaluateAllGates(researchState.records)
   const researchDirectional = countDirectionalResearch(researchState.records)
   const intro = pageIntro(activeTab, stockState)
-  const isResearchTab = activeTab === 'Stock Research' || activeTab === 'Stock Replay'
+  const isQuantLab = activeTab === 'Quant Lab'
   const activeRegime =
-    activeTab === 'Stock Screener' || activeTab === 'Stock Replay' || activeTab === 'Stock Research'
+    activeTab === 'Stocks' || activeTab === 'Quant Lab'
       ? stockState.regime
       : weeklyState.regime
-  const heroLoadedCount = activeTab === 'Stock Screener' ? stockState.rows.length : isResearchTab ? researchState.records.length : Object.keys(weeklyState.histories).length
-  const heroFailedCount = activeTab === 'Stock Screener' ? stockState.failedTickers.length : isResearchTab ? 0 : weeklyState.failedTickers.length
-  const heroUpdatedAt = activeTab === 'Stock Screener' ? stockState.lastUpdated : isResearchTab ? researchState.lastUpdated : weeklyState.lastUpdated
+  const heroLoadedCount = activeTab === 'Stocks' ? stockState.rows.length : isQuantLab ? researchState.records.length : Object.keys(weeklyState.histories).length
+  const heroFailedCount = activeTab === 'Stocks' ? stockState.failedTickers.length : isQuantLab ? 0 : weeklyState.failedTickers.length
+  const heroUpdatedAt = activeTab === 'Stocks' ? stockState.lastUpdated : isQuantLab ? researchState.lastUpdated : weeklyState.lastUpdated
   const stockReplayRecords = researchState.records.filter(r => r.ticker === selectedStockReplayTicker)
   const stockReplaySummary = buildStockReplaySummary(stockReplayRecords)
   const passedResearchLabels = gateResults.filter(result => result.status === 'PASS').length
@@ -985,6 +984,20 @@ export default function App() {
     const winRate5d = directional5d.length > 0 ? wins5d / directional5d.length : null
     return { n: recs.length, avg5d, winRate5d }
   })()
+  // Dashboard Action Radar
+  const radarAttack = useMemo(() =>
+    stockState.rows.filter(r => r.label === 'LONG_CONFIRM' || r.label === 'LONG_PULLBACK' || r.label === 'UP_PROMOTION').slice(0, 3)
+  , [stockState.rows])
+  const radarDefend = useMemo(() =>
+    stockState.rows.filter(r => r.label === 'AVOID_CHOP' || r.label === 'SHORT_CONFIRM' || r.label === 'DOWN_PROMOTION').slice(0, 3)
+  , [stockState.rows])
+  const sectorFavour = useMemo(() =>
+    weeklyState.rows.filter(r => r.label === 'FAVOUR').slice(0, 3)
+  , [weeklyState.rows])
+  const sectorAvoid = useMemo(() =>
+    weeklyState.rows.filter(r => r.label === 'AVOID').slice(-3).reverse()
+  , [weeklyState.rows])
+
   const heroMetrics = buildHeroMetrics({
     activeTab,
     counts,
@@ -1044,7 +1057,7 @@ export default function App() {
             ⚠️ 研究階段 · 參考工具，非投資建議 · 最後決定喺你自己
           </p>
 
-          {activeTab === 'Stock Screener'
+          {activeTab === 'Stocks'
             ? stockError ? <div className="warning">{stockError}</div> : null
             : loadError ? <div className="warning">{loadError}</div> : null}
         </section>
@@ -1063,8 +1076,126 @@ export default function App() {
           ))}
         </nav>
 
-        {/* ── ETF WEEKLY ── */}
-        {activeTab === 'ETF Weekly' ? (
+        {/* ── DASHBOARD ── */}
+        {activeTab === 'Dashboard' ? (
+          <>
+            {/* Regime Hero */}
+            <section className="panel wide">
+              <div className="dashboard-regime-hero">
+                <div className="drh__status">
+                  <span className={`drh__badge drh__badge--${weeklyState.regime}`}>
+                    {weeklyState.regime === 'long_friendly' ? '🟢 大市穩健' : weeklyState.regime === 'short_friendly' ? '🔴 市況偏弱' : '🟡 中性觀望'}
+                  </span>
+                  <span className="drh__regime-label">{regimeSummary(weeklyState.regime)} Regime</span>
+                </div>
+                {weeklyState.proxyWeakBreadth && (
+                  <div className="drh__breadth-warn">
+                    ⚠️ 廣度偏弱 — SPY 走強但 RSP (等權) 落後，市場升勢集中於大型股，需謹慎
+                  </div>
+                )}
+                <p className="drh__desc">
+                  {weeklyState.regime === 'long_friendly'
+                    ? '整體環境有利做多，可積極跟進優質突破信號。'
+                    : weeklyState.regime === 'short_friendly'
+                    ? '市況偏弱，避免新倉，優先保本及等待明確反轉。'
+                    : '市場方向未明，以小注測試為主，等待 Regime 明確。'}
+                </p>
+              </div>
+            </section>
+
+            {/* Action Radar */}
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>Action Radar 今日焦點信號</h2>
+                  <p className="subtle">從 Stock Screener 過濾最強及最弱信號</p>
+                </div>
+                {stockState.rows.length === 0 && (
+                  <button type="button" className="refresh-button" disabled={isLoadingStocks} onClick={() => void loadStockData()}>
+                    {isLoadingStocks ? '載入中...' : '載入股票信號'}
+                  </button>
+                )}
+              </div>
+              {stockState.rows.length === 0 && !isLoadingStocks ? (
+                <p className="subtle">點擊「載入股票信號」以顯示 Action Radar。</p>
+              ) : isLoadingStocks ? (
+                <p className="subtle">載入股票數據中…</p>
+              ) : (
+                <div className="dashboard-radar">
+                  <div className="dashboard-radar__col">
+                    <div className="dashboard-radar__label dashboard-radar__label--attack">攻擊 — 升勢確認</div>
+                    {radarAttack.length === 0 ? (
+                      <p className="subtle">今日暫無強確認信號</p>
+                    ) : radarAttack.map(row => {
+                      const disp = getStockLabelDisplay(row.label)
+                      return (
+                        <div key={row.ticker} className="radar-card radar-card--long">
+                          <span className="radar-card__ticker">{row.ticker}</span>
+                          <span className="radar-card__name">{row.name}</span>
+                          <span className={`label-pill label-pill--stock label-pill--stock-long`}>{disp.lightEmoji} {disp.zhText}</span>
+                          {row.patternTag === 'BASE_BREAK' && <span className="pattern-tag">BASE_BREAK</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="dashboard-radar__col">
+                    <div className="dashboard-radar__label dashboard-radar__label--defend">防禦 — 弱勢迴避</div>
+                    {radarDefend.length === 0 ? (
+                      <p className="subtle">今日暫無弱勢確認信號</p>
+                    ) : radarDefend.map(row => {
+                      const disp = getStockLabelDisplay(row.label)
+                      return (
+                        <div key={row.ticker} className="radar-card radar-card--short">
+                          <span className="radar-card__ticker">{row.ticker}</span>
+                          <span className="radar-card__name">{row.name}</span>
+                          <span className={`label-pill label-pill--stock label-pill--stock-short`}>{disp.lightEmoji} {disp.zhText}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* Sector Snapshot */}
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>Sector Snapshot 板塊快覽</h2>
+                  <p className="subtle">從 ETF Weekly 提取 FAVOUR top 3 / AVOID bottom 3</p>
+                </div>
+              </div>
+              {weeklyState.rows.length === 0 ? (
+                <p className="subtle">ETF 數據載入中…</p>
+              ) : (
+                <div className="dashboard-radar">
+                  <div className="dashboard-radar__col">
+                    <div className="dashboard-radar__label dashboard-radar__label--attack">FAVOUR — 強勢板塊</div>
+                    {sectorFavour.map(row => (
+                      <div key={row.ticker} className="radar-card radar-card--long">
+                        <span className="radar-card__ticker">{row.ticker}</span>
+                        <span className="radar-card__name">{row.name}</span>
+                        <span className="radar-card__stat">13W {formatPercent(row.return13w)}</span>
+                        {row.rankScore !== null && <span className="radar-card__rank">RS {row.rankScore.toFixed(2)}</span>}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="dashboard-radar__col">
+                    <div className="dashboard-radar__label dashboard-radar__label--defend">AVOID — 弱勢板塊</div>
+                    {sectorAvoid.map(row => (
+                      <div key={row.ticker} className="radar-card radar-card--short">
+                        <span className="radar-card__ticker">{row.ticker}</span>
+                        <span className="radar-card__name">{row.name}</span>
+                        <span className="radar-card__stat">13W {formatPercent(row.return13w)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          </>
+
+        ) : activeTab === 'ETFs' ? (
           <>
             <section className="dashboard-grid wide">
               <article className={`panel ${summaryToneClass('gain')}`}>
@@ -1155,6 +1286,7 @@ export default function App() {
                                   <div className="etf-card__metrics">
                                     <span className="etf-card__metric">13W <strong className={retPos ? 'ret-pos' : retNeg ? 'ret-neg' : ''}>{formatPercent(row.return13w)}</strong></span>
                                     <span className="etf-card__metric">40W <strong>{formatRatio(row.priceVs40wMa)}</strong></span>
+                                    {row.rankScore !== null && <span className="etf-card__metric">RS <strong>{row.rankScore.toFixed(2)}</strong></span>}
                                   </div>
                                   <ETFSparkline ticker={row.ticker} histories={weeklyState.histories} label={row.label} />
                                   <div className="etf-card__reason">{disp.plainReason}</div>
@@ -1211,8 +1343,22 @@ export default function App() {
             </section>
           </>
 
-        ) : activeTab === 'ETF Replay' ? (
+        ) : activeTab === 'Quant Lab' ? (
           <>
+            <nav aria-label="Quant Lab sub-tabs" className="segmented-control segmented-control--sub">
+              {(['ETF Replay', 'Stock Replay', 'Stock Research'] as QuantLabSubTab[]).map(sub => (
+                <button
+                  key={sub}
+                  type="button"
+                  className={sub === quantLabSubTab ? 'segmented-control__button is-active' : 'segmented-control__button'}
+                  onClick={() => setQuantLabSubTab(sub)}
+                >
+                  {sub}
+                </button>
+              ))}
+            </nav>
+
+            {quantLabSubTab === 'ETF Replay' ? (<>
             <section className="dashboard-grid wide">
               {replaySummary.map(item => {
                 const disp = getETFLabelDisplay(item.label)
@@ -1339,9 +1485,339 @@ export default function App() {
                 )
               })()}
             </section>
+            </>) : quantLabSubTab === 'Stock Replay' ? (<>
+            {/* ── STOCK REPLAY (Quant Lab sub-tab) ── */}
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>個股信號歷史 Signal History</h2>
+                  <p className="subtle">
+                    Every past signal label with actual forward-return outcome. Entry = next-bar open (HYP-012).
+                    Colour = directional correctness — 🟢 signal worked, 🔴 signal failed.
+                  </p>
+                  <p className="subtle">綠色 = 信號方向正確；紅色 = 方向錯誤。</p>
+                </div>
+                <div className="header-actions">
+                  <label>
+                    股票 Ticker
+                    <select value={selectedStockReplayTicker} onChange={event => setSelectedStockReplayTicker(event.target.value)}>
+                      {stockWatchlist.map(s => (
+                        <option key={s.ticker} value={s.ticker}>{s.ticker} — {s.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="button" className="refresh-button" disabled={isLoadingResearch} onClick={() => void loadResearchData()}>
+                    {isLoadingResearch ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {(() => {
+              const sum = stockReplaySummary
+              return (
+                <section className="dashboard-grid wide">
+                  <article className={`panel ${summaryToneClass('gain')}`}>
+                    <h2>🟢 Long 升勢信號</h2>
+                    <strong>n = <AnimatedMetricValue value={String(sum.longCount)} /></strong>
+                    <span>5D 方向勝率 {formatPercent(sum.longWinRate5d)}</span>
+                    <span>10D 方向勝率 {formatPercent(sum.longWinRate10d)}</span>
+                  </article>
+                  <article className={`panel ${summaryToneClass('loss')}`}>
+                    <h2>🔴 Short 跌勢信號</h2>
+                    <strong>n = <AnimatedMetricValue value={String(sum.shortCount)} /></strong>
+                    <span>5D 方向勝率 {formatPercent(sum.shortWinRate5d)}</span>
+                    <span>10D 方向勝率 {formatPercent(sum.shortWinRate10d)}</span>
+                  </article>
+                  <article className={`panel ${summaryToneClass('info')}`}>
+                    <h2>↑ Long 平均回報</h2>
+                    <strong><AnimatedMetricValue value={formatPercent(sum.longAvg5d)} /></strong>
+                    <span>5D avg · 10D {formatPercent(sum.longAvg10d)}</span>
+                  </article>
+                  <article className={`panel ${summaryToneClass('warn')}`}>
+                    <h2>↓ Short 平均回報</h2>
+                    <strong><AnimatedMetricValue value={formatPercent(sum.shortAvg5d)} /></strong>
+                    <span>5D avg · 10D {formatPercent(sum.shortAvg10d)}</span>
+                  </article>
+                </section>
+              )
+            })()}
+
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>歷史記錄 All Signals — {selectedStockReplayTicker}</h2>
+                  <p className="subtle">{stockReplayRecords.length} signals in 180-bar replay window</p>
+                </div>
+              </div>
+              {(() => {
+                const collapseLimit = Math.max(1, Math.ceil(stockReplayRecords.length / 3))
+                const displayedRecords = stockReplayExpanded ? stockReplayRecords : stockReplayRecords.slice(0, collapseLimit)
+                return (
+                  <>
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>日期 Date</th>
+                            <th>信號 Label</th>
+                            <th>Regime</th>
+                            <th>Close $</th>
+                            <th>1D</th>
+                            <th>3D</th>
+                            <th>5D</th>
+                            <th>10D</th>
+                            <th>5D vs SPY</th>
+                            <th>MFE 5D</th>
+                            <th>MAE 5D</th>
+                            <th>E?</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {displayedRecords.map(record => {
+                            const disp = getStockLabelDisplay(record.label)
+                            const group = stockLabelGroup(record.label).toLowerCase()
+                            return (
+                              <tr key={`${record.signalDate}:${record.label}`}>
+                                <td>{record.signalDate}</td>
+                                <td>
+                                  <div className="label-cell">
+                                    <span className={`label-pill label-pill--stock label-pill--stock-${group}`}>
+                                      {disp.lightEmoji} {disp.zhText}
+                                    </span>
+                                    <span className="label-code">{record.label}</span>
+                                  </div>
+                                </td>
+                                <td>{record.regimeAtSignal}</td>
+                                <td>{record.closeAtSignal.toFixed(2)}</td>
+                                <td className={returnClass(record.ret1d, record.label)}>{formatPercent(record.ret1d)}</td>
+                                <td className={returnClass(record.ret3d, record.label)}>{formatPercent(record.ret3d)}</td>
+                                <td className={returnClass(record.ret5d, record.label)}>{formatPercent(record.ret5d)}</td>
+                                <td className={returnClass(record.ret10d, record.label)}>{formatPercent(record.ret10d)}</td>
+                                <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>
+                                <td>{formatPercent(record.mfe5d)}</td>
+                                <td>{formatPercent(record.mae5d)}</td>
+                                <td>{record.earningsInWindow ? '⚠️' : '—'}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="expand-row">
+                      <button type="button" className="expand-btn" onClick={() => setStockReplayExpanded(prev => !prev)}>
+                        {stockReplayExpanded
+                          ? `▲ 收起 Collapse (showing ${stockReplayRecords.length})`
+                          : `▼ 展開 Expand — showing ${collapseLimit} / ${stockReplayRecords.length} rows`}
+                      </button>
+                    </div>
+                  </>
+                )
+              })()}
+            </section>
+            </>) : (<>
+            {/* ── STOCK RESEARCH (Quant Lab sub-tab) ── */}
+            <section className="panel hero-card wide">
+              <p className="eyebrow">Research Status</p>
+              <h2>Stock Research 信號驗證</h2>
+              <p className="subtle">
+                Forward-return dataset built from the last 180 signal bars across {stockWatchlist.length} watchlist names. Historical earnings dates loaded via Finnhub when configured.
+              </p>
+              <p className="zh-subtitle">統計驗證工作區：追蹤每個信號標籤的實際勝率，六個 Gate 全通過才算可信。</p>
+              <div className="status-row">
+                <span className="status-chip">Records: <strong>{researchState.records.length}</strong></span>
+                <span className="status-chip">Long Signals: <strong>{researchDirectional.longCount}</strong></span>
+                <span className="status-chip">Short Signals: <strong>{researchDirectional.shortCount}</strong></span>
+                <span className="status-chip">Updated: <strong>{researchState.lastUpdated ? new Date(researchState.lastUpdated).toLocaleString('en-HK', { hour12: false }) : 'pending'}</strong></span>
+              </div>
+              {researchError ? <div className="warning">{researchError}</div> : null}
+            </section>
+
+            <section className="dashboard-grid wide">
+              <article className={`panel ${summaryToneClass('gain')}`}>
+                <h2>Long Excess 5D 升幅超大市</h2>
+                <strong><AnimatedMetricValue value={formatPercent(researchDirectional.excess5dLong)} /></strong>
+                <span>Mean 5D return vs SPY for long labels</span>
+              </article>
+              <article className={`panel ${summaryToneClass('loss')}`}>
+                <h2>Short Excess 5D 跌幅超大市</h2>
+                <strong><AnimatedMetricValue value={formatPercent(researchDirectional.excess5dShort)} /></strong>
+                <span>Mean 5D return vs SPY for short labels</span>
+              </article>
+              <article className={`panel ${summaryToneClass('info')}`}>
+                <h2>Dataset Window</h2>
+                <strong><AnimatedMetricValue value="180" /> bars</strong>
+                <span>Per ticker, excluding the last 10 bars for forward returns</span>
+              </article>
+              <article className={`panel ${summaryToneClass('violet')}`}>
+                <h2>Universe</h2>
+                <strong><AnimatedMetricValue value={String(stockWatchlist.length)} /></strong>
+                <span>Starter watchlist names included in research</span>
+              </article>
+            </section>
+
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>Gate Summary 七關卡驗證</h2>
+                  <p className="subtle">G1 n≥100 · G2 方向正確 · G3 跑贏大市 · G4 前後半一致 · G5 中性市仍正確 · G6 MAE&lt;3% · G7 止損命中率&lt;30%</p>
+                </div>
+                <div className="header-actions">
+                  <button type="button" onClick={() => setShowGateLegend(v => !v)} style={{ fontSize: '0.82rem' }}>? 點睇 Gate 說明</button>
+                  <button type="button" className="refresh-button" disabled={isLoadingResearch} onClick={() => void loadResearchData()}>{isLoadingResearch ? 'Refreshing...' : 'Refresh Research'}</button>
+                </div>
+              </div>
+              {showGateLegend && (
+                <div className="gate-legend">
+                  <button type="button" className="gate-legend__close" onClick={() => setShowGateLegend(false)}>✕</button>
+                  <h3>六關卡說明 Gate Criteria</h3>
+                  <dl className="gate-legend__list">
+                    <dt>G1 — 樣本量</dt><dd>n ≥ 100。</dd>
+                    <dt>G2 — 方向正確</dt><dd>Long label Avg 5D &gt; 0；Short &lt; 0。</dd>
+                    <dt>G3 — 跑贏大市</dt><dd>Long Avg 5D vs SPY &gt; +0.5%；Short &lt; −0.5%。</dd>
+                    <dt>G4 — 前後半一致</dt><dd>前半後半都方向正確。</dd>
+                    <dt>G5 — 中性市仍正確</dt><dd>neutral regime 下仍方向正確，需 ≥ 5 樣本。</dd>
+                    <dt>G6 — MAE 受控</dt><dd>5D 最大逆向波動平均 &lt; 3%。</dd>
+                    <dt>G7 — 止損命中率</dt><dd>Long 被 2×ATR14 止損比率 &lt; 30%，需 ≥ 10 樣本。</dd>
+                  </dl>
+                  <p className="gate-legend__note">所有 label 必須通過 G1–G7 才能正式建議。</p>
+                </div>
+              )}
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Label 信號</th><th>n</th><th>Avg 5D</th><th>Median 5D</th><th>vs SPY</th><th>MAE 5D</th>
+                      <th title="n ≥ 100">G1</th><th title="方向正確">G2</th><th title="跑贏大市">G3</th>
+                      <th title="前後半一致">G4</th><th title="中性市">G5</th><th title="MAE &lt; 3%">G6</th>
+                      <th title="止損命中率">G7</th><th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gateResults.map((item: LabelGateResult) => (
+                      <tr key={item.label}>
+                        <td>
+                          <div className="label-cell">
+                            <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(item.label).toLowerCase()}`}>
+                              {getStockLabelDisplay(item.label).lightEmoji} {getStockLabelDisplay(item.label).zhText}
+                            </span>
+                            <span className="label-code">{item.label}</span>
+                          </div>
+                        </td>
+                        <td>{item.count}</td><td>{formatPercent(item.avgRet5d)}</td>
+                        <td>{formatPercent(item.medianRet5d)}</td><td>{formatPercent(item.avgRet5dVsSpy)}</td>
+                        <td>{formatPercent(item.avgMae5d)}</td>
+                        <td className={gateClass(item.gate1SampleSize)}>{gateIcon(item.gate1SampleSize)}</td>
+                        <td className={gateClass(item.gate2Direction)}>{gateIcon(item.gate2Direction)}</td>
+                        <td className={gateClass(item.gate3VsSpy)}>{gateIcon(item.gate3VsSpy)}</td>
+                        <td className={gateClass(item.gate4Consistent)}>{gateIcon(item.gate4Consistent)}</td>
+                        <td className={gateClass(item.gate5NeutralRegime)}>{gateIcon(item.gate5NeutralRegime)}</td>
+                        <td className={gateClass(item.gate6Mae)}>{gateIcon(item.gate6Mae)}</td>
+                        <td className={gateClass(item.gate7StopLossHitRate)} title={item.stopLossHitRate !== null ? `${(item.stopLossHitRate * 100).toFixed(0)}%` : undefined}>{gateIcon(item.gate7StopLossHitRate)}</td>
+                        <td><span className={`status-badge status-badge--${item.status.toLowerCase()}`}>{item.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>Regime Split 大市環境分拆</h2>
+                  <p className="subtle">Avg 5D return by signal label across regimes.</p>
+                </div>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Label</th>
+                      <th>🟢 long_friendly n</th><th>Avg 5D</th>
+                      <th>🟡 neutral n</th><th>Avg 5D</th>
+                      <th>🔴 short_friendly n</th><th>Avg 5D</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gateResults.map((item: LabelGateResult) => (
+                      <tr key={item.label}>
+                        <td><span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(item.label).toLowerCase()}`}>{getStockLabelDisplay(item.label).lightEmoji} {item.label}</span></td>
+                        <td>{item.regimeSplit.long_friendly.count}</td><td>{formatPercent(item.regimeSplit.long_friendly.avgRet5d)}</td>
+                        <td>{item.regimeSplit.neutral.count}</td><td>{formatPercent(item.regimeSplit.neutral.avgRet5d)}</td>
+                        <td>{item.regimeSplit.short_friendly.count}</td><td>{formatPercent(item.regimeSplit.short_friendly.avgRet5d)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>Record Explorer 記錄探查</h2>
+                  <p className="subtle">
+                    {selectedResearchLabel === 'ALL'
+                      ? `Showing ${Math.min(filteredResearchRecords.length, 120)} of ${filteredResearchRecords.length} records (most recent first). Select a label to drill down.`
+                      : `${filteredResearchRecords.length} records for ${selectedResearchLabel} · Avg 5D ${formatPercent(researchFilterStats.avg5d)} · Win Rate ${formatPercent(researchFilterStats.winRate5d)}`}
+                  </p>
+                </div>
+                <div className="header-actions">
+                  <label>
+                    Label 信號
+                    <select value={selectedResearchLabel} onChange={e => setSelectedResearchLabel(e.target.value as StockSignalLabel | 'ALL')}>
+                      <option value="ALL">ALL — 全部</option>
+                      <option value="UP_PROMOTION">UP_PROMOTION</option>
+                      <option value="LONG_CONFIRM">LONG_CONFIRM</option>
+                      <option value="LONG_SETUP">LONG_SETUP</option>
+                      <option value="LONG_WATCH">LONG_WATCH</option>
+                      <option value="DOWN_PROMOTION">DOWN_PROMOTION</option>
+                      <option value="SHORT_CONFIRM">SHORT_CONFIRM</option>
+                      <option value="SHORT_SETUP">SHORT_SETUP</option>
+                      <option value="SHORT_WATCH">SHORT_WATCH</option>
+                      <option value="NEUTRAL">NEUTRAL</option>
+                      <option value="AVOID_CHOP">AVOID_CHOP</option>
+                      <option value="REVIEW_EVENT">REVIEW_EVENT</option>
+                      <option value="REVIEW_DATA">REVIEW_DATA</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th><th>Ticker</th><th>Label</th><th>Regime</th>
+                      <th>5D</th><th>10D</th><th>5D vs SPY</th><th>MFE 5D</th><th>MAE 5D</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredResearchRecords.slice(0, selectedResearchLabel === 'ALL' ? 120 : 500).map(record => (
+                      <tr key={`${record.signalDate}:${record.ticker}:${record.label}`}>
+                        <td>{record.signalDate}</td>
+                        <td>{record.ticker}</td>
+                        <td>
+                          <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(record.label).toLowerCase()}`}>
+                            {getStockLabelDisplay(record.label).lightEmoji} {record.label}
+                          </span>
+                        </td>
+                        <td>{record.regimeAtSignal}</td>
+                        <td className={returnClass(record.ret5d, record.label)}>{formatPercent(record.ret5d)}</td>
+                        <td className={returnClass(record.ret10d, record.label)}>{formatPercent(record.ret10d)}</td>
+                        <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>
+                        <td>{formatPercent(record.mfe5d)}</td>
+                        <td>{formatPercent(record.mae5d)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            </>)}
           </>
 
-        ) : activeTab === 'Stock Screener' ? (
+        ) : activeTab === 'Stocks' ? (
           <>
             <section className="panel hero-card wide">
               <p className="eyebrow">Screener Status</p>
@@ -1463,6 +1939,7 @@ export default function App() {
                         <div className="stock-card__footer">
                           <span className={`stock-card__action stock-card__action--${disp.actionGroup}`}>{disp.action}</span>
                           <span className="stock-card__code">{disp.enCode}</span>
+                          {row.patternTag === 'BASE_BREAK' && <span className="pattern-tag">BASE_BREAK</span>}
                         </div>
                       </div>
                     )
@@ -1517,7 +1994,7 @@ export default function App() {
             </section>
           </>
 
-        ) : activeTab === 'Stock Replay' ? (
+        ) : activeTab === ('Stock Replay' as string) ? (
           <>
             <section className="panel wide">
               <div className="section-header">
@@ -1649,7 +2126,7 @@ export default function App() {
             </section>
           </>
 
-        ) : activeTab === 'Stock Research' ? (
+        ) : activeTab === ('Stock Research' as string) ? (
           <>
             <section className="panel hero-card wide">
               <p className="eyebrow">Research Status</p>
@@ -1947,14 +2424,14 @@ export default function App() {
             <button type="button" className="modal-close" onClick={() => setShowHelp(false)}>✕</button>
             <h3>使用說明</h3>
             <dl className="gate-legend__list">
-              <dt>ETF Weekly</dt>
-              <dd>每週大市 ETF 信號：🟢升勢 / 🔴跌勢 / 🟡中性。配合 Regime 判斷大方向。</dd>
-              <dt>Stock Screener</dt>
+              <dt>Dashboard</dt>
+              <dd>市場基調一覽：Regime + 廣度警示 + 今日焦點信號 + 板塊快覽。</dd>
+              <dt>Stocks</dt>
               <dd>即時個股信號，按梯形排列：WATCH → SETUP → CONFIRM → PROMOTION。</dd>
-              <dt>Stock Research</dt>
-              <dd>六關卡統計驗證。目前所有 label 仍屬研究階段，未通過 G1–G6 前只作參考。</dd>
-              <dt>Stock Replay</dt>
-              <dd>每隻股票過去 180 個交易日的信號歷史及 5/10D forward return。</dd>
+              <dt>ETFs</dt>
+              <dd>每週大市 ETF 信號：🟢升勢 / 🔴跌勢 / 🟡中性。配合 Regime 判斷大方向。</dd>
+              <dt>Quant Lab</dt>
+              <dd>深度研究：ETF Replay 回放 · Stock Replay 個股歷史 · Signal Research 七關卡驗證。</dd>
             </dl>
             <p className="gate-legend__note">⚠️ 本工具僅供研究，非投資建議。最終決定由你負責。</p>
             <button

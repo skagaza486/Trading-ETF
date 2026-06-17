@@ -22,8 +22,13 @@ export function deriveRegimeInputsFromHistories(histories: Record<string, Ticker
     qqqAboveEma50: latestEmaSignal(histories.QQQ, 50),
     vixLevel: latestBar(histories['^VIX'])?.close ?? null,
     hkMarketAboveEma40w: latestEmaSignal(histories['2800.HK'], 200),
-    goldAboveEma40w: latestEmaSignal(histories.GLD, 200)
+    goldAboveEma40w: latestEmaSignal(histories.GLD, 200),
+    rspAboveEma50: latestEmaSignal(histories.RSP, 50)
   }
+}
+
+export function computeProxyWeakBreadth(inputs: RegimeInputs): boolean {
+  return inputs.spyAboveEma50 === true && inputs.rspAboveEma50 === false
 }
 
 export function classifyMarketRegime(inputs: RegimeInputs): MarketRegime {

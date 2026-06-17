@@ -22,7 +22,8 @@ function deriveRegimeFromHistories(benchmarks: Record<string, TickerHistory>): R
     qqqAboveEma50: benchmarks.QQQ ? latestEmaCheck(benchmarks.QQQ, 50) : null,
     vixLevel: latestBar(benchmarks['^VIX'])?.close ?? null,
     hkMarketAboveEma40w: benchmarks['2800.HK'] ? latestEmaCheck(benchmarks['2800.HK'], 200) : null,
-    goldAboveEma40w: benchmarks.GLD ? latestEmaCheck(benchmarks.GLD, 200) : null
+    goldAboveEma40w: benchmarks.GLD ? latestEmaCheck(benchmarks.GLD, 200) : null,
+    rspAboveEma50: benchmarks.RSP ? latestEmaCheck(benchmarks.RSP, 50) : null
   }
 
   return classifyRegime(inputs)

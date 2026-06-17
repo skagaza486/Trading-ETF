@@ -182,8 +182,11 @@ AVOID_CHOP     — RSI 45–55, RVOL < 0.8, EMA20 slope near zero, no breakout/b
 LONG ladder (each requires regime ≠ short_friendly):
   LONG_WATCH   — RSI > 50, MACD hist > 0, CMF > 0, OBV rising
   LONG_SETUP   — close > EMA20, EMA20 slope > 0, RSI > 55, RVOL > 1.2, CMF > 0, above EMA200
-  LONG_CONFIRM — 20d breakout, RVOL > 1.8, CMF > 0.1, CLV > 0.65, EMA20 > EMA50, RSI > 55, near 52w high
+  LONG_CONFIRM — 20d ATR-normalised breakout, RVOL > 1.8, CMF > 0.1, CLV > 0.65,
+                 EMA20 > EMA50, RSI > 55, near 52w high, above EMA200
                  + HYP-009: requires prior bar to be LONG_WATCH/LONG_SETUP/LONG_CONFIRM
+  LONG_PULLBACK — (VCP variant) pullback into EMA20 on low RVOL, RSI held above 50,
+                  followed by recovery; researched alongside LONG_CONFIRM
   UP_PROMOTION — LONG_SETUP → LONG_CONFIRM with prior LONG_SETUP label
 
 SHORT ladder (mirror, requires regime ≠ long_friendly):
@@ -191,6 +194,10 @@ SHORT ladder (mirror, requires regime ≠ long_friendly):
 
 NEUTRAL        — default
 ```
+
+**Research-stage signals (not yet in production classifier):**
+
+- `AVOID_DISTRIBUTION` — Wyckoff distribution flag: RVOL > 2.5 + stagnant close / long upper shadow + within 5% of 52-week high. Tracked as `patternTag` pending Gate validation. See ROADMAP R8.
 
 ---
 
@@ -251,17 +258,30 @@ Benchmarks fetched separately: SPY, QQQ, ^VIX (ETF module); SPY, QQQ, IWM, ^VIX,
 
 ---
 
-## 12. UI — Five Tabs
+## 12. UI — Tabs
 
 All rendered within a single `App.tsx` component. No router.
 
+**Current structure (5 tabs):**
+
 | Tab | Content |
 |---|---|
-| **ETF Weekly** | 4 summary cards (FAVOUR/WATCH/AVOID/REVIEW counts) + card/table toggle for all ETFs |
+| **ETF Weekly** | 4 summary cards (FAVOUR/WATCH/AVOID/REVIEW counts) + card/table toggle; cards show sparklines, accordion by sector, RS slope badge, ATR-stop indicator |
 | **ETF Replay** | Rolling 26-week replay table; FAVOUR vs SPY win rate, alpha stats |
 | **Stock Screener** | 4 summary cards (LONG/SHORT/NEUTRAL/REVIEW counts) + card/table toggle for ~100 stocks |
 | **Stock Replay** | Per-ticker signal history with forward-return outcomes, colour-coded correctness |
 | **Stock Research** | Forward-return dataset + 6-gate validation table; currently all labels INSUFFICIENT |
+
+**Planned restructure (ROADMAP I7):**
+
+```text
+[Dashboard]  [Stocks]  [ETFs]  [Quant Lab]
+```
+
+- Dashboard: regime hero + Action Radar (today's triggered signals) + Sector Snapshot (top/bottom 3 ETFs)
+- Stocks: current Stock Screener
+- ETFs: current ETF Weekly (accordion + sparklines already in place)
+- Quant Lab: merge ETF Replay + Stock Replay + Stock Research into one tab with sub-tabs
 
 ### Card vs Table toggle
 Both ETF Weekly and Stock Screener offer a 卡片/列表 toggle (`etfViewMode`, `stockViewMode`), both defaulting to `'cards'`. Cards are the mobile-friendly default; tables are for dense data on desktop.
@@ -387,4 +407,4 @@ type ForwardReturnRecord = {
 
 ---
 
-*Last updated: 2026-06-18*
+Last updated: 2026-06-18 (added LONG_PULLBACK, AVOID_DISTRIBUTION research note, planned I7 tab restructure)

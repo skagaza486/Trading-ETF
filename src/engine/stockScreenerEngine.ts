@@ -29,7 +29,8 @@ function deriveRegime(benchmarks: Record<string, TickerHistory>): RegimeClass {
     qqqAboveEma50: latestEmaCheck(benchmarks.QQQ, 50),
     vixLevel: latestBar(benchmarks['^VIX'])?.close ?? null,
     hkMarketAboveEma40w: latestEmaCheck(benchmarks['2800.HK'], 200),
-    goldAboveEma40w: latestEmaCheck(benchmarks.GLD, 200)
+    goldAboveEma40w: latestEmaCheck(benchmarks.GLD, 200),
+    rspAboveEma50: latestEmaCheck(benchmarks.RSP, 50)
   }
 
   return classifyRegime(inputs)
@@ -223,6 +224,25 @@ export function classifyStock(
     label = 'SHORT_SETUP'
   }
 
+  // I4: LONG_BASE_BREAK research prototype — low-RVOL base then volume expansion breakout
+  let patternTag: 'BASE_BREAK' | undefined
+  if (label !== 'REVIEW_DATA' && label !== 'REVIEW_EVENT' && effectiveRegime !== 'short_friendly') {
+    const rvolSeries = computeRVOL(history.bars, 20)
+    const prior60Rvol = rvolSeries.slice(-61, -1).filter((v): v is number => v !== null)
+    const lowRvolDays = prior60Rvol.filter(v => v < 0.7).length
+    const high60d = history.bars.length >= 61
+      ? Math.max(...history.bars.slice(-61, -1).map(b => b.high))
+      : null
+    if (
+      lowRvolDays >= 40 &&
+      (indicators.rvol ?? 0) > 1.8 &&
+      high60d !== null &&
+      indicators.close > high60d
+    ) {
+      patternTag = 'BASE_BREAK'
+    }
+  }
+
   const reasonParts = [
     `Regime ${effectiveRegime}`,
     `RSI ${indicators.rsi14 === null ? 'n/a' : indicators.rsi14.toFixed(1)}`,
@@ -248,6 +268,7 @@ export function classifyStock(
     signalDate,
     label,
     previousLabel: previousLabel ?? undefined,
+    patternTag,
     indicators,
     regime: effectiveRegime,
     earningsWithinWindow: earningsWithinReviewWindow,

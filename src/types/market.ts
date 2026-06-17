@@ -4,6 +4,7 @@ export type RegimeInputs = {
   vixLevel: number | null
   hkMarketAboveEma40w: boolean | null
   goldAboveEma40w: boolean | null
+  rspAboveEma50: boolean | null
 }
 
 export type MarketRegime = 'RISK_ON' | 'NEUTRAL' | 'RISK_OFF'

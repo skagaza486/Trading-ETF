@@ -2,6 +2,19 @@ import type { TickerHistory } from '../types/indicator'
 import type { ETFRecommendation, RegimeClass } from '../types/signal'
 import { aggregateWeeklyHistory, closes, latestBar, percentChange, regressionSlope, rollingMean } from './historyUtils'
 
+function computeVolatility13w(weeklyCloses: number[]): number | null {
+  if (weeklyCloses.length < 14) return null
+  const sample = weeklyCloses.slice(-14)
+  const returns: number[] = []
+  for (let i = 1; i < sample.length; i++) {
+    if (sample[i - 1] !== 0) returns.push((sample[i] - sample[i - 1]) / sample[i - 1])
+  }
+  if (returns.length < 5) return null
+  const mean = returns.reduce((s, v) => s + v, 0) / returns.length
+  const variance = returns.reduce((s, v) => s + (v - mean) ** 2, 0) / (returns.length - 1)
+  return Math.sqrt(variance)
+}
+
 const SAFE_HAVEN_TICKERS = new Set(['GLD', 'IAU', 'GLDM', 'SGOV', 'SHY', 'IEF', 'TLT', 'BIL', 'TIP'])
 
 function latestValue<T>(values: (T | null)[]): T | null {
@@ -91,7 +104,8 @@ export function classifyETF(
         priceVs40wMa: null,
         relStrengthVsSpy: null,
         rsSlope: null,
-        vixLevel
+        vixLevel,
+        rankScore: null
       },
       reason: 'Insufficient weekly history or missing benchmark data.'
     }
@@ -99,6 +113,11 @@ export function classifyETF(
 
   const weeklyCloses = closes(weeklyHistory)
   const spyCloses = closes(spyWeekly)
+  const sgovHistory = benchmarks.SGOV
+  const sgovWeekly = sgovHistory ? aggregateWeeklyHistory(sgovHistory) : null
+  const sgovReturn13w = sgovWeekly
+    ? percentChange(closes(sgovWeekly).at(-1) ?? NaN, closes(sgovWeekly).at(-14) ?? NaN)
+    : null
   const ma10 = rollingMean(weeklyCloses, 10)
   const ma40 = rollingMean(weeklyCloses, 40)
   const latestClose = weeklyCloses.at(-1) ?? null
@@ -110,6 +129,11 @@ export function classifyETF(
   const spyReturn13w = percentChange(spyCloses.at(-1) ?? NaN, spyCloses.at(-14) ?? NaN)
   const relStrengthVsSpy =
     return13w !== null && spyReturn13w !== null ? return13w - spyReturn13w : null
+  const volatility13w = computeVolatility13w(weeklyCloses)
+  const rankScore =
+    return13w !== null && sgovReturn13w !== null && volatility13w !== null && volatility13w > 0
+      ? (return13w - sgovReturn13w) / volatility13w
+      : null
   const priceVs10wMa = latestClose !== null && latestMa10 !== null && latestMa10 !== 0 ? latestClose / latestMa10 : null
   const priceVs40wMa = latestClose !== null && latestMa40 !== null && latestMa40 !== 0 ? latestClose / latestMa40 : null
   const ma10Slope =
@@ -161,7 +185,8 @@ export function classifyETF(
       priceVs40wMa,
       relStrengthVsSpy,
       rsSlope,
-      vixLevel
+      vixLevel,
+      rankScore
     },
     reason: reasonParts.join(' | ')
   }
