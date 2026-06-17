@@ -1719,9 +1719,9 @@ td select { min-width: 92px; }
 }
 
 @media (max-width: 640px) {
-  .app-shell { padding: 14px 14px 48px; }
+  .app-shell { padding: 14px 14px 80px; }
 
-  h1 { font-size: 1.45rem; }
+  h1 { font-size: 1.35rem; max-width: 100%; }
 
   .page-header,
   .section-header { display: block; }
@@ -1736,25 +1736,67 @@ td select { min-width: 92px; }
 
   .panel { margin-top: 10px; }
 
+  /* Segmented control: horizontal scroll, no wrap */
+  .segmented-control {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .segmented-control::-webkit-scrollbar { display: none; }
+
+  .segmented-control__button {
+    flex: 0 0 auto;
+    padding: 7px 13px;
+    font-size: 0.78rem;
+  }
+
   /* Hero compression */
   .hero-card .subtle,
   .hero-card .zh-subtitle { display: none; }
 
   .hero-card {
-    padding: 18px 16px;
+    padding: 16px 14px;
+    gap: 8px;
   }
 
+  .regime-banner { padding: 9px 13px; }
+  .regime-en { font-size: 0.74rem; }
+
+  /* Status chips: single-row horizontal scroll, no wrap */
+  .status-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .status-row::-webkit-scrollbar { display: none; }
+
+  .status-chip {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 4px 8px;
+    font-size: 0.70rem;
+  }
+
+  /* Hero metrics: 3-column grid, no horizontal scroll */
   .hero-metric-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow-x: visible;
     gap: 8px;
   }
 
   .hero-metric {
-    min-width: 140px;
-    min-height: 90px;
-    padding: 12px 13px 10px;
+    flex: none;
+    min-width: 0;
+    min-height: 80px;
+    padding: 11px 12px 9px;
   }
 
-  .hero-metric__value { font-size: 1.7rem; }
+  .hero-metric__value { font-size: 1.55rem; }
 
   /* Signal row height */
   .reason-cell { min-width: 180px; }
@@ -1780,21 +1822,33 @@ td select { min-width: 92px; }
 }
 
 @media (max-width: 480px) {
-  .app-shell { padding: 10px 12px 44px; }
+  .app-shell { padding: 10px 12px 80px; }
 
-  h1 { font-size: 1.25rem; }
+  h1 { font-size: 1.1rem; }
 
   .panel { padding: 12px 13px; border-radius: 16px; }
 
-  .hero-card { padding: 14px 13px; }
+  /* hero-card: hide eyebrow, tighter gap */
+  .hero-card { padding: 12px 12px; gap: 6px; }
+  .hero-card .eyebrow { display: none; }
 
-  .dashboard-grid,
+  /* dashboard-grid stays 2-column; market/settings go single-col */
   .market-controls,
   .settings-grid { grid-template-columns: 1fr; }
 
-  .summary-card strong { font-size: 1.7rem; }
+  /* Summary cards: smaller padding and number to fit 2-col */
+  .summary-card { padding: 10px 11px 8px; }
+  .summary-card h2 { margin-bottom: 4px; }
+  .summary-card strong { font-size: 1.5rem; }
 
-  .status-chip { font-size: 0.72rem; padding: 5px 10px; }
+  /* Regime banner: tighter */
+  .regime-banner { padding: 8px 11px; font-size: 0.88rem; }
+
+  /* Hero metrics: compact */
+  .hero-metric { min-height: 68px; padding: 9px 9px 7px; }
+  .hero-metric__value { font-size: 1.3rem; }
+  .hero-metric__note { font-size: 0.68rem; }
+  .hero-metric__label { margin-bottom: 4px; }
 
   .tab-nav button { padding: 8px 11px; font-size: 0.8rem; }
 
