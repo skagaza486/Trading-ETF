@@ -1009,7 +1009,6 @@ export default function App() {
   const [selectedResearchLabel, setSelectedResearchLabel] = useState<StockSignalLabel | 'ALL'>('ALL')
   const [selectedResearchFlag, setSelectedResearchFlag] = useState<ResearchFlag | 'ALL'>('ALL')
   const [selectedResearchTicker, setSelectedResearchTicker] = useState<string | 'ALL'>('ALL')
-  const [stockViewMode, setStockViewMode] = useState<'table' | 'cards'>('table')
   const [stockSortKey, setStockSortKey] = useState<StockSortKey>('signal_strength')
   const [selectedStockTier, setSelectedStockTier] = useState<StockTierFilter>('ALL')
   const [selectedStockSector, setSelectedStockSector] = useState<string>('ALL')
@@ -1325,6 +1324,12 @@ export default function App() {
     shortBias: sortedStockRows.filter(row => stockLabelGroup(row.label) === 'SHORT').length,
     review: sortedStockRows.filter(row => stockLabelGroup(row.label) === 'REVIEW').length
   }), [sortedStockRows])
+  const stockDirectionalTotal = stockListStats.longBias + stockListStats.shortBias
+  const stockLongBiasPercent = stockDirectionalTotal > 0 ? Math.round((stockListStats.longBias / stockDirectionalTotal) * 100) : 0
+  const stockShortBiasPercent = stockDirectionalTotal > 0 ? Math.round((stockListStats.shortBias / stockDirectionalTotal) * 100) : 0
+  const stocksUpdatedTime = stockState.lastUpdated ? new Date(stockState.lastUpdated).toLocaleTimeString('en-HK', { hour12: false }) : 'pending'
+  const stocksUpdatedDate = stockState.snapshotDate
+    ?? (stockState.lastUpdated ? new Date(stockState.lastUpdated).toLocaleDateString('en-HK', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Live fetch mode')
   useEffect(() => {
     if (expandedStockTicker === null) return
     const expandedTicker = expandedStockTicker.split(':').at(-1)
@@ -1604,7 +1609,7 @@ export default function App() {
         </aside>
 
         <div className="content-shell">
-          <header className="app-header">
+          <header className={activeTab === 'Stocks' ? 'app-header app-header--stocks' : 'app-header'}>
             <div className="app-brand">
               <UiIcon name="pulse-logo-mark" className="app-brand__mark-image" />
               <div className="app-brand__copy">
@@ -1624,7 +1629,7 @@ export default function App() {
             </div>
           </header>
 
-          {activeTab !== 'Dashboard' ? (
+          {activeTab !== 'Dashboard' && activeTab !== 'Stocks' ? (
             <section className="panel summary-strip">
               <div className="summary-strip__intro">
                 <div className="summary-strip__copy">
@@ -2627,109 +2632,63 @@ export default function App() {
 
         ) : activeTab === 'Stocks' ? (
           <>
-            <section className="panel hero-card wide">
-              <p className="eyebrow">Screener Status</p>
-              <h2>Stock Screener 股票信號</h2>
-              <p className="subtle">
-                Live Yahoo daily histories for {stockWatchlist.length} watchlist names, with Finnhub earnings risk when FINNHUB_API_KEY is configured.
-              </p>
-              <div className="status-row">
-                <span className="status-chip">
-                  Universe: <strong>{stockWatchlist.length}</strong>
-                </span>
-                <span className="status-chip">
-                  🟢 Long Bias: <strong>{stockCounts.LONG}</strong>
-                </span>
-                <span className="status-chip">
-                  🔴 Short Bias: <strong>{stockCounts.SHORT}</strong>
-                </span>
-                <span className="status-chip">
-                  Earnings:{' '}
-                  <strong>{stockState.earningsConfigured ? 'active' : 'not configured'}</strong>
-                </span>
-                <span className="status-chip">
-                  {stockState.snapshotDate ? 'Snapshot:' : 'Updated:'}{' '}
-                  <strong>
-                    {stockState.snapshotDate
-                      ? stockState.snapshotDate
-                      : stockState.lastUpdated
-                      ? new Date(stockState.lastUpdated).toLocaleString('en-HK', { hour12: false })
-                      : 'pending'}
-                  </strong>
-                </span>
-              </div>
-              {stockError ? <div className="warning">{stockError}</div> : null}
-            </section>
-
-            <section className="dashboard-grid wide">
-              <article className={`panel ${summaryToneClass('gain')}`}>
-                <h2>🟢 Long Labels 升勢</h2>
-                <strong><AnimatedMetricValue value={String(stockCounts.LONG)} /></strong>
-                <span>LONG_* and WATCH</span>
-              </article>
-              <article className={`panel ${summaryToneClass('loss')}`}>
-                <h2>🔴 Short Labels 跌勢</h2>
-                <strong><AnimatedMetricValue value={String(stockCounts.SHORT)} /></strong>
-                <span>SHORT_*</span>
-              </article>
-              <article className={`panel ${summaryToneClass('warn')}`}>
-                <h2>🟠 Neutral 中性</h2>
-                <strong><AnimatedMetricValue value={String(stockCounts.NEUTRAL)} /></strong>
-                <span>NEUTRAL and AVOID_CHOP</span>
-              </article>
-              <article className={`panel ${summaryToneClass('violet')}`}>
-                <h2>⚫ Review 待確認</h2>
-                <strong><AnimatedMetricValue value={String(stockCounts.REVIEW)} /></strong>
-                <span>Data or event-quality blockers</span>
-              </article>
-            </section>
-
-            <section className="panel wide">
-              <div className="section-header">
-                <div>
-                  <h2>Live Stock Signals</h2>
-                  <p className="subtle">
-                    Snapshot-first screener for the current universe. Use filters and sorting to surface the highest-value names first.
-                  </p>
-                </div>
-                <div className="header-actions">
-                  <div className="view-toggle">
-                    <button
-                      type="button"
-                      className={`view-toggle__btn${stockViewMode === 'cards' ? ' view-toggle__btn--active' : ''}`}
-                      onClick={() => setStockViewMode('cards')}
-                    >卡片</button>
-                    <button
-                      type="button"
-                      className={`view-toggle__btn${stockViewMode === 'table' ? ' view-toggle__btn--active' : ''}`}
-                      onClick={() => setStockViewMode('table')}
-                    >列表</button>
+            <section className="stocks-screen">
+              <div className="stocks-screen__topbar">
+                <div className="stocks-screen__title">
+                  <div className="stocks-screen__brandlock">
+                    <UiIcon name="pulse-logo-mark" className="stocks-screen__brandmark" />
+                    <span>Pulse</span>
                   </div>
-                  <button type="button" className="refresh-button" disabled={isLoadingStocks} onClick={() => void loadStockData()}>
-                    {isLoadingStocks ? 'Refreshing...' : 'Refresh Screener'}
+                  <h1>Stocks / 股票</h1>
+                </div>
+                <div className="stocks-screen__actions">
+                  <button type="button" className="header-tool header-tool--icon" aria-label="Search">
+                    <UiIcon name="icon-search" className="header-tool__icon" />
+                  </button>
+                  <button type="button" className="header-tool header-tool--icon" aria-label="Refresh" disabled={isLoadingStocks} onClick={() => void loadStockData()}>
+                    <UiIcon name="icon-refresh" className="header-tool__icon" />
+                  </button>
+                  <button type="button" className="header-tool header-tool--icon" aria-label="More actions" onClick={() => setShowHelp(v => !v)}>
+                    <UiIcon name="icon-more" className="header-tool__icon" />
                   </button>
                 </div>
               </div>
 
-              <div className="stocks-terminal-stats">
-                <article className="stocks-terminal-stat">
-                  <span>Long Bias</span>
-                  <strong>{stockListStats.longBias}</strong>
-                  <small>LONG_* and WATCH</small>
+              <div className="stocks-kpi-row">
+                <article className="stocks-kpi-card">
+                  <div className="stocks-kpi-card__head">
+                    <span>Long Bias</span>
+                    <strong>{stockLongBiasPercent}%</strong>
+                  </div>
+                  <div className="stocks-kpi-card__subvalue">{stockListStats.longBias} names</div>
+                  <div className="stocks-kpi-meter stocks-kpi-meter--long" aria-hidden="true">
+                    <span style={{ width: `${stockLongBiasPercent}%` }} />
+                  </div>
                 </article>
-                <article className="stocks-terminal-stat">
-                  <span>Short Bias</span>
-                  <strong>{stockListStats.shortBias}</strong>
-                  <small>SHORT_* names</small>
+                <article className="stocks-kpi-card stocks-kpi-card--short">
+                  <div className="stocks-kpi-card__head">
+                    <span>Short Bias</span>
+                    <strong>{stockShortBiasPercent}%</strong>
+                  </div>
+                  <div className="stocks-kpi-card__subvalue">{stockListStats.shortBias} names</div>
+                  <div className="stocks-kpi-meter stocks-kpi-meter--short" aria-hidden="true">
+                    <span style={{ width: `${stockShortBiasPercent}%` }} />
+                  </div>
                 </article>
-                <article className="stocks-terminal-stat">
-                  <span>Updated</span>
-                  <strong>{stockState.lastUpdated ? new Date(stockState.lastUpdated).toLocaleTimeString('en-HK', { hour12: false }) : 'pending'}</strong>
-                  <small>{stockState.snapshotDate ?? 'Live fetch mode'}</small>
+                <article className="stocks-kpi-card stocks-kpi-card--updated">
+                  <div className="stocks-kpi-card__head">
+                    <span>Updated</span>
+                    <strong>{stocksUpdatedTime}</strong>
+                  </div>
+                  <div className="stocks-kpi-card__subvalue">{stocksUpdatedDate}</div>
                 </article>
               </div>
 
-              <div className="stocks-filter-toolbar">
+              <div className="stocks-filter-line">
+                <div className="stocks-filter-line__lead">
+                  <UiIcon name="icon-filter" className="stocks-filter-line__icon" />
+                </div>
+                <div className="stocks-filter-toolbar">
                 <label>
                   <span>Tier</span>
                   <select value={selectedStockTier} onChange={event => setSelectedStockTier(event.target.value as StockTierFilter)}>
@@ -2765,133 +2724,46 @@ export default function App() {
                   </select>
                 </label>
               </div>
-
-              <div className="stocks-sortbar">
-                <span>Sort</span>
-                <div className="stocks-sortbar__options">
-                  {([
-                    ['signal_strength', 'Signal Strength'],
-                    ['rs_rank', 'RS Rank'],
-                    ['recent_change', 'Recent Change'],
-                    ['ticker', 'Ticker']
-                  ] as Array<[StockSortKey, string]>).map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={stockSortKey === key ? 'stocks-sortbar__btn is-active' : 'stocks-sortbar__btn'}
-                      onClick={() => setStockSortKey(key)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="stocks-segment-grid">
-                <article className="stocks-segment-card">
-                  <span>Top Signals</span>
-                  <strong>{topSignalRows.length}</strong>
-                  <small>Directional names worth checking first</small>
-                </article>
-                <article className="stocks-segment-card">
-                  <span>Needs Review</span>
-                  <strong>{reviewFocusedRows.length}</strong>
-                  <small>Event or data blockers</small>
-                </article>
-                <article className="stocks-segment-card">
-                  <span>All Results</span>
-                  <strong>{sortedStockRows.length}</strong>
-                  <small>Filtered universe after controls</small>
-                </article>
-              </div>
-
-              {stockViewMode === 'cards' ? (
-                <div className="stock-card-grid">
-                  {sortedStockRows.map((row, index) => {
-                    const disp = getStockLabelDisplay(row.label)
-                    const group = stockLabelGroup(row.label).toLowerCase()
-                    const featured = index < 4
-                    return (
-                      <div
-                        key={row.ticker}
-                        className={`stock-card stock-card--${group}${featured ? ' stock-card--featured' : ''}`}
-                        style={{ animationDelay: `${Math.min(index, 12) * 45}ms` }}
+                <div className="stocks-sort-inline">
+                  <span>Sort</span>
+                  <div className="stocks-sortbar__options">
+                    {([
+                      ['signal_strength', 'Signal Strength'],
+                      ['rs_rank', 'RS Rank'],
+                      ['recent_change', 'Recent Change'],
+                      ['ticker', 'Ticker']
+                    ] as Array<[StockSortKey, string]>).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={stockSortKey === key ? 'stocks-sortbar__btn is-active' : 'stocks-sortbar__btn'}
+                        onClick={() => setStockSortKey(key)}
                       >
-                        <div className="stock-card__topline">
-                          {featured ? <span className="stock-card__featured-tag">Featured Focus</span> : <span className="stock-card__topline-spacer" aria-hidden="true" />}
-                          <span className={`label-pill label-pill--stock label-pill--stock-${group}`}>
-                            {disp.lightEmoji} {disp.zhText}
-                          </span>
-                        </div>
-                        <div className="stock-card__header">
-                          <div className="stock-card__identity">
-                            <StockLogo ticker={row.ticker} name={row.name} />
-                            <div className="stock-card__identity-copy">
-                              <div className="stock-card__ticker">
-                                {row.ticker}
-                                {row.tier === 2 && <span className="stock-card__tier2-badge">防禦</span>}
-                              </div>
-                              <div className="stock-card__name">{row.name}</div>
-                              <div className="stock-card__sector">{row.sector}</div>
-                            </div>
-                          </div>
-                          <StockSparkline history={stockState.histories[row.ticker]} group={group} />
-                        </div>
-                        <div className="stock-card__metrics">
-                          <span className="stock-card__metric">RSI <strong>{row.rsi14 === null ? 'n/a' : row.rsi14.toFixed(1)}</strong></span>
-                          <span className="stock-card__metric">RVOL <strong>{formatRatio(row.rvol)}</strong></span>
-                          <span className="stock-card__metric">RS <strong>{formatPercent(row.relStrengthVsSpy)}</strong></span>
-                          {row.rsRank !== null && <span className="stock-card__metric">RS% <strong>{row.rsRank}</strong></span>}
-                          {row.earningsDate ? <span className="stock-card__earnings">財報 {row.earningsDate}</span> : null}
-                        </div>
-                        <div className="stock-card__reason">{disp.plainReason}</div>
-                        <div className="stock-card__footer">
-                          <span className={`stock-card__action stock-card__action--${disp.actionGroup}`}>{disp.action}</span>
-                          <span className="stock-card__code">{disp.enCode}</span>
-                          {renderResearchFlags(row.researchFlags)}
-                        </div>
-                      </div>
-                    )
-                  })}
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <div className="stocks-terminal">
-                  <section className="stocks-terminal-section">
-                    <div className="stocks-terminal-section__header">
-                      <div>
-                        <h3>Top Signals</h3>
-                        <p>先看高價值方向信號，再決定是否 drill down。</p>
-                      </div>
-                      <span>{topSignalRows.length}</span>
-                    </div>
-                    {topSignalRows.length > 0 ? renderStockTerminalRows(topSignalRows, 'top') : <p className="subtle">No directional signals under current filters.</p>}
-                  </section>
+              </div>
 
-                  {reviewFocusedRows.length > 0 ? (
-                    <section className="stocks-terminal-section">
-                      <div className="stocks-terminal-section__header">
-                        <div>
-                          <h3>Needs Review</h3>
-                          <p>事件風險或資料問題，先看阻塞點。</p>
-                        </div>
-                        <span>{reviewFocusedRows.length}</span>
-                      </div>
-                      {renderStockTerminalRows(reviewFocusedRows, 'review')}
-                    </section>
-                  ) : null}
-
-                  <section className="stocks-terminal-section">
-                    <div className="stocks-terminal-section__header">
-                      <div>
-                        <h3>All Results</h3>
-                        <p>完整 filtered universe，保留 tier-aware 順序與高密度掃描。</p>
-                      </div>
-                      <span>{sortedStockRows.length}</span>
-                    </div>
-                    {sortedStockRows.length > 0 ? renderStockTerminalRows(sortedStockRows, 'all') : <p className="subtle">No rows matched the current filters.</p>}
-                  </section>
+              <div className="stocks-list-head">
+                <div>
+                  <h2>Live Stock Signals</h2>
+                  <p className="subtle">高密度掃描模式，先看最強與最弱，再決定是否展開細節。</p>
                 </div>
-              )}
+                <div className="stocks-list-head__meta">
+                  <span>{sortedStockRows.length} results</span>
+                  <span>{topSignalRows.length} top</span>
+                  <span>{reviewFocusedRows.length} review</span>
+                  <span>{stockState.earningsConfigured ? 'earnings on' : 'earnings off'}</span>
+                </div>
+              </div>
+
+              {stockError ? <div className="warning">{stockError}</div> : null}
+
+              <div className="stocks-terminal stocks-terminal--single">
+                {sortedStockRows.length > 0 ? renderStockTerminalRows(sortedStockRows, 'all') : <p className="subtle">No rows matched the current filters.</p>}
+              </div>
             </section>
           </>
 
