@@ -1,0 +1,12 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="32" fill="#071411"/>
+  <rect x="10" y="10" width="108" height="108" rx="26" stroke="url(#pulse-app-stroke)" stroke-width="4"/>
+  <path d="M33 77L53 56L67 69L92 39" stroke="#3BE7A4" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="94" cy="39" r="8" fill="#53F7BC"/>
+  <defs>
+    <linearGradient id="pulse-app-stroke" x1="16" y1="18" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#28B98C"/>
+      <stop offset="1" stop-color="#0F5A48"/>
+    </linearGradient>
+  </defs>
+</svg>

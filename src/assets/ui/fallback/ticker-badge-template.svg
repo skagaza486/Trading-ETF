@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="#0A1512" stroke="#1B3A32" stroke-width="2"/>
+  <rect x="10" y="10" width="44" height="44" rx="12" fill="url(#ticker-badge-fill)"/>
+  <text x="32" y="38" fill="#EBFFF7" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" text-anchor="middle" letter-spacing="0.04em">NVDA</text>
+  <defs>
+    <linearGradient id="ticker-badge-fill" x1="14" y1="14" x2="50" y2="50" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#114235"/>
+      <stop offset="1" stop-color="#0D241F"/>
+    </linearGradient>
+  </defs>
+</svg>

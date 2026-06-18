@@ -3,6 +3,7 @@ import { etfUniverse } from './data/etfUniverse'
 import { stockWatchlist } from './data/watchlist'
 import { replayETF } from './engine/etfReplayEngine'
 import { buildGateSummaryMarkdown } from './engine/gateSummaryMarkdown'
+import { percentChange } from './engine/historyUtils'
 import { classifyETF } from './engine/etfWeeklyEngine'
 import { classifyRegime, computeProxyWeakBreadth, deriveRegimeInputsFromHistories } from './engine/marketRegime'
 import { buildForwardReturnRecord, buildHistoricalSignals } from './engine/stockResearchEngine'
@@ -10,18 +11,23 @@ import { evaluateAllGates, evaluateRollingWindowRobustness } from './engine/rese
 import type { LabelGateResult, LabelRobustnessResult, RollingWindowSummary } from './engine/researchGate'
 import { classifyStock } from './engine/stockScreenerEngine'
 import { fetchEarningsCalendar, fetchHistoricalEarningsMap } from './services/marketData/earningsProvider'
+import { fetchDailySnapshot } from './services/marketData/snapshotProvider'
 import { fetchYahooTickerHistory } from './services/marketData/yahooFinanceProvider'
 import type { TickerHistory } from './types/indicator'
 import type { ETFReplayWeek } from './types/replay'
 import type { ForwardReturnRecord } from './types/research'
 import type { ETFRecommendation, RegimeClass, ResearchFlag, StockSignalLabel } from './types/signal'
 import { getETFLabelDisplay, getResearchFlagDisplay, getStockLabelDisplay } from './ui/labelDisplay'
+import { getStockLogoAsset, getUiAsset } from './ui/assetRegistry'
 import type { ETFCategory } from './types/etf'
 import './styles/dashboard.css'
 import './styles/global.css'
 
 type TabId = 'Dashboard' | 'Stocks' | 'ETFs' | 'Quant Lab'
 type QuantLabSubTab = 'ETF Replay' | 'Stock Replay' | 'Stock Research'
+type StockSortKey = 'signal_strength' | 'rs_rank' | 'recent_change' | 'ticker'
+type StockTierFilter = 'ALL' | 'T1' | 'T2'
+type EarningsRiskFilter = 'ALL' | 'SAFE' | 'RISK'
 
 type WeeklyRow = {
   ticker: string
@@ -63,14 +69,18 @@ type StockRow = {
   ticker: string
   name: string
   sector: string
+  tier: 1 | 2
   label: StockSignalLabel
   researchFlags: ResearchFlag[]
   regime: RegimeClass
   earningsDate: string | null
+  close: number | null
+  dayChange: number | null
   rsi14: number | null
   rvol: number | null
   relStrengthVsSpy: number | null
   reason: string
+  rsRank: number | null  // percentile vs universe (from B1 snapshot); null in live-fetch mode
 }
 
 type StockState = {
@@ -80,6 +90,7 @@ type StockState = {
   lastUpdated: string | null
   earningsConfigured: boolean
   regime: RegimeClass
+  snapshotDate: string | null  // set when rows loaded from B1 KV snapshot
 }
 
 type ResearchState = {
@@ -104,6 +115,8 @@ type ResearchFlagSummary = {
   avgMae5d: number | null
 }
 
+type StockSectionKey = 'top' | 'review' | 'all'
+
 const tabs: TabId[] = ['Dashboard', 'Stocks', 'ETFs', 'Quant Lab']
 const QUANT_SUBTAB_LABELS: Record<QuantLabSubTab, string> = {
   'ETF Replay': 'ETF Check',
@@ -116,34 +129,39 @@ const TAB_META: Record<TabId, {
   headerTitle: string
   helper: string
   navMark: string
+  navIcon: string
 }> = {
   Dashboard: {
     navLabelEn: 'Home',
     navLabelZh: '總覽',
     headerTitle: 'Home / 總覽',
     helper: '市場總覽、今日焦點與板塊快覽。',
-    navMark: 'H'
+    navMark: 'H',
+    navIcon: 'icon-home'
   },
   Stocks: {
     navLabelEn: 'Stocks',
     navLabelZh: '股票',
     headerTitle: 'Stocks / 股票',
     helper: '即時股票信號與戰術掃描。',
-    navMark: 'S'
+    navMark: 'S',
+    navIcon: 'icon-stocks'
   },
   ETFs: {
     navLabelEn: 'ETF',
     navLabelZh: '',
     headerTitle: 'ETF',
     helper: '板塊與 ETF 強弱輪動。',
-    navMark: 'E'
+    navMark: 'E',
+    navIcon: 'icon-etf'
   },
   'Quant Lab': {
     navLabelEn: 'Verify',
     navLabelZh: '驗證',
     headerTitle: 'Verify / 驗證',
     helper: '回看、驗證與規則證明。',
-    navMark: 'V'
+    navMark: 'V',
+    navIcon: 'icon-verify'
   }
 }
 const BENCHMARK_TICKERS = ['SPY', 'QQQ', '^VIX', 'RSP']
@@ -176,6 +194,27 @@ function formatPercent(value: number | null): string {
 function formatRatio(value: number | null): string {
   if (value === null) return 'n/a'
   return value.toFixed(2)
+}
+
+function UiIcon({ name, label, className }: { name: string, label?: string, className?: string }) {
+  const src = getUiAsset(name)
+  if (!src) return null
+
+  return <img src={src} alt={label ?? ''} className={className} aria-hidden={label ? undefined : 'true'} />
+}
+
+function StockLogo({ ticker, name, className }: { ticker: string, name: string, className?: string }) {
+  const src = getStockLogoAsset(ticker)
+
+  if (!src) {
+    return (
+      <div className={`stock-logo ${className ?? ''}`.trim()} aria-hidden="true">
+        <span>{ticker.slice(0, 4)}</span>
+      </div>
+    )
+  }
+
+  return <img src={src} alt={`${name} logo`} className={`stock-logo ${className ?? ''}`.trim()} loading="lazy" />
 }
 
 function etfLabelPriority(label: ETFRecommendation['label']): number {
@@ -522,40 +561,97 @@ function buildStockRows(
           ticker: stock.ticker,
           name: stock.name,
           sector: stock.sector,
+          tier: stock.tier,
           label: 'REVIEW_DATA' as const,
           researchFlags: [],
           regime,
           earningsDate,
+          close: null,
+          dayChange: null,
           rsi14: null,
           rvol: null,
           relStrengthVsSpy: null,
-          reason: 'History fetch failed.'
+          reason: 'History fetch failed.',
+          rsRank: null
         }
       }
 
-      const signal = classifyStock(history, histories, earningsDate, regime)
+      const signal = classifyStock(history, histories, earningsDate, regime, stock.tier)
+      const latestClose = history.bars.at(-1)?.close ?? null
+      const previousClose = history.bars.at(-2)?.close ?? null
 
       return {
         ticker: stock.ticker,
         name: stock.name,
         sector: stock.sector,
+        tier: stock.tier,
         label: signal.label,
         researchFlags: signal.researchFlags,
         regime: signal.regime,
         earningsDate,
+        close: latestClose,
+        dayChange: latestClose !== null && previousClose !== null ? percentChange(latestClose, previousClose) : null,
         rsi14: signal.indicators.rsi14,
         rvol: signal.indicators.rvol,
         relStrengthVsSpy: signal.indicators.relStrengthVsSpy,
-        reason: signal.reason
+        reason: signal.reason,
+        rsRank: null
       }
     })
     .sort((left, right) => {
       const priorityDiff = stockPriority(left.label) - stockPriority(right.label)
       if (priorityDiff !== 0) return priorityDiff
-
+      const tierDiff = left.tier - right.tier
+      if (tierDiff !== 0) return tierDiff
       const rsDiff = (right.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY) - (left.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY)
       if (rsDiff !== 0) return rsDiff
+      return left.ticker.localeCompare(right.ticker)
+    })
+}
 
+function buildStockRowsFromSnapshot(entries: import('./types/snapshot').StockSnapshotEntry[]): StockRow[] {
+  const stockPriority = (label: StockSignalLabel): number => {
+    switch (label) {
+      case 'LONG_BREAK': return 0
+      case 'LONG_VCP': return 1
+      case 'LONG_BOUNCE': return 2
+      case 'LONG_BASE': return 3
+      case 'WATCH': return 4
+      case 'SHORT_BREAK': return 5
+      case 'SHORT_BASE': return 6
+      case 'SHORT_WATCH': return 7
+      case 'NEUTRAL': return 8
+      case 'AVOID_CHOP': return 9
+      case 'REVIEW_EVENT': return 10
+      case 'REVIEW_DATA': return 11
+    }
+  }
+
+  return entries
+    .map(entry => ({
+      ticker: entry.ticker,
+      name: entry.name,
+      sector: entry.sector,
+      tier: (entry.tier ?? 1) as 1 | 2,
+      label: entry.label,
+      researchFlags: entry.researchFlags,
+      regime: entry.regime,
+      earningsDate: null,
+      close: entry.indicators.close ?? null,
+      dayChange: null,
+      rsi14: entry.indicators.rsi14,
+      rvol: entry.indicators.rvol,
+      relStrengthVsSpy: entry.indicators.relStrengthVsSpy,
+      reason: entry.reason,
+      rsRank: entry.rsRank
+    }))
+    .sort((left, right) => {
+      const priorityDiff = stockPriority(left.label) - stockPriority(right.label)
+      if (priorityDiff !== 0) return priorityDiff
+      const tierDiff = left.tier - right.tier  // Tier 1 before Tier 2
+      if (tierDiff !== 0) return tierDiff
+      const rsDiff = (right.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY) - (left.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY)
+      if (rsDiff !== 0) return rsDiff
       return left.ticker.localeCompare(right.ticker)
     })
 }
@@ -565,6 +661,25 @@ function stockLabelGroup(label: StockSignalLabel): 'LONG' | 'SHORT' | 'NEUTRAL' 
   if (label.startsWith('SHORT')) return 'SHORT'
   if (label === 'REVIEW_DATA' || label === 'REVIEW_EVENT') return 'REVIEW'
   return 'NEUTRAL'
+}
+
+function stockUiGroup(label: StockSignalLabel): 'STRONG_LONG' | 'LONG' | 'SHORT' | 'WATCH' | 'REVIEW' {
+  switch (label) {
+    case 'LONG_BREAK':
+    case 'LONG_VCP':
+      return 'STRONG_LONG'
+    case 'LONG_BOUNCE':
+    case 'LONG_BASE':
+      return 'LONG'
+    case 'SHORT_BREAK':
+    case 'SHORT_BASE':
+    case 'SHORT_WATCH':
+      return 'SHORT'
+    case 'WATCH':
+      return 'WATCH'
+    default:
+      return 'REVIEW'
+  }
 }
 
 function countStockGroups(rows: StockRow[]): Record<'LONG' | 'SHORT' | 'NEUTRAL' | 'REVIEW', number> {
@@ -578,6 +693,23 @@ function countStockGroups(rows: StockRow[]): Record<'LONG' | 'SHORT' | 'NEUTRAL'
 }
 
 function stockResearchLabelPriority(label: StockSignalLabel): number {
+  switch (label) {
+    case 'LONG_BREAK': return 0
+    case 'LONG_VCP': return 1
+    case 'LONG_BOUNCE': return 2
+    case 'LONG_BASE': return 3
+    case 'WATCH': return 4
+    case 'SHORT_BREAK': return 5
+    case 'SHORT_BASE': return 6
+    case 'SHORT_WATCH': return 7
+    case 'NEUTRAL': return 8
+    case 'AVOID_CHOP': return 9
+    case 'REVIEW_EVENT': return 10
+    case 'REVIEW_DATA': return 11
+  }
+}
+
+function stockSignalStrengthPriority(label: StockSignalLabel): number {
   switch (label) {
     case 'LONG_BREAK': return 0
     case 'LONG_VCP': return 1
@@ -826,7 +958,7 @@ function buildHeroMetrics(input: {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('Dashboard')
-  const [quantLabSubTab, setQuantLabSubTab] = useState<QuantLabSubTab>('ETF Replay')
+  const [quantLabSubTab, setQuantLabSubTab] = useState<QuantLabSubTab>('Stock Research')
   const [weeklyState, setWeeklyState] = useState<WeeklyState>({
     rows: [],
     replayRows: [],
@@ -845,7 +977,8 @@ export default function App() {
     failedTickers: [],
     lastUpdated: null,
     earningsConfigured: false,
-    regime: 'neutral'
+    regime: 'neutral',
+    snapshotDate: null
   })
   const [isLoadingStocks, setIsLoadingStocks] = useState(false)
   const [stockError, setStockError] = useState<string | null>(null)
@@ -860,7 +993,14 @@ export default function App() {
   const [gateSummaryCopyStatus, setGateSummaryCopyStatus] = useState<string | null>(null)
   const [selectedResearchLabel, setSelectedResearchLabel] = useState<StockSignalLabel | 'ALL'>('ALL')
   const [selectedResearchFlag, setSelectedResearchFlag] = useState<ResearchFlag | 'ALL'>('ALL')
-  const [stockViewMode, setStockViewMode] = useState<'table' | 'cards'>('cards')
+  const [selectedResearchTicker, setSelectedResearchTicker] = useState<string | 'ALL'>('ALL')
+  const [stockViewMode, setStockViewMode] = useState<'table' | 'cards'>('table')
+  const [stockSortKey, setStockSortKey] = useState<StockSortKey>('signal_strength')
+  const [selectedStockTier, setSelectedStockTier] = useState<StockTierFilter>('ALL')
+  const [selectedStockSector, setSelectedStockSector] = useState<string>('ALL')
+  const [selectedStockLabelGroup, setSelectedStockLabelGroup] = useState<'ALL' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'REVIEW'>('ALL')
+  const [selectedEarningsRisk, setSelectedEarningsRisk] = useState<EarningsRiskFilter>('ALL')
+  const [expandedStockTicker, setExpandedStockTicker] = useState<string | null>(null)
   const [etfViewMode, setEtfViewMode] = useState<'table' | 'cards'>('cards')
   const [onboardingStep, setOnboardingStep] = useState<number | null>(() =>
     typeof window !== 'undefined' && window.localStorage.getItem('onboarding_v1_done') ? null : 1
@@ -961,6 +1101,28 @@ export default function App() {
     setStockError(null)
 
     try {
+      // B1: try pre-computed KV snapshot first — avoids per-session Yahoo fetch
+      const snapshotResult = await fetchDailySnapshot()
+
+      if (snapshotResult.status === 'ok' && !snapshotResult.stale) {
+        const { snapshot } = snapshotResult
+        const rows = buildStockRowsFromSnapshot(snapshot.stocks)
+
+        setStockState({
+          histories: {},
+          rows,
+          failedTickers: [],
+          lastUpdated: snapshot.generatedAt,
+          earningsConfigured: false,
+          regime: snapshot.regime,
+          snapshotDate: snapshot.date
+        })
+        setStockError(null)
+        setIsLoadingStocks(false)
+        return
+      }
+
+      // Fallback: live fetch from Yahoo
       const { histories, failedTickers } = await fetchStockHistories()
 
       const regime = classifyRegime(deriveRegimeInputsFromHistories(histories))
@@ -983,7 +1145,8 @@ export default function App() {
         failedTickers,
         lastUpdated: new Date().toISOString(),
         earningsConfigured,
-        regime
+        regime,
+        snapshotDate: null
       })
 
       if (rows.length === 0) {
@@ -1082,6 +1245,78 @@ export default function App() {
       : []
   const replayAnalytics = buildReplayAnalytics(filteredReplayRows, spyReplayRows)
   const stockCounts = countStockGroups(stockState.rows)
+  const stockSectorOptions = useMemo(
+    () => ['ALL', ...Array.from(new Set(stockState.rows.map(row => row.sector))).sort((left, right) => left.localeCompare(right))],
+    [stockState.rows]
+  )
+  const filteredStockRows = useMemo(() => stockState.rows.filter(row => {
+    if (selectedStockTier === 'T1' && row.tier !== 1) return false
+    if (selectedStockTier === 'T2' && row.tier !== 2) return false
+    if (selectedStockSector !== 'ALL' && row.sector !== selectedStockSector) return false
+    if (selectedStockLabelGroup !== 'ALL' && stockLabelGroup(row.label) !== selectedStockLabelGroup) return false
+    if (selectedEarningsRisk === 'RISK' && !row.earningsDate) return false
+    if (selectedEarningsRisk === 'SAFE' && row.earningsDate) return false
+    return true
+  }), [stockState.rows, selectedStockTier, selectedStockSector, selectedStockLabelGroup, selectedEarningsRisk])
+  const sortedStockRows = useMemo(() => {
+    const rows = [...filteredStockRows]
+    rows.sort((left, right) => {
+      switch (stockSortKey) {
+        case 'ticker':
+          return left.ticker.localeCompare(right.ticker)
+        case 'rs_rank': {
+          const rsRankDiff = (right.rsRank ?? Number.NEGATIVE_INFINITY) - (left.rsRank ?? Number.NEGATIVE_INFINITY)
+          if (rsRankDiff !== 0) return rsRankDiff
+          const rsDiff = (right.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY) - (left.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY)
+          if (rsDiff !== 0) return rsDiff
+          break
+        }
+        case 'recent_change': {
+          const changeDiff = (right.dayChange ?? Number.NEGATIVE_INFINITY) - (left.dayChange ?? Number.NEGATIVE_INFINITY)
+          if (changeDiff !== 0) return changeDiff
+          break
+        }
+        case 'signal_strength':
+        default: {
+          const priorityDiff = stockSignalStrengthPriority(left.label) - stockSignalStrengthPriority(right.label)
+          if (priorityDiff !== 0) return priorityDiff
+          break
+        }
+      }
+
+      const tierDiff = left.tier - right.tier
+      if (tierDiff !== 0) return tierDiff
+      const rsDiff = (right.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY) - (left.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY)
+      if (rsDiff !== 0) return rsDiff
+      const rvolDiff = (right.rvol ?? Number.NEGATIVE_INFINITY) - (left.rvol ?? Number.NEGATIVE_INFINITY)
+      if (rvolDiff !== 0) return rvolDiff
+      return left.ticker.localeCompare(right.ticker)
+    })
+    return rows
+  }, [filteredStockRows, stockSortKey])
+  const topSignalRows = useMemo(
+    () => sortedStockRows.filter(row => {
+      const group = stockLabelGroup(row.label)
+      return group === 'LONG' || group === 'SHORT'
+    }).slice(0, 12),
+    [sortedStockRows]
+  )
+  const reviewFocusedRows = useMemo(
+    () => sortedStockRows.filter(row => stockLabelGroup(row.label) === 'REVIEW').slice(0, 12),
+    [sortedStockRows]
+  )
+  const stockListStats = useMemo(() => ({
+    longBias: sortedStockRows.filter(row => stockLabelGroup(row.label) === 'LONG').length,
+    shortBias: sortedStockRows.filter(row => stockLabelGroup(row.label) === 'SHORT').length,
+    review: sortedStockRows.filter(row => stockLabelGroup(row.label) === 'REVIEW').length
+  }), [sortedStockRows])
+  useEffect(() => {
+    if (expandedStockTicker === null) return
+    const expandedTicker = expandedStockTicker.split(':').at(-1)
+    if (!filteredStockRows.some(row => row.ticker === expandedTicker)) {
+      setExpandedStockTicker(null)
+    }
+  }, [expandedStockTicker, filteredStockRows])
   const gateResults = evaluateAllGates(researchState.records)
   const researchDirectional = countDirectionalResearch(researchState.records)
   const intro = pageIntro(activeTab, stockState)
@@ -1096,13 +1331,17 @@ export default function App() {
   const stockReplayRecords = researchState.records.filter(r => r.ticker === selectedStockReplayTicker)
   const stockReplaySummary = buildStockReplaySummary(stockReplayRecords)
   const passedResearchLabels = gateResults.filter(result => result.status === 'PASS').length
+  const researchProblemLabels = gateResults.filter(result => result.status !== 'PASS')
   const researchFlagSummary = buildResearchFlagSummary(researchState.records)
   const robustnessResults = evaluateRollingWindowRobustness(researchState.records)
   const filteredResearchRecords = researchState.records.filter(record => {
     const labelMatches = selectedResearchLabel === 'ALL' || record.label === selectedResearchLabel
     const flagMatches = selectedResearchFlag === 'ALL' || record.researchFlags.includes(selectedResearchFlag)
-    return labelMatches && flagMatches
+    const tickerMatches = selectedResearchTicker === 'ALL' || record.ticker === selectedResearchTicker
+    return labelMatches && flagMatches && tickerMatches
   })
+  const hasActiveResearchFilter =
+    selectedResearchLabel !== 'ALL' || selectedResearchFlag !== 'ALL' || selectedResearchTicker !== 'ALL'
   const researchFilterStats = (() => {
     const recs = filteredResearchRecords
     const with5d = recs.filter(r => r.ret5d !== null)
@@ -1112,6 +1351,82 @@ export default function App() {
     const winRate5d = directional5d.length > 0 ? wins5d / directional5d.length : null
     return { n: recs.length, avg5d, winRate5d }
   })()
+
+  function renderStockTerminalRows(rows: StockRow[], sectionKey: StockSectionKey) {
+    return rows.map(row => {
+      const disp = getStockLabelDisplay(row.label)
+      const group = stockLabelGroup(row.label).toLowerCase()
+      const uiGroup = stockUiGroup(row.label).toLowerCase()
+      const expanded = expandedStockTicker === `${sectionKey}:${row.ticker}`
+
+      return (
+        <article
+          key={`${sectionKey}:${row.ticker}`}
+          className={`stock-terminal-row stock-terminal-row--${group}${expanded ? ' is-expanded' : ''}`}
+        >
+          <button
+            type="button"
+            className="stock-terminal-row__main"
+            onClick={() => setExpandedStockTicker(current => current === `${sectionKey}:${row.ticker}` ? null : `${sectionKey}:${row.ticker}`)}
+          >
+            <div className="stock-terminal-row__identity">
+              <StockLogo ticker={row.ticker} name={row.name} className="stock-logo--terminal" />
+              <div className="stock-terminal-row__copy">
+                <div className="stock-terminal-row__tickerline">
+                  <strong>{row.ticker}</strong>
+                  {row.tier === 2 ? <span className="ticker-cell__tier">防禦</span> : null}
+                  <span className={`signal-chip signal-chip--${uiGroup}`}>{disp.enCode}</span>
+                </div>
+                <div className="stock-terminal-row__name">{row.name}</div>
+                <div className="stock-terminal-row__tags">
+                  <span>{row.sector}</span>
+                  {row.earningsDate ? <span>財報風險</span> : <span>無近財報</span>}
+                  {row.rsRank !== null ? <span>RS% {row.rsRank}</span> : null}
+                </div>
+              </div>
+            </div>
+            <div className="stock-terminal-row__sparkline">
+              <StockSparkline history={stockState.histories[row.ticker]} group={group} />
+            </div>
+            <div className="stock-terminal-row__signal">
+              <span className={`label-pill label-pill--stock label-pill--stock-${group}`}>
+                {disp.zhText}
+              </span>
+              <small>{disp.action}</small>
+            </div>
+            <div className="stock-terminal-row__metrics">
+              <strong>{row.close === null ? 'n/a' : row.close.toFixed(2)}</strong>
+              <span className={row.dayChange !== null && row.dayChange < 0 ? 'is-loss' : row.dayChange !== null && row.dayChange > 0 ? 'is-gain' : ''}>
+                {row.dayChange === null ? 'Snapshot' : formatPercent(row.dayChange)}
+              </span>
+              <small>RSI {row.rsi14 === null ? 'n/a' : row.rsi14.toFixed(1)} · RVOL {formatRatio(row.rvol)}</small>
+            </div>
+          </button>
+          {expanded ? (
+            <div className="stock-terminal-row__drawer">
+              <div>
+                <h3>Signal Readout</h3>
+                <p>{disp.plainReason}</p>
+                <p className="subtle">{row.reason}</p>
+              </div>
+              <div>
+                <h3>Metrics</h3>
+                <p>Close {row.close === null ? 'n/a' : row.close.toFixed(2)}</p>
+                <p>RS vs SPY {formatPercent(row.relStrengthVsSpy)}</p>
+                <p>RS Rank {row.rsRank === null ? 'n/a' : row.rsRank}</p>
+              </div>
+              <div>
+                <h3>Flags</h3>
+                <div>{renderResearchFlags(row.researchFlags)}</div>
+                <p className="subtle">Regime {regimeSummary(row.regime)}</p>
+                {row.earningsDate ? <p className="subtle">財報日期 {row.earningsDate}</p> : <p className="subtle">無近財報事件</p>}
+              </div>
+            </div>
+          ) : null}
+        </article>
+      )
+    })
+  }
 
   async function handleCopyGateSummaryMarkdown() {
     if (gateResults.length === 0) {
@@ -1183,10 +1498,7 @@ export default function App() {
       <div className="workspace">
         <header className="app-header">
           <div className="app-brand">
-            <div className="app-brand__mark" aria-hidden="true">
-              <span className="app-brand__line" />
-              <span className="app-brand__dot" />
-            </div>
+            <UiIcon name="pulse-logo-mark" className="app-brand__mark-image" />
             <div className="app-brand__copy">
               <span className="app-brand__name">Pulse</span>
               <strong className="app-brand__title">{intro.title}</strong>
@@ -1194,10 +1506,12 @@ export default function App() {
           </div>
           <div className="app-header__actions">
             <button type="button" className="header-tool" onClick={() => void handlePrimaryRefresh()}>
-              Refresh
+              <UiIcon name="icon-refresh" className="header-tool__icon" />
+              <span>Refresh</span>
             </button>
             <button type="button" className="header-tool" onClick={() => setShowHelp(v => !v)}>
-              Help
+              <UiIcon name="icon-more" className="header-tool__icon" />
+              <span>Help</span>
             </button>
           </div>
         </header>
@@ -1495,6 +1809,37 @@ export default function App() {
 
         ) : activeTab === 'Quant Lab' ? (
           <>
+            <section className="panel wide verify-workbench">
+              <div className="section-header">
+                <div>
+                  <h2>Verify Workbench</h2>
+                  <p className="subtle">Overview → diagnose → inspect records. 先看結論，再看問題，最後才下鑽原始資料。</p>
+                </div>
+                <div className="status-row">
+                  <span className="status-chip">Records <strong>{researchState.records.length}</strong></span>
+                  <span className="status-chip">Pass Labels <strong>{passedResearchLabels}</strong></span>
+                  <span className="status-chip">Problems <strong>{researchProblemLabels.length}</strong></span>
+                </div>
+              </div>
+              <div className="verify-workbench__cards">
+                <article className={`verify-workbench__card${quantLabSubTab === 'Stock Research' ? ' is-active' : ''}`}>
+                  <span>Signal Proof</span>
+                  <strong>Overview First</strong>
+                  <small>Gate summary, robustness, top problems, records explorer.</small>
+                </article>
+                <article className={`verify-workbench__card${quantLabSubTab === 'Stock Replay' ? ' is-active' : ''}`}>
+                  <span>Stock Check</span>
+                  <strong>Ticker Replay</strong>
+                  <small>單一標的的歷史信號軌跡與 forward returns。</small>
+                </article>
+                <article className={`verify-workbench__card${quantLabSubTab === 'ETF Replay' ? ' is-active' : ''}`}>
+                  <span>ETF Check</span>
+                  <strong>Board Validation</strong>
+                  <small>Favour / Avoid replay 與 broad regime 驗證。</small>
+                </article>
+              </div>
+            </section>
+
             <nav aria-label="Quant Lab sub-tabs" className="segmented-control segmented-control--sub">
               {(['ETF Replay', 'Stock Replay', 'Stock Research'] as QuantLabSubTab[]).map(sub => (
                 <button
@@ -1812,6 +2157,44 @@ export default function App() {
             <section className="panel wide">
               <div className="section-header">
                 <div>
+                  <h2>Top Problems 主要問題</h2>
+                  <p className="subtle">先標出未通過或樣本不足的 labels，避免一開始淹沒在完整 gate table 裏。</p>
+                </div>
+              </div>
+              {researchProblemLabels.length === 0 ? (
+                <p className="subtle">目前所有 labels 都已通過七關卡。</p>
+              ) : (
+                <div className="verify-problem-grid">
+                  {researchProblemLabels.slice(0, 8).map(item => (
+                    <article key={item.label} className={`verify-problem-card verify-problem-card--${item.status.toLowerCase()}`}>
+                      <div className="label-cell">
+                        <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(item.label).toLowerCase()}`}>
+                          {getStockLabelDisplay(item.label).lightEmoji} {item.label}
+                        </span>
+                        <span className={`status-badge status-badge--${item.status.toLowerCase()}`}>{item.status}</span>
+                      </div>
+                      <p>n {item.count} · 5D {formatPercent(item.avgRet5d)} · vs SPY {formatPercent(item.avgRet5dVsSpy)}</p>
+                      <small>
+                        Failed:
+                        {[
+                          item.gate1SampleSize ? null : ' G1',
+                          item.gate2Direction ? null : ' G2',
+                          item.gate3VsSpy ? null : ' G3',
+                          item.gate4Consistent ? null : ' G4',
+                          item.gate5NeutralRegime ? null : ' G5',
+                          item.gate6Mae ? null : ' G6',
+                          item.gate7StopLossHitRate ? null : ' G7'
+                        ].filter(Boolean).join('') || ' check details'}
+                      </small>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
                   <h2>Gate Summary 七關卡驗證</h2>
                   <p className="subtle">G1 n≥100 · G2 方向正確 · G3 跑贏大市 · G4 前後半一致 · G5 中性市仍正確 · G6 MAE&lt;3% · G7 止損命中率&lt;30%</p>
                 </div>
@@ -1993,12 +2376,21 @@ export default function App() {
                 <div>
                   <h2>Record Explorer 記錄探查</h2>
                   <p className="subtle">
-                    {selectedResearchLabel === 'ALL'
-                      ? `Showing ${Math.min(filteredResearchRecords.length, 120)} of ${filteredResearchRecords.length} records (most recent first). Select a label to drill down.`
-                      : `${filteredResearchRecords.length} records for ${selectedResearchLabel} · Avg 5D ${formatPercent(researchFilterStats.avg5d)} · Win Rate ${formatPercent(researchFilterStats.winRate5d)}`}
+                    {!hasActiveResearchFilter
+                      ? '請先選擇至少一個條件，再展開 records。'
+                      : `${filteredResearchRecords.length} records · Avg 5D ${formatPercent(researchFilterStats.avg5d)} · Win Rate ${formatPercent(researchFilterStats.winRate5d)}`}
                   </p>
                 </div>
                 <div className="header-actions">
+                  <label>
+                    Ticker
+                    <select value={selectedResearchTicker} onChange={e => setSelectedResearchTicker(e.target.value as string | 'ALL')}>
+                      <option value="ALL">ALL — 全部</option>
+                      {stockWatchlist.map(stock => (
+                        <option key={stock.ticker} value={stock.ticker}>{stock.ticker}</option>
+                      ))}
+                    </select>
+                  </label>
                   <label>
                     Label 信號
                     <select value={selectedResearchLabel} onChange={e => setSelectedResearchLabel(e.target.value as StockSignalLabel | 'ALL')}>
@@ -2027,36 +2419,43 @@ export default function App() {
                   </label>
                 </div>
               </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Date</th><th>Ticker</th><th>Label</th><th>Regime</th><th>Flags</th>
-                      <th>5D</th><th>10D</th><th>5D vs SPY</th><th>MFE 5D</th><th>MAE 5D</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredResearchRecords.slice(0, selectedResearchLabel === 'ALL' ? 120 : 500).map(record => (
-                      <tr key={`${record.signalDate}:${record.ticker}:${record.label}`}>
-                        <td>{record.signalDate}</td>
-                        <td>{record.ticker}</td>
-                        <td>
-                          <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(record.label).toLowerCase()}`}>
-                            {getStockLabelDisplay(record.label).lightEmoji} {record.label}
-                          </span>
-                        </td>
-                        <td>{record.regimeAtSignal}</td>
-                        <td>{renderResearchFlags(record.researchFlags)}</td>
-                        <td className={returnClass(record.ret5d, record.label)}>{formatPercent(record.ret5d)}</td>
-                        <td className={returnClass(record.ret10d, record.label)}>{formatPercent(record.ret10d)}</td>
-                        <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>
-                        <td>{formatPercent(record.mfe5d)}</td>
-                        <td>{formatPercent(record.mae5d)}</td>
+              {!hasActiveResearchFilter ? (
+                <div className="verify-empty-state">
+                  <strong>Select filters to inspect records</strong>
+                  <p>建議先從 `Label`、`Ticker` 或 `Research Flag` 選一個條件，避免 300-stock universe 下首屏過重。</p>
+                </div>
+              ) : (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th><th>Ticker</th><th>Label</th><th>Regime</th><th>Flags</th>
+                        <th>5D</th><th>10D</th><th>5D vs SPY</th><th>MFE 5D</th><th>MAE 5D</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredResearchRecords.slice(0, 500).map(record => (
+                        <tr key={`${record.signalDate}:${record.ticker}:${record.label}`}>
+                          <td>{record.signalDate}</td>
+                          <td>{record.ticker}</td>
+                          <td>
+                            <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(record.label).toLowerCase()}`}>
+                              {getStockLabelDisplay(record.label).lightEmoji} {record.label}
+                            </span>
+                          </td>
+                          <td>{record.regimeAtSignal}</td>
+                          <td>{renderResearchFlags(record.researchFlags)}</td>
+                          <td className={returnClass(record.ret5d, record.label)}>{formatPercent(record.ret5d)}</td>
+                          <td className={returnClass(record.ret10d, record.label)}>{formatPercent(record.ret10d)}</td>
+                          <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>
+                          <td>{formatPercent(record.mfe5d)}</td>
+                          <td>{formatPercent(record.mae5d)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
             </>)}
           </>
@@ -2084,9 +2483,11 @@ export default function App() {
                   <strong>{stockState.earningsConfigured ? 'active' : 'not configured'}</strong>
                 </span>
                 <span className="status-chip">
-                  Updated:{' '}
+                  {stockState.snapshotDate ? 'Snapshot:' : 'Updated:'}{' '}
                   <strong>
-                    {stockState.lastUpdated
+                    {stockState.snapshotDate
+                      ? stockState.snapshotDate
+                      : stockState.lastUpdated
                       ? new Date(stockState.lastUpdated).toLocaleString('en-HK', { hour12: false })
                       : 'pending'}
                   </strong>
@@ -2121,9 +2522,9 @@ export default function App() {
             <section className="panel wide">
               <div className="section-header">
                 <div>
-                  <h2>Live Signals 即時信號</h2>
+                  <h2>Live Stock Signals</h2>
                   <p className="subtle">
-                    First-pass tactical labels from local EMA/RSI/MACD/CMF/RVOL/ATR calculations on daily OHLCV.
+                    Snapshot-first screener for the current universe. Use filters and sorting to surface the highest-value names first.
                   </p>
                 </div>
                 <div className="header-actions">
@@ -2145,9 +2546,103 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="stocks-terminal-stats">
+                <article className="stocks-terminal-stat">
+                  <span>Long Bias</span>
+                  <strong>{stockListStats.longBias}</strong>
+                  <small>LONG_* and WATCH</small>
+                </article>
+                <article className="stocks-terminal-stat">
+                  <span>Short Bias</span>
+                  <strong>{stockListStats.shortBias}</strong>
+                  <small>SHORT_* names</small>
+                </article>
+                <article className="stocks-terminal-stat">
+                  <span>Updated</span>
+                  <strong>{stockState.lastUpdated ? new Date(stockState.lastUpdated).toLocaleTimeString('en-HK', { hour12: false }) : 'pending'}</strong>
+                  <small>{stockState.snapshotDate ?? 'Live fetch mode'}</small>
+                </article>
+              </div>
+
+              <div className="stocks-filter-toolbar">
+                <label>
+                  <span>Tier</span>
+                  <select value={selectedStockTier} onChange={event => setSelectedStockTier(event.target.value as StockTierFilter)}>
+                    <option value="ALL">All Tiers</option>
+                    <option value="T1">Growth / Tier 1</option>
+                    <option value="T2">Defensive / Tier 2</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Sector</span>
+                  <select value={selectedStockSector} onChange={event => setSelectedStockSector(event.target.value)}>
+                    {stockSectorOptions.map(option => (
+                      <option key={option} value={option}>{option === 'ALL' ? 'All Sectors' : option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Label</span>
+                  <select value={selectedStockLabelGroup} onChange={event => setSelectedStockLabelGroup(event.target.value as 'ALL' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'REVIEW')}>
+                    <option value="ALL">All Labels</option>
+                    <option value="LONG">Long Setups</option>
+                    <option value="SHORT">Short Risks</option>
+                    <option value="NEUTRAL">Neutral / Wait</option>
+                    <option value="REVIEW">Review / Data</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Earnings</span>
+                  <select value={selectedEarningsRisk} onChange={event => setSelectedEarningsRisk(event.target.value as EarningsRiskFilter)}>
+                    <option value="ALL">All Names</option>
+                    <option value="SAFE">No Near Earnings</option>
+                    <option value="RISK">Earnings Risk</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="stocks-sortbar">
+                <span>Sort</span>
+                <div className="stocks-sortbar__options">
+                  {([
+                    ['signal_strength', 'Signal Strength'],
+                    ['rs_rank', 'RS Rank'],
+                    ['recent_change', 'Recent Change'],
+                    ['ticker', 'Ticker']
+                  ] as Array<[StockSortKey, string]>).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={stockSortKey === key ? 'stocks-sortbar__btn is-active' : 'stocks-sortbar__btn'}
+                      onClick={() => setStockSortKey(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="stocks-segment-grid">
+                <article className="stocks-segment-card">
+                  <span>Top Signals</span>
+                  <strong>{topSignalRows.length}</strong>
+                  <small>Directional names worth checking first</small>
+                </article>
+                <article className="stocks-segment-card">
+                  <span>Needs Review</span>
+                  <strong>{reviewFocusedRows.length}</strong>
+                  <small>Event or data blockers</small>
+                </article>
+                <article className="stocks-segment-card">
+                  <span>All Results</span>
+                  <strong>{sortedStockRows.length}</strong>
+                  <small>Filtered universe after controls</small>
+                </article>
+              </div>
+
               {stockViewMode === 'cards' ? (
                 <div className="stock-card-grid">
-                  {stockState.rows.map((row, index) => {
+                  {sortedStockRows.map((row, index) => {
                     const disp = getStockLabelDisplay(row.label)
                     const group = stockLabelGroup(row.label).toLowerCase()
                     const featured = index < 4
@@ -2164,10 +2659,16 @@ export default function App() {
                           </span>
                         </div>
                         <div className="stock-card__header">
-                          <div>
-                            <div className="stock-card__ticker">{row.ticker}</div>
-                            <div className="stock-card__name">{row.name}</div>
-                            <div className="stock-card__sector">{row.sector}</div>
+                          <div className="stock-card__identity">
+                            <StockLogo ticker={row.ticker} name={row.name} />
+                            <div className="stock-card__identity-copy">
+                              <div className="stock-card__ticker">
+                                {row.ticker}
+                                {row.tier === 2 && <span className="stock-card__tier2-badge">防禦</span>}
+                              </div>
+                              <div className="stock-card__name">{row.name}</div>
+                              <div className="stock-card__sector">{row.sector}</div>
+                            </div>
                           </div>
                           <StockSparkline history={stockState.histories[row.ticker]} group={group} />
                         </div>
@@ -2175,6 +2676,7 @@ export default function App() {
                           <span className="stock-card__metric">RSI <strong>{row.rsi14 === null ? 'n/a' : row.rsi14.toFixed(1)}</strong></span>
                           <span className="stock-card__metric">RVOL <strong>{formatRatio(row.rvol)}</strong></span>
                           <span className="stock-card__metric">RS <strong>{formatPercent(row.relStrengthVsSpy)}</strong></span>
+                          {row.rsRank !== null && <span className="stock-card__metric">RS% <strong>{row.rsRank}</strong></span>}
                           {row.earningsDate ? <span className="stock-card__earnings">財報 {row.earningsDate}</span> : null}
                         </div>
                         <div className="stock-card__reason">{disp.plainReason}</div>
@@ -2188,51 +2690,41 @@ export default function App() {
                   })}
                 </div>
               ) : (
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Ticker</th>
-                        <th>Name</th>
-                        <th>Sector</th>
-                        <th>信號 Label</th>
-                        <th>RSI(14)</th>
-                        <th>RVOL</th>
-                        <th>RS vs SPY</th>
-                        <th>Flags</th>
-                        <th>原因 Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stockState.rows.map(row => {
-                        const disp = getStockLabelDisplay(row.label)
-                        const group = stockLabelGroup(row.label).toLowerCase()
-                        return (
-                          <tr key={row.ticker}>
-                            <td>{row.ticker}</td>
-                            <td>{row.name}</td>
-                            <td>{row.sector}</td>
-                            <td>
-                              <div className="label-cell">
-                                <span className={`label-pill label-pill--stock label-pill--stock-${group}`}>
-                                  {disp.lightEmoji} {disp.zhText}
-                                </span>
-                                <span className="label-code">{row.label}</span>
-                              </div>
-                            </td>
-                            <td>{row.rsi14 === null ? 'n/a' : row.rsi14.toFixed(1)}</td>
-                            <td>{formatRatio(row.rvol)}</td>
-                            <td>{formatPercent(row.relStrengthVsSpy)}</td>
-                            <td>{renderResearchFlags(row.researchFlags)}</td>
-                            <td className="reason-cell">
-                              <span className="reason-plain">{disp.plainReason}</span>
-                              <span className="reason-technical">{row.reason}</span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                <div className="stocks-terminal">
+                  <section className="stocks-terminal-section">
+                    <div className="stocks-terminal-section__header">
+                      <div>
+                        <h3>Top Signals</h3>
+                        <p>先看高價值方向信號，再決定是否 drill down。</p>
+                      </div>
+                      <span>{topSignalRows.length}</span>
+                    </div>
+                    {topSignalRows.length > 0 ? renderStockTerminalRows(topSignalRows, 'top') : <p className="subtle">No directional signals under current filters.</p>}
+                  </section>
+
+                  {reviewFocusedRows.length > 0 ? (
+                    <section className="stocks-terminal-section">
+                      <div className="stocks-terminal-section__header">
+                        <div>
+                          <h3>Needs Review</h3>
+                          <p>事件風險或資料問題，先看阻塞點。</p>
+                        </div>
+                        <span>{reviewFocusedRows.length}</span>
+                      </div>
+                      {renderStockTerminalRows(reviewFocusedRows, 'review')}
+                    </section>
+                  ) : null}
+
+                  <section className="stocks-terminal-section">
+                    <div className="stocks-terminal-section__header">
+                      <div>
+                        <h3>All Results</h3>
+                        <p>完整 filtered universe，保留 tier-aware 順序與高密度掃描。</p>
+                      </div>
+                      <span>{sortedStockRows.length}</span>
+                    </div>
+                    {sortedStockRows.length > 0 ? renderStockTerminalRows(sortedStockRows, 'all') : <p className="subtle">No rows matched the current filters.</p>}
+                  </section>
                 </div>
               )}
             </section>
@@ -2387,7 +2879,9 @@ export default function App() {
             className={tab === activeTab ? 'bottom-nav__item is-active' : 'bottom-nav__item'}
             onClick={() => setActiveTab(tab)}
           >
-            <span className="bottom-nav__icon" aria-hidden="true">{TAB_META[tab].navMark}</span>
+            <span className="bottom-nav__icon" aria-hidden="true">
+              <UiIcon name={TAB_META[tab].navIcon} className="bottom-nav__icon-image" />
+            </span>
             <span className="bottom-nav__label">
               <span className="bottom-nav__label-en">{TAB_META[tab].navLabelEn}</span>
               {TAB_META[tab].navLabelZh ? <span className="bottom-nav__label-zh">{TAB_META[tab].navLabelZh}</span> : null}

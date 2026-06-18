@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="#071411" stroke="url(#pulse-mark-stroke)" stroke-width="2"/>
+  <path d="M18 42L29 29L38 36L47 22" stroke="#3BE7A4" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="48" cy="22" r="4" fill="#53F7BC"/>
+  <defs>
+    <linearGradient id="pulse-mark-stroke" x1="8" y1="10" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#28B98C"/>
+      <stop offset="1" stop-color="#0F5A48"/>
+    </linearGradient>
+  </defs>
+</svg>

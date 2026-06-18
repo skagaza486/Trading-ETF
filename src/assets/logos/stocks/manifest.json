@@ -1,0 +1,2401 @@
+{
+  "generatedAt": "2026-06-18T16:03:52.133Z",
+  "total": 299,
+  "downloaded": 299,
+  "fallback": 0,
+  "sourceBase": "https://companiesmarketcap.com/img/company-logos/64",
+  "items": [
+    {
+      "ticker": "AAPL",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AAPL.png",
+      "file": "AAPL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MSFT",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MSFT.png",
+      "file": "MSFT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NVDA",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NVDA.png",
+      "file": "NVDA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AVGO",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AVGO.png",
+      "file": "AVGO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AMD",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AMD.png",
+      "file": "AMD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PLTR",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PLTR.png",
+      "file": "PLTR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CRM",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CRM.png",
+      "file": "CRM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ORCL",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ORCL.png",
+      "file": "ORCL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ADBE",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ADBE.png",
+      "file": "ADBE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "QCOM",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/QCOM.png",
+      "file": "QCOM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MU",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MU.png",
+      "file": "MU.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AMAT",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AMAT.png",
+      "file": "AMAT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NOW",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NOW.png",
+      "file": "NOW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PANW",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PANW.png",
+      "file": "PANW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SNOW",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SNOW.png",
+      "file": "SNOW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TTD",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TTD.png",
+      "file": "TTD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CRWD",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CRWD.png",
+      "file": "CRWD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LRCX",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LRCX.png",
+      "file": "LRCX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "APP",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/APP.png",
+      "file": "APP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ARM",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ARM.png",
+      "file": "ARM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SMCI",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SMCI.png",
+      "file": "SMCI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MRVL",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MRVL.png",
+      "file": "MRVL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "KLAC",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/KLAC.png",
+      "file": "KLAC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CRDO",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CRDO.png",
+      "file": "CRDO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ONTO",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ONTO.png",
+      "file": "ONTO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DDOG",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DDOG.png",
+      "file": "DDOG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NET",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NET.png",
+      "file": "NET.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HUBS",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HUBS.png",
+      "file": "HUBS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MDB",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MDB.png",
+      "file": "MDB.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "FTNT",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/FTNT.png",
+      "file": "FTNT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ZS",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ZS.png",
+      "file": "ZS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "OKTA",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/OKTA.png",
+      "file": "OKTA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MPWR",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MPWR.png",
+      "file": "MPWR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "FSLR",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/FSLR.png",
+      "file": "FSLR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ENPH",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ENPH.png",
+      "file": "ENPH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CDNS",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CDNS.png",
+      "file": "CDNS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SNPS",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SNPS.png",
+      "file": "SNPS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ANET",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ANET.png",
+      "file": "ANET.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "WDAY",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/WDAY.png",
+      "file": "WDAY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "INTU",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/INTU.png",
+      "file": "INTU.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PAYC",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PAYC.png",
+      "file": "PAYC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "VRT",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/VRT.png",
+      "file": "VRT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "RBLX",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/RBLX.png",
+      "file": "RBLX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NXPI",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NXPI.png",
+      "file": "NXPI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PSTG",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PSTG.png",
+      "file": "PSTG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PCTY",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PCTY.png",
+      "file": "PCTY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TXN",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TXN.png",
+      "file": "TXN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ADI",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ADI.png",
+      "file": "ADI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MCHP",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MCHP.png",
+      "file": "MCHP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "INTC",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/INTC.png",
+      "file": "INTC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "IBM",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/IBM.png",
+      "file": "IBM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SWKS",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SWKS.png",
+      "file": "SWKS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "KEYS",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/KEYS.png",
+      "file": "KEYS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DELL",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DELL.png",
+      "file": "DELL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GLW",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GLW.png",
+      "file": "GLW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CSCO",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CSCO.png",
+      "file": "CSCO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ZBRA",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ZBRA.png",
+      "file": "ZBRA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AKAM",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AKAM.png",
+      "file": "AKAM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CDW",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CDW.png",
+      "file": "CDW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NTAP",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NTAP.png",
+      "file": "NTAP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HPE",
+      "sector": "Technology",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HPE.png",
+      "file": "HPE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "META",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/META.png",
+      "file": "META.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GOOGL",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GOOG.png",
+      "file": "GOOGL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NFLX",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NFLX.png",
+      "file": "NFLX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ROKU",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ROKU.png",
+      "file": "ROKU.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SNAP",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SNAP.png",
+      "file": "SNAP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "RDDT",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/RDDT.png",
+      "file": "RDDT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PINS",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PINS.png",
+      "file": "PINS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SPOT",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SPOT.png",
+      "file": "SPOT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DASH",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DASH.png",
+      "file": "DASH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TMUS",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TMUS.png",
+      "file": "TMUS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DIS",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DIS.png",
+      "file": "DIS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "T",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/T.png",
+      "file": "T.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ZM",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ZM.png",
+      "file": "ZM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MTCH",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MTCH.png",
+      "file": "MTCH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "WBD",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/WBD.png",
+      "file": "WBD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "EXPE",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/EXPE.png",
+      "file": "EXPE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LYFT",
+      "sector": "Communication Services",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LYFT.png",
+      "file": "LYFT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AMZN",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AMZN.png",
+      "file": "AMZN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TSLA",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TSLA.png",
+      "file": "TSLA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BKNG",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BKNG.png",
+      "file": "BKNG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ABNB",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ABNB.png",
+      "file": "ABNB.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "UBER",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/UBER.png",
+      "file": "UBER.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LULU",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LULU.png",
+      "file": "LULU.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DECK",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DECK.png",
+      "file": "DECK.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ONON",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ONON.png",
+      "file": "ONON.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ULTA",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ULTA.png",
+      "file": "ULTA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CELH",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CELH.png",
+      "file": "CELH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DUOL",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DUOL.png",
+      "file": "DUOL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ETSY",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ETSY.png",
+      "file": "ETSY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CMG",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CMG.png",
+      "file": "CMG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "WING",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/WING.png",
+      "file": "WING.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DKNG",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DKNG.png",
+      "file": "DKNG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CPRT",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CPRT.png",
+      "file": "CPRT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "W",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/W.png",
+      "file": "W.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "RH",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/RH.png",
+      "file": "RH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ROST",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ROST.png",
+      "file": "ROST.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TJX",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TJX.png",
+      "file": "TJX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BROS",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BROS.png",
+      "file": "BROS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HD",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HD.png",
+      "file": "HD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MCD",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MCD.png",
+      "file": "MCD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NKE",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NKE.png",
+      "file": "NKE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LOW",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LOW.png",
+      "file": "LOW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SBUX",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SBUX.png",
+      "file": "SBUX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TGT",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TGT.png",
+      "file": "TGT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BBY",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BBY.png",
+      "file": "BBY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "YUM",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/YUM.png",
+      "file": "YUM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DPZ",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DPZ.png",
+      "file": "DPZ.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MGM",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MGM.png",
+      "file": "MGM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LVS",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LVS.png",
+      "file": "LVS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "KMX",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/KMX.png",
+      "file": "KMX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DG",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DG.png",
+      "file": "DG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DLTR",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DLTR.png",
+      "file": "DLTR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AZO",
+      "sector": "Consumer Discretionary",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AZO.png",
+      "file": "AZO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "COST",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/COST.png",
+      "file": "COST.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "WMT",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/WMT.png",
+      "file": "WMT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PG",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PG.png",
+      "file": "PG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "KO",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/KO.png",
+      "file": "KO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PEP",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PEP.png",
+      "file": "PEP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MDLZ",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MDLZ.png",
+      "file": "MDLZ.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PM",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PM.png",
+      "file": "PM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CL",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CL.png",
+      "file": "CL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GIS",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GIS.png",
+      "file": "GIS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HSY",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HSY.png",
+      "file": "HSY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TSN",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TSN.png",
+      "file": "TSN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MKC",
+      "sector": "Consumer Staples",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MKC.png",
+      "file": "MKC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "V",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/V.png",
+      "file": "V.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MA",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MA.png",
+      "file": "MA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "COF",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/COF.png",
+      "file": "COF.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DFS",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DFS.png",
+      "file": "DFS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "COIN",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/COIN.png",
+      "file": "COIN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HOOD",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HOOD.png",
+      "file": "HOOD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SOFI",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SOFI.png",
+      "file": "SOFI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AFRM",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AFRM.png",
+      "file": "AFRM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PYPL",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PYPL.png",
+      "file": "PYPL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SQ",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SQ.png",
+      "file": "SQ.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "KKR",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/KKR.png",
+      "file": "KKR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "APO",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/APO.png",
+      "file": "APO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ARES",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ARES.png",
+      "file": "ARES.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TPG",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TPG.png",
+      "file": "TPG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ICE",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ICE.png",
+      "file": "ICE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CME",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CME.png",
+      "file": "CME.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SPGI",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SPGI.png",
+      "file": "SPGI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MCO",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MCO.png",
+      "file": "MCO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MSCI",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MSCI.png",
+      "file": "MSCI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "JPM",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/JPM.png",
+      "file": "JPM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GS",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GS.png",
+      "file": "GS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BAC",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BAC.png",
+      "file": "BAC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MS",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MS.png",
+      "file": "MS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BLK",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BLK.png",
+      "file": "BLK.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AXP",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AXP.png",
+      "file": "AXP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SCHW",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SCHW.png",
+      "file": "SCHW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "C",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/C.png",
+      "file": "C.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "WFC",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/WFC.png",
+      "file": "WFC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BX",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BX.png",
+      "file": "BX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "USB",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/USB.png",
+      "file": "USB.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PNC",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PNC.png",
+      "file": "PNC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TFC",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TFC.png",
+      "file": "TFC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ALLY",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ALLY.png",
+      "file": "ALLY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SYF",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SYF.png",
+      "file": "SYF.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CG",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CG.png",
+      "file": "CG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "FITB",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/FITB.png",
+      "file": "FITB.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "RF",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/RF.png",
+      "file": "RF.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "KEY",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/KEY.png",
+      "file": "KEY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CFG",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CFG.png",
+      "file": "CFG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HBAN",
+      "sector": "Financials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HBAN.png",
+      "file": "HBAN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LLY",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LLY.png",
+      "file": "LLY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ISRG",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ISRG.png",
+      "file": "ISRG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DXCM",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DXCM.png",
+      "file": "DXCM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GEHC",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GEHC.png",
+      "file": "GEHC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BSX",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BSX.png",
+      "file": "BSX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "VEEV",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/VEEV.png",
+      "file": "VEEV.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "REGN",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/REGN.png",
+      "file": "REGN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "VRTX",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/VRTX.png",
+      "file": "VRTX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MRNA",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MRNA.png",
+      "file": "MRNA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "IDXX",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/IDXX.png",
+      "file": "IDXX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "IQV",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/IQV.png",
+      "file": "IQV.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ELV",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ELV.png",
+      "file": "ELV.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HOLX",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HOLX.png",
+      "file": "HOLX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "UNH",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/UNH.png",
+      "file": "UNH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ABBV",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ABBV.png",
+      "file": "ABBV.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "JNJ",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/JNJ.png",
+      "file": "JNJ.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MRK",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MRK.png",
+      "file": "MRK.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PFE",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PFE.png",
+      "file": "PFE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AMGN",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AMGN.png",
+      "file": "AMGN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GILD",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GILD.png",
+      "file": "GILD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CVS",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CVS.png",
+      "file": "CVS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MDT",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MDT.png",
+      "file": "MDT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TMO",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TMO.png",
+      "file": "TMO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DHR",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DHR.png",
+      "file": "DHR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SYK",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SYK.png",
+      "file": "SYK.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BIIB",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BIIB.png",
+      "file": "BIIB.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ZBH",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ZBH.png",
+      "file": "ZBH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BDX",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BDX.png",
+      "file": "BDX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BAX",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BAX.png",
+      "file": "BAX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CRL",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CRL.png",
+      "file": "CRL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MTD",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MTD.png",
+      "file": "MTD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CI",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CI.png",
+      "file": "CI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HUM",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HUM.png",
+      "file": "HUM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CNC",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CNC.png",
+      "file": "CNC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DGX",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DGX.png",
+      "file": "DGX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LH",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LH.png",
+      "file": "LH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "WAT",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/WAT.png",
+      "file": "WAT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "A",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/A.png",
+      "file": "A.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MOH",
+      "sector": "Health Care",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MOH.png",
+      "file": "MOH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "XOM",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/XOM.png",
+      "file": "XOM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CVX",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CVX.png",
+      "file": "CVX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "COP",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/COP.png",
+      "file": "COP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SLB",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SLB.png",
+      "file": "SLB.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "OXY",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/OXY.png",
+      "file": "OXY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MPC",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MPC.png",
+      "file": "MPC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HAL",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HAL.png",
+      "file": "HAL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BKR",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BKR.png",
+      "file": "BKR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DVN",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DVN.png",
+      "file": "DVN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "FANG",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/FANG.png",
+      "file": "FANG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "EOG",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/EOG.png",
+      "file": "EOG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PSX",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PSX.png",
+      "file": "PSX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "VLO",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/VLO.png",
+      "file": "VLO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MRO",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MRO.png",
+      "file": "MRO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "APA",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/APA.png",
+      "file": "APA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CTRA",
+      "sector": "Energy",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CTRA.png",
+      "file": "CTRA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GE",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GE.png",
+      "file": "GE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "IONQ",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/IONQ.png",
+      "file": "IONQ.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ETN",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ETN.png",
+      "file": "ETN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ROK",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ROK.png",
+      "file": "ROK.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AXON",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AXON.png",
+      "file": "AXON.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TDG",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TDG.png",
+      "file": "TDG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "URI",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/URI.png",
+      "file": "URI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HEI",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HEI.png",
+      "file": "HEI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BA",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BA.png",
+      "file": "BA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CAT",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CAT.png",
+      "file": "CAT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "HON",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/HON.png",
+      "file": "HON.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "RTX",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/RTX.png",
+      "file": "RTX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LMT",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LMT.png",
+      "file": "LMT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "UPS",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/UPS.png",
+      "file": "UPS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "FDX",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/FDX.png",
+      "file": "FDX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DE",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DE.png",
+      "file": "DE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NOC",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NOC.png",
+      "file": "NOC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GD",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GD.png",
+      "file": "GD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PH",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PH.png",
+      "file": "PH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "IR",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/IR.png",
+      "file": "IR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MMM",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MMM.png",
+      "file": "MMM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "EMR",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/EMR.png",
+      "file": "EMR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LDOS",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LDOS.png",
+      "file": "LDOS.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CARR",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CARR.png",
+      "file": "CARR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BAH",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BAH.png",
+      "file": "BAH.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "WM",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/WM.png",
+      "file": "WM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "RSG",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/RSG.png",
+      "file": "RSG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "FAST",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/FAST.png",
+      "file": "FAST.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "GWW",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/GWW.png",
+      "file": "GWW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "VRSK",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/VRSK.png",
+      "file": "VRSK.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SAIC",
+      "sector": "Industrials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SAIC.png",
+      "file": "SAIC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "FCX",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/FCX.png",
+      "file": "FCX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NEM",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NEM.png",
+      "file": "NEM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "LIN",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/LIN.png",
+      "file": "LIN.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NUE",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NUE.png",
+      "file": "NUE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SHW",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SHW.png",
+      "file": "SHW.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "APD",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/APD.png",
+      "file": "APD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ECL",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ECL.png",
+      "file": "ECL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ALB",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ALB.png",
+      "file": "ALB.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PPG",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PPG.png",
+      "file": "PPG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CTVA",
+      "sector": "Materials",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CTVA.png",
+      "file": "CTVA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AMT",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AMT.png",
+      "file": "AMT.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "EQIX",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/EQIX.png",
+      "file": "EQIX.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PLD",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PLD.png",
+      "file": "PLD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "WELL",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/WELL.png",
+      "file": "WELL.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SPG",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SPG.png",
+      "file": "SPG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "O",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/O.png",
+      "file": "O.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "VICI",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/VICI.png",
+      "file": "VICI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DLR",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DLR.png",
+      "file": "DLR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PSA",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PSA.png",
+      "file": "PSA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AVB",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AVB.png",
+      "file": "AVB.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "EQR",
+      "sector": "Real Estate",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/EQR.png",
+      "file": "EQR.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NEE",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NEE.png",
+      "file": "NEE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DUK",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DUK.png",
+      "file": "DUK.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SO",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SO.png",
+      "file": "SO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "CEG",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/CEG.png",
+      "file": "CEG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "AEP",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/AEP.png",
+      "file": "AEP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "EXC",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/EXC.png",
+      "file": "EXC.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "D",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/D.png",
+      "file": "D.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PCG",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PCG.png",
+      "file": "PCG.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ED",
+      "sector": "Utilities",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ED.png",
+      "file": "ED.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TSM",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TSM.png",
+      "file": "TSM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "ASML",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/ASML.png",
+      "file": "ASML.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "NVO",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/NVO.png",
+      "file": "NVO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "MELI",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/MELI.png",
+      "file": "MELI.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SHOP",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SHOP.png",
+      "file": "SHOP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BABA",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BABA.png",
+      "file": "BABA.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SE",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SE.png",
+      "file": "SE.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "TM",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/TM.png",
+      "file": "TM.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SONY",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SONY.png",
+      "file": "SONY.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "SAP",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/SAP.png",
+      "file": "SAP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BHP",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BHP.png",
+      "file": "BHP.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "DEO",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/DEO.png",
+      "file": "DEO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "BIDU",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/BIDU.png",
+      "file": "BIDU.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "JD",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/JD.png",
+      "file": "JD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "PDD",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/PDD.png",
+      "file": "PDD.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "RIO",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/RIO.png",
+      "file": "RIO.png",
+      "contentType": "image/png"
+    },
+    {
+      "ticker": "UL",
+      "sector": "International",
+      "kind": "downloaded",
+      "sourceUrl": "https://companiesmarketcap.com/img/company-logos/64/UL.png",
+      "file": "UL.png",
+      "contentType": "image/png"
+    }
+  ]
+}

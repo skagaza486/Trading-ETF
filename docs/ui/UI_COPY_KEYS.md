@@ -73,6 +73,22 @@ signal.stock.long_break.label_zh
 - `ETF`
 - `Verify / 驗證`
 
+## 2.1 UI 1.1 Planned Namespaces
+
+`UI 1.1` 預計新增以下 key 類別，用於 icon / filter / snapshot / visual system 擴充：
+
+- `icon`
+- `logo_level`
+- `stocks.tier`
+- `stocks.filters`
+- `stocks.sort`
+- `stocks.stats`
+- `home.snapshot`
+- `home.sidebar`
+- `verify.subnav`
+
+詳細方向見 [`UI_1_1_VISUAL_PLAN.md`](./UI_1_1_VISUAL_PLAN.md)。
+
 ## 3. 全域導航與頁面級文案
 
 | Key | English | 中文 |
@@ -131,6 +147,9 @@ signal.stock.long_break.label_zh
 | `stocks.status.short_bias` | Short Bias | 跌勢偏向 |
 | `stocks.status.earnings` | Earnings | 財報風險 |
 | `stocks.status.updated` | Updated | 更新時間 |
+| `stocks.tier.growth` | Growth | 成長 |
+| `stocks.tier.defensive` | Defensive | 防禦 |
+| `stocks.tier.sort_priority` | Tier Priority | 分層優先 |
 | `stocks.summary.long_labels` | Long Labels | 升勢 |
 | `stocks.summary.short_labels` | Short Labels | 跌勢 |
 | `stocks.summary.neutral` | Neutral | 中性 |
@@ -140,11 +159,20 @@ signal.stock.long_break.label_zh
 | `stocks.live_signals.view.cards` | Cards | 卡片 |
 | `stocks.live_signals.view.table` | Table | 列表 |
 | `stocks.live_signals.refresh_cta` | Refresh Screener | 重新整理 Screener |
+| `stocks.sort.signal_strength` | Signal Strength | 信號強度 |
+| `stocks.sort.rs_rank` | RS Rank | 相對強度排名 |
+| `stocks.sort.recent_change` | Recent Change | 近期變化 |
+| `stocks.sort.ticker` | Ticker | 股票代號 |
 | `stocks.card.featured` | Featured Focus | 今日焦點 |
 | `stocks.card.earnings_prefix` | Earnings | 財報 |
 | `stocks.metric.rsi` | RSI | RSI |
 | `stocks.metric.rvol` | RVOL | RVOL |
 | `stocks.metric.rs_vs_spy` | RS vs SPY | 相對 SPY 強弱 |
+
+註：
+
+- `stocks.tier.*` 專指股票 universe 的 `Tier 1 / Tier 2`
+- logo / monogram / ETF category icon 的資產分級請使用 `logo_level.*`
 
 ## 6. ETF 區塊文案
 
@@ -242,6 +270,18 @@ signal.stock.long_break.label_zh
 | `signal.stock.review_data` | `REVIEW_DATA` | Review Data | 暫時無法判斷 |
 | `signal.stock.review_event` | `REVIEW_EVENT` | Review Event | 快出財報 |
 
+### 7.1a Stock Signal UI Groups
+
+這一層只供 UI icon / badge grouping 使用，不直接等同 engine label。
+
+| Key Prefix | Includes | English Concept | 中文展示 |
+| --- | --- | --- | --- |
+| `signal.stock_group.strong_long` | `LONG_BREAK`, `LONG_VCP` | Strong Long | 強升勢 |
+| `signal.stock_group.long` | `LONG_BOUNCE`, `LONG_BASE` | Long | 升勢 |
+| `signal.stock_group.short` | `SHORT_BREAK`, `SHORT_BASE`, `SHORT_WATCH` | Short | 弱勢 |
+| `signal.stock_group.watch` | `WATCH` | Watch | 觀察 |
+| `signal.stock_group.review` | `NEUTRAL`, `AVOID_CHOP`, review states | Review | 待確認 |
+
 每個 prefix 建議至少保留以下欄位：
 
 ```txt
@@ -267,6 +307,14 @@ signal.stock.long_break.action_zh
 | --- | --- | --- | --- |
 | `research.flag.base_break` | `BASE_BREAK` | Base Break | 長底突破 |
 | `research.flag.distribution_warning` | `DISTRIBUTION_WARNING` | Distribution Warning | 派發預警 |
+
+### 7.4 Logo / Asset Levels
+
+| Key Prefix | Meaning | English Concept | 中文展示 |
+| --- | --- | --- | --- |
+| `logo_level.1` | Official company logo | LogoLevel 1 | 官方 logo |
+| `logo_level.2` | Generated ticker monogram fallback | LogoLevel 2 | 代號字母圖案 |
+| `logo_level.3` | ETF category icon | LogoLevel 3 | ETF 類別圖案 |
 
 ## 9. 狀態與操作文案
 
