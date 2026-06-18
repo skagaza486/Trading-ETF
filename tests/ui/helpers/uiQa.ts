@@ -37,8 +37,8 @@ export async function openApp(page: Page) {
   await prepareApp(page)
   await page.goto('/')
   await closeOnboardingIfPresent(page)
-  await expect(page.locator('.app-header')).toBeVisible()
-  await expect(page.locator('.bottom-nav')).toBeVisible()
+  await expect(page.locator('.content-shell')).toBeVisible()
+  await expect(page.locator('.side-rail, .bottom-nav').first()).toBeAttached()
 }
 
 export async function closeOnboardingIfPresent(page: Page) {
@@ -48,12 +48,33 @@ export async function closeOnboardingIfPresent(page: Page) {
   }
 }
 
+function primaryTabPattern(label: string): RegExp {
+  switch (label) {
+    case 'Home':
+    case 'Home / 總覽':
+      return /Home\s*總覽|Home/i
+    case 'Stocks':
+    case 'Stocks / 股票':
+      return /Stocks\s*股票|Stocks/i
+    case 'ETF':
+      return /^ETF$/i
+    case 'Verify':
+    case 'Verify / 驗證':
+      return /Verify\s*驗證|Verify/i
+    default:
+      return new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+  }
+}
+
 export async function openPrimaryTab(page: Page, label: string) {
-  await page.getByRole('button', { name: label, exact: true }).click()
+  const pattern = primaryTabPattern(label)
+  const nav = page.locator('.side-rail__nav:visible, .bottom-nav:visible').first()
+  await expect(nav).toBeVisible()
+  await nav.locator('button').filter({ hasText: pattern }).first().click()
 }
 
 export async function openVerifySubTab(page: Page, label: string) {
-  await page.getByRole('button', { name: label, exact: true }).click()
+  await page.locator('.segmented-control--sub button').filter({ hasText: new RegExp(label, 'i') }).first().click()
 }
 
 export async function assertNoHorizontalOverflow(page: Page) {
@@ -86,7 +107,9 @@ export async function assertElementsDoNotOverlap(locator: Locator) {
 }
 
 export async function assertElementInViewport(page: Page, selector: string) {
-  const isInViewport = await page.locator(selector).first().evaluate(node => {
+  const locator = page.locator(selector).first()
+  await expect(locator).toBeVisible()
+  const isInViewport = await locator.evaluate(node => {
     const rect = (node as HTMLElement).getBoundingClientRect()
     return rect.top >= 0 && rect.left >= 0 && rect.bottom <= window.innerHeight && rect.right <= window.innerWidth
   })

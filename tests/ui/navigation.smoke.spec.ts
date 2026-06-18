@@ -5,20 +5,22 @@ test.describe('primary navigation smoke', () => {
   test('covers all four main tabs', async ({ page }) => {
     await openApp(page)
 
-    await expect(page.getByText('Action Radar 今日焦點信號')).toBeVisible()
+    await expect(page.locator('.home-strip')).toBeVisible()
+    await expect(page.getByText(/Action Radar/i)).toBeVisible()
 
-    await openPrimaryTab(page, 'Stocks / 股票')
-    await expect(page.getByText('Live Signals 即時信號')).toBeVisible()
+    await openPrimaryTab(page, 'Stocks')
+    await expect(page.locator('.stocks-screen')).toBeVisible()
+    await expect(page.getByText('Live Stock Signals')).toBeVisible()
 
     await openPrimaryTab(page, 'ETF')
     await expect(page.getByText('ETF Weekly')).toBeVisible()
 
-    await openPrimaryTab(page, 'Verify / 驗證')
+    await openPrimaryTab(page, 'Verify')
     await expect(page.getByRole('button', { name: 'ETF Check', exact: true })).toBeVisible()
     await expect(page.getByText('ETF Replay')).toBeVisible()
 
-    await openPrimaryTab(page, 'Home / 總覽')
-    await expect(page.getByText('Sector Snapshot 板塊快覽')).toBeVisible()
+    await openPrimaryTab(page, 'Home')
+    await expect(page.getByText(/Sector Snapshot/i)).toBeVisible()
 
     await assertNoHorizontalOverflow(page)
   })
