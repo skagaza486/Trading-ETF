@@ -952,11 +952,7 @@ function buildHeroMetrics(input: {
         { label: 'Avoid ETFs', value: String(counts.AVOID), note: '走勢偏弱', tone: 'warn' }
       ]
     case 'ETFs':
-      return [
-        { label: 'Favour', value: String(counts.FAVOUR), note: '值得留意', tone: 'gain' },
-        { label: 'Watch', value: String(counts.WATCH), note: '留意觀望', tone: 'info' },
-        { label: 'Avoid', value: String(counts.AVOID), note: '走勢偏弱', tone: 'warn' }
-      ]
+      return []
     case 'Stocks':
       return [
         { label: 'Active Long', value: String(stockCounts.LONG), note: '今日升勢焦點', tone: 'gain' },
@@ -2183,27 +2179,25 @@ export default function App() {
               const sum = stockReplaySummary
               return (
                 <section className="dashboard-grid wide">
-                  <article className={`panel ${summaryToneClass('gain')}`}>
-                    <h2>🟢 Long 升勢信號</h2>
-                    <strong>n = <AnimatedMetricValue value={String(sum.longCount)} /></strong>
-                    <span>5D 方向勝率 {formatPercent(sum.longWinRate5d)}</span>
-                    <span>10D 方向勝率 {formatPercent(sum.longWinRate10d)}</span>
+                  <article className={`panel ${summaryToneClass('gain')} summary-card--stat`}>
+                    <h2>🟢 Long 升勢 · n = {sum.longCount}</h2>
+                    <strong><AnimatedMetricValue value={formatPercent(sum.longWinRate5d)} /></strong>
+                    <span>5D 方向勝率 · 10D {formatPercent(sum.longWinRate10d)}</span>
                   </article>
-                  <article className={`panel ${summaryToneClass('loss')}`}>
-                    <h2>🔴 Short 跌勢信號</h2>
-                    <strong>n = <AnimatedMetricValue value={String(sum.shortCount)} /></strong>
-                    <span>5D 方向勝率 {formatPercent(sum.shortWinRate5d)}</span>
-                    <span>10D 方向勝率 {formatPercent(sum.shortWinRate10d)}</span>
+                  <article className={`panel ${summaryToneClass('loss')} summary-card--stat`}>
+                    <h2>🔴 Short 跌勢 · n = {sum.shortCount}</h2>
+                    <strong><AnimatedMetricValue value={formatPercent(sum.shortWinRate5d)} /></strong>
+                    <span>5D 方向勝率 · 10D {formatPercent(sum.shortWinRate10d)}</span>
                   </article>
-                  <article className={`panel ${summaryToneClass('info')}`}>
+                  <article className={`panel ${summaryToneClass('info')} summary-card--stat`}>
                     <h2>↑ Long 平均回報</h2>
                     <strong><AnimatedMetricValue value={formatPercent(sum.longAvg5d)} /></strong>
-                    <span>5D avg · 10D {formatPercent(sum.longAvg10d)}</span>
+                    <span>5D · 10D {formatPercent(sum.longAvg10d)}</span>
                   </article>
-                  <article className={`panel ${summaryToneClass('warn')}`}>
+                  <article className={`panel ${summaryToneClass('warn')} summary-card--stat`}>
                     <h2>↓ Short 平均回報</h2>
                     <strong><AnimatedMetricValue value={formatPercent(sum.shortAvg5d)} /></strong>
-                    <span>5D avg · 10D {formatPercent(sum.shortAvg10d)}</span>
+                    <span>5D · 10D {formatPercent(sum.shortAvg10d)}</span>
                   </article>
                 </section>
               )
@@ -2841,27 +2835,25 @@ export default function App() {
               const sum = stockReplaySummary
               return (
                 <section className="dashboard-grid wide">
-                  <article className={`panel ${summaryToneClass('gain')}`}>
-                    <h2>🟢 Long 升勢信號</h2>
-                    <strong>n = <AnimatedMetricValue value={String(sum.longCount)} /></strong>
-                    <span>5D 方向勝率 {formatPercent(sum.longWinRate5d)}</span>
-                    <span>10D 方向勝率 {formatPercent(sum.longWinRate10d)}</span>
+                  <article className={`panel ${summaryToneClass('gain')} summary-card--stat`}>
+                    <h2>🟢 Long 升勢 · n = {sum.longCount}</h2>
+                    <strong><AnimatedMetricValue value={formatPercent(sum.longWinRate5d)} /></strong>
+                    <span>5D 方向勝率 · 10D {formatPercent(sum.longWinRate10d)}</span>
                   </article>
-                  <article className={`panel ${summaryToneClass('loss')}`}>
-                    <h2>🔴 Short 跌勢信號</h2>
-                    <strong>n = <AnimatedMetricValue value={String(sum.shortCount)} /></strong>
-                    <span>5D 方向勝率 {formatPercent(sum.shortWinRate5d)}</span>
-                    <span>10D 方向勝率 {formatPercent(sum.shortWinRate10d)}</span>
+                  <article className={`panel ${summaryToneClass('loss')} summary-card--stat`}>
+                    <h2>🔴 Short 跌勢 · n = {sum.shortCount}</h2>
+                    <strong><AnimatedMetricValue value={formatPercent(sum.shortWinRate5d)} /></strong>
+                    <span>5D 方向勝率 · 10D {formatPercent(sum.shortWinRate10d)}</span>
                   </article>
-                  <article className={`panel ${summaryToneClass('info')}`}>
+                  <article className={`panel ${summaryToneClass('info')} summary-card--stat`}>
                     <h2>↑ Long 平均回報</h2>
                     <strong><AnimatedMetricValue value={formatPercent(sum.longAvg5d)} /></strong>
-                    <span>5D avg · 10D {formatPercent(sum.longAvg10d)}</span>
+                    <span>5D · 10D {formatPercent(sum.longAvg10d)}</span>
                   </article>
-                  <article className={`panel ${summaryToneClass('warn')}`}>
+                  <article className={`panel ${summaryToneClass('warn')} summary-card--stat`}>
                     <h2>↓ Short 平均回報</h2>
                     <strong><AnimatedMetricValue value={formatPercent(sum.shortAvg5d)} /></strong>
-                    <span>5D avg · 10D {formatPercent(sum.shortAvg10d)}</span>
+                    <span>5D · 10D {formatPercent(sum.shortAvg10d)}</span>
                   </article>
                 </section>
               )
