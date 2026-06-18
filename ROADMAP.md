@@ -6,14 +6,16 @@
 - `研究版先做`：值得驗證，但暫時不應直接升為 production 主邏輯
 - `長期延後`：有戰略價值，但會明顯增加 scope、資料依賴或系統複雜度
 
-本 roadmap 以 `PLAN.md` 為上位規格，目標仍然是：
+目標：
 
-- `ETF Weekly Advisor`
-- `US Stock Tactical Screener`
-- explainable rule-based signals
-- real-data-first
+- **Dashboard** — 3 秒看懂今日市場基調（Regime + Breadth + Action Radar）
+- **Stocks** — 每日股票戰術信號，量價驅動，可解釋
+- **ETFs** — 板塊動量排名，SGOV 風險調整，輔助 Stocks 決策
+- **Quant Lab** — Signal 統計驗證（Gate Summary）、回放研究、參數高原測試
 
-不是要把產品立刻改造成重型對沖基金平台。
+核心約束：explainable rule-based signals · real-data-first · 研究驗證先於 UI 承諾
+
+不是要把產品改造成重型對沖基金平台，也不在研究層成熟前引入 ML。
 
 ---
 
