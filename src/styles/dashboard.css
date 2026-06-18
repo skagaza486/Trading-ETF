@@ -3359,42 +3359,68 @@ td select { min-width: 92px; }
     justify-content: start;
   }
 
-  /* Market Snapshot: 2×2 grid instead of single column */
+  /* Market Snapshot: 1 row × 4 columns */
   .home-strip__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 14px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px 8px;
   }
 
   .home-strip__item {
-    padding-left: 10px;
+    padding-left: 8px;
     border-left: 1px solid rgba(255,255,255,0.07);
   }
 
+  .home-strip__item:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+
   .home-strip__item:nth-child(odd) {
+    padding-left: 8px;
+    border-left: 1px solid rgba(255,255,255,0.07);
+  }
+
+  .home-strip__item:nth-child(1) {
     padding-left: 0;
     border-left: 0;
   }
 
   .home-strip__item strong {
-    font-size: 1.45rem;
-    margin: 4px 0 2px;
+    font-size: 1.2rem;
+    margin: 3px 0 2px;
   }
 
   .home-strip__item small {
-    font-size: 0.74rem;
+    font-size: 0.68rem;
   }
 
-  /* Market State: readout as 2×2 grid */
+  /* Market Snapshot head: Live + Updated side by side */
+  .home-strip__head {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .home-strip__head,
+  .home-strip__meta {
+    justify-content: space-between;
+  }
+
+  /* Market State: readout as 1 row × 4 columns */
   .home-state-panel__readout {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 5px;
   }
 
   .home-state-panel__readout div {
     flex-direction: column;
     align-items: flex-start;
-    padding: 7px 9px;
+    padding: 6px 7px;
     border-bottom: none;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 9px;
@@ -3406,11 +3432,11 @@ td select { min-width: 92px; }
   }
 
   .home-state-panel__readout span {
-    font-size: 0.64rem;
+    font-size: 0.58rem;
   }
 
   .home-state-panel__readout strong {
-    font-size: 0.92rem;
+    font-size: 0.82rem;
     font-weight: 700;
   }
 
@@ -3946,12 +3972,16 @@ td select { min-width: 92px; }
   }
 
   .home-strip__item strong {
-    font-size: 1.2rem;
-    margin: 3px 0 2px;
+    font-size: 1.05rem;
+    margin: 2px 0 1px;
   }
 
   .home-strip__item small {
-    font-size: 0.7rem;
+    font-size: 0.64rem;
+  }
+
+  .home-strip__item span {
+    font-size: 0.6rem;
   }
 
   /* Home Market State — compact */
