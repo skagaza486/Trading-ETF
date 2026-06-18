@@ -2158,7 +2158,7 @@ td select { min-width: 92px; }
 
 /* ── Quant Lab sub-tab nav ───────────────────────────────────────────────── */
 .segmented-control--sub {
-  margin-top: -8px;
+  margin-top: 12px;
   margin-bottom: 4px;
   opacity: 0.9;
 }

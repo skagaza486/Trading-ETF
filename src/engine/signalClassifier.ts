@@ -56,6 +56,7 @@ export function resolveStockLabel(
     macdHistogram > 0 &&
     cmf20 > 0 &&
     obvSlope > 0 &&
+    relStrengthVsSpy > -0.02 &&   // G3 fix: exclude severely underperforming names
     regime !== 'short_friendly'
 
   const longSetup =
@@ -64,6 +65,7 @@ export function resolveStockLabel(
     rsi14 > 55 &&
     rvol > 1.2 &&
     cmf20 > 0 &&
+    relStrengthVsSpy > 0 &&       // G3 fix: require stock already beating SPY
     regime !== 'short_friendly' &&
     indicators.aboveEma200 !== false
 
@@ -115,7 +117,8 @@ export function resolveStockLabel(
     indicators.ema50Slope !== null && indicators.ema50Slope > 0 &&
     indicators.ema20 !== null && indicators.low <= indicators.ema20 * 1.02 &&
     rsi14 >= 40 && rsi14 <= 50 &&
-    clv > 0.8
+    clv > 0.8 &&
+    indicators.aboveEma200 !== false  // G3 fix: pullbacks only in long-term uptrend
 
   if (longPullback) {
     return 'LONG_PULLBACK'

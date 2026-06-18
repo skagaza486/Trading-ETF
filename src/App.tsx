@@ -1823,8 +1823,7 @@ export default function App() {
               <p className="eyebrow">Screener Status</p>
               <h2>Stock Screener 股票信號</h2>
               <p className="subtle">
-                Live Yahoo daily histories for {stockWatchlist.length} watchlist names, with Finnhub earnings risk when
-                `FINNHUB_API_KEY` is configured.
+                Live Yahoo daily histories for {stockWatchlist.length} watchlist names, with Finnhub earnings risk when FINNHUB_API_KEY is configured.
               </p>
               <div className="status-row">
                 <span className="status-chip">
@@ -1881,7 +1880,6 @@ export default function App() {
                   <h2>Live Signals 即時信號</h2>
                   <p className="subtle">
                     First-pass tactical labels from local EMA/RSI/MACD/CMF/RVOL/ATR calculations on daily OHLCV.
-                    「原因」欄：中文一句點解 + 技術細節。
                   </p>
                 </div>
                 <div className="header-actions">

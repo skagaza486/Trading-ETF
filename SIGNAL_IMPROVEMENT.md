@@ -619,6 +619,32 @@ nearHigh52w:     close >= max(high, last 252 bars) * 0.75   (Minervini H52)
 
 ---
 
+### EXP-009 — LONG_SETUP / LONG_WATCH / LONG_PULLBACK G3 修復（RS 過濾）
+
+- 日期：2026-06-18
+- 對應假設：EXP-008 後續；HYP-011 前置步驟
+- 改動：
+  - `LONG_SETUP` 新增 `relStrengthVsSpy > 0`（要求股票 20 日 RS 已跑贏 SPY）
+  - `LONG_WATCH` 新增 `relStrengthVsSpy > -0.02`（排除嚴重跑輸大市的名字）
+  - `LONG_PULLBACK` 新增 `aboveEma200 !== false`（只在長線上升趨勢中接受回調）
+- 改動前 Gate Summary（v3，100 股 Stock Research UI）：
+
+| Label | n | Avg5D | vs SPY | MAE5D | G1 | G2 | G3 | G4 | G5 | G6 | G7 | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| LONG_CONFIRM | 11 | 1.3% | 1.0% | 2.6% | ✗ | ✓ | ✓ | — | — | ✓ | ✓ | INSUFFICIENT |
+| UP_PROMOTION | 16 | 2.4% | 2.0% | 4.0% | ✗ | ✓ | ✓ | — | — | ✗ | ✓ | INSUFFICIENT |
+| LONG_VCP | 2 | 0.4% | 0.7% | 8.8% | ✗ | — | — | — | — | — | — | INSUFFICIENT |
+| LONG_SETUP | 922 | 0.2% | 0.2% | 3.8% | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ | FAIL |
+| LONG_PULLBACK | 84 | 0.0% | -0.3% | 3.3% | ✗ | ✓ | ✗ | ✗ | — | ✗ | ✓ | INSUFFICIENT |
+| LONG_WATCH | 2988 | 0.6% | 0.4% | 3.5% | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ | FAIL |
+
+- 改動後 Gate Summary：*(待 UI 刷新後回填)*
+- 預期：LONG_SETUP n 下降（~500-700）、vs SPY 上升至 >0.5%；LONG_WATCH n 輕微下降、vs SPY 接近 0.5%；LONG_PULLBACK vs SPY 轉正
+- 結論：PENDING（需 UI 驗證）
+- 下一步：刷新 Stock Research，比對 n / vs SPY / MAE 變化
+
+---
+
 ## 版本快照
 
 每次進行大型閾值改動時，把當時的完整 Gate Summary 貼在這裡，方便回溯。
