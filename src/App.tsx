@@ -1471,6 +1471,75 @@ export default function App() {
   const sectorAvoid = useMemo(() =>
     weeklyState.rows.filter(r => r.label === 'AVOID').slice(-3).reverse()
   , [weeklyState.rows])
+  const marketSnapshotItems = useMemo(() => {
+    const definitions = [
+      { ticker: 'SPY', label: 'S&P 500' },
+      { ticker: 'QQQ', label: 'NASDAQ' },
+      { ticker: 'RSP', label: 'Equal Weight' },
+      { ticker: '^VIX', label: 'VIX' }
+    ]
+    return definitions.map(item => {
+      const metric = latestMetric(weeklyState.histories[item.ticker])
+      return {
+        ...item,
+        ...metric
+      }
+    })
+  }, [weeklyState.histories])
+  const breadthPercent = useMemo(() => {
+    const directionalTotal = stockCounts.LONG + stockCounts.SHORT
+    if (directionalTotal <= 0) return 0
+    return Math.round((stockCounts.LONG / directionalTotal) * 100)
+  }, [stockCounts])
+  const marketStateScore = useMemo(() => {
+    const base =
+      weeklyState.regime === 'long_friendly'
+        ? 68
+        : weeklyState.regime === 'short_friendly'
+        ? 34
+        : 52
+    const breadthBoost = Math.round((breadthPercent - 50) * 0.24)
+    return Math.max(18, Math.min(92, base + breadthBoost))
+  }, [weeklyState.regime, breadthPercent])
+  const marketWarnings = useMemo(() => {
+    const warnings: Array<{ title: string, note: string, tone: 'warn' | 'info' | 'gain' }> = []
+    if (weeklyState.proxyWeakBreadth) {
+      warnings.push({
+        title: 'High concentration',
+        note: 'SPY 領先但 RSP 落後，升勢偏集中。',
+        tone: 'warn'
+      })
+    }
+    const vixMetric = latestMetric(weeklyState.histories['^VIX'])
+    if ((vixMetric.close ?? 0) >= 20) {
+      warnings.push({
+        title: 'Volatility elevated',
+        note: `VIX ${vixMetric.close?.toFixed(2) ?? 'n/a'}，短線波動加大。`,
+        tone: 'warn'
+      })
+    }
+    if ((stockState.failedTickers.length ?? 0) > 0) {
+      warnings.push({
+        title: 'Data coverage issue',
+        note: `${stockState.failedTickers.length} 個 ticker 載入失敗。`,
+        tone: 'info'
+      })
+    }
+    if (warnings.length === 0) {
+      warnings.push({
+        title: 'No major alerts',
+        note: '目前未見明顯系統性阻塞。',
+        tone: 'gain'
+      })
+    }
+    return warnings.slice(0, 3)
+  }, [weeklyState.proxyWeakBreadth, weeklyState.histories, stockState.failedTickers.length])
+  const upcomingEvents = useMemo(() => {
+    return stockState.rows
+      .filter(row => row.earningsDate)
+      .sort((left, right) => (left.earningsDate ?? '').localeCompare(right.earningsDate ?? ''))
+      .slice(0, 4)
+  }, [stockState.rows])
 
   const heroMetrics = buildHeroMetrics({
     activeTab,
@@ -1511,167 +1580,248 @@ export default function App() {
   return (
     <main className="app-shell">
       <div className="workspace">
-        <header className="app-header">
-          <div className="app-brand">
-            <UiIcon name="pulse-logo-mark" className="app-brand__mark-image" />
-            <div className="app-brand__copy">
-              <span className="app-brand__name">Pulse</span>
-              <strong className="app-brand__title">{intro.title}</strong>
-            </div>
+        <aside className="side-rail">
+          <div className="side-rail__brand">
+            <UiIcon name="pulse-logo-mark" className="side-rail__brand-mark" />
+            <span>Pulse</span>
           </div>
-          <div className="app-header__actions">
-            <button type="button" className="header-tool" onClick={() => void handlePrimaryRefresh()}>
-              <UiIcon name="icon-refresh" className="header-tool__icon" />
-              <span>Refresh</span>
-            </button>
-            <button type="button" className="header-tool" onClick={() => setShowHelp(v => !v)}>
-              <UiIcon name="icon-more" className="header-tool__icon" />
-              <span>Help</span>
-            </button>
-          </div>
-        </header>
-
-        <section className="panel summary-strip">
-          <div className="summary-strip__intro">
-            <div className="summary-strip__copy">
-              <p className="summary-strip__helper">{intro.helper}</p>
-              <p className="summary-strip__subnote">{intro.subnote}</p>
-            </div>
-          </div>
-          <div className="summary-strip__status">
-            <span className="status-chip">Regime <strong>{regimeSummary(activeRegime)}</strong></span>
-            <span className="status-chip">Loaded <strong>{heroLoadedCount}</strong></span>
-            <span className="status-chip">Updated <strong>{heroUpdatedAt ? new Date(heroUpdatedAt).toLocaleString('en-HK', { hour12: false }) : 'pending'}</strong></span>
-          </div>
-          <div className="summary-strip__metrics">
-            {heroMetrics.map(metric => (
-              <article key={metric.label} className={`summary-pill summary-pill--${metric.tone}`}>
-                <span className="summary-pill__label">{metric.label}</span>
-                <strong className="summary-pill__value"><AnimatedMetricValue value={metric.value} /></strong>
-                <span className="summary-pill__note">{metric.note}</span>
-              </article>
+          <nav aria-label="Desktop navigation" className="side-rail__nav">
+            {tabs.map(tab => (
+              <button
+                key={tab}
+                type="button"
+                className={tab === activeTab ? 'side-rail__nav-item is-active' : 'side-rail__nav-item'}
+                onClick={() => setActiveTab(tab)}
+              >
+                <UiIcon name={TAB_META[tab].navIcon} className="side-rail__nav-icon" />
+                <span className="side-rail__nav-copy">
+                  <strong>{TAB_META[tab].navLabelEn}</strong>
+                  {TAB_META[tab].navLabelZh ? <small>{TAB_META[tab].navLabelZh}</small> : <small>{TAB_META[tab].navLabelEn}</small>}
+                </span>
+              </button>
             ))}
-          </div>
-          <p className="summary-strip__disclaimer">研究階段 · 參考工具，非投資建議</p>
-          {primaryError ? <div className="warning">{primaryError}</div> : null}
-        </section>
+          </nav>
+        </aside>
 
-        {/* ── DASHBOARD ── */}
-        {activeTab === 'Dashboard' ? (
+        <div className="content-shell">
+          <header className="app-header">
+            <div className="app-brand">
+              <UiIcon name="pulse-logo-mark" className="app-brand__mark-image" />
+              <div className="app-brand__copy">
+                <span className="app-brand__name">Pulse</span>
+                <strong className="app-brand__title">{intro.title}</strong>
+              </div>
+            </div>
+            <div className="app-header__actions">
+              <button type="button" className="header-tool" onClick={() => void handlePrimaryRefresh()}>
+                <UiIcon name="icon-refresh" className="header-tool__icon" />
+                <span>Refresh</span>
+              </button>
+              <button type="button" className="header-tool" onClick={() => setShowHelp(v => !v)}>
+                <UiIcon name="icon-more" className="header-tool__icon" />
+                <span>Help</span>
+              </button>
+            </div>
+          </header>
+
+          {activeTab !== 'Dashboard' ? (
+            <section className="panel summary-strip">
+              <div className="summary-strip__intro">
+                <div className="summary-strip__copy">
+                  <p className="summary-strip__helper">{intro.helper}</p>
+                  <p className="summary-strip__subnote">{intro.subnote}</p>
+                </div>
+              </div>
+              <div className="summary-strip__status">
+                <span className="status-chip">Regime <strong>{regimeSummary(activeRegime)}</strong></span>
+                <span className="status-chip">Loaded <strong>{heroLoadedCount}</strong></span>
+                <span className="status-chip">Updated <strong>{heroUpdatedAt ? new Date(heroUpdatedAt).toLocaleString('en-HK', { hour12: false }) : 'pending'}</strong></span>
+              </div>
+              <div className="summary-strip__metrics">
+                {heroMetrics.map(metric => (
+                  <article key={metric.label} className={`summary-pill summary-pill--${metric.tone}`}>
+                    <span className="summary-pill__label">{metric.label}</span>
+                    <strong className="summary-pill__value"><AnimatedMetricValue value={metric.value} /></strong>
+                    <span className="summary-pill__note">{metric.note}</span>
+                  </article>
+                ))}
+              </div>
+              <p className="summary-strip__disclaimer">研究階段 · 參考工具，非投資建議</p>
+              {primaryError ? <div className="warning">{primaryError}</div> : null}
+            </section>
+          ) : null}
+
+          {/* ── DASHBOARD ── */}
+          {activeTab === 'Dashboard' ? (
           <>
-            {/* Regime Hero */}
-            <section className="panel wide">
-              <div className="dashboard-regime-hero">
-                <div className="drh__status">
-                  <span className={`drh__badge drh__badge--${weeklyState.regime}`}>
-                    {weeklyState.regime === 'long_friendly' ? '🟢 大市穩健' : weeklyState.regime === 'short_friendly' ? '🔴 市況偏弱' : '🟡 中性觀望'}
-                  </span>
-                  <span className="drh__regime-label">{regimeSummary(weeklyState.regime)} Regime</span>
+            <section className="home-strip">
+              <div className="home-strip__head">
+                <div className="home-strip__title">
+                  <span>Market Snapshot</span>
+                  <small>Live terminal overview</small>
                 </div>
-                {weeklyState.proxyWeakBreadth && (
-                  <div className="drh__breadth-warn">
-                    ⚠️ 廣度偏弱 — SPY 走強但 RSP (等權) 落後，市場升勢集中於大型股，需謹慎
-                  </div>
-                )}
-                <p className="drh__desc">
-                  {weeklyState.regime === 'long_friendly'
-                    ? '整體環境有利做多，可積極跟進優質突破信號。'
-                    : weeklyState.regime === 'short_friendly'
-                    ? '市況偏弱，避免新倉，優先保本及等待明確反轉。'
-                    : '市場方向未明，以小注測試為主，等待 Regime 明確。'}
-                </p>
+                <div className="home-strip__meta">
+                  <span className="status-chip">Live</span>
+                  <span className="status-chip">Updated <strong>{heroUpdatedAt ? new Date(heroUpdatedAt).toLocaleString('en-HK', { hour12: false }) : 'pending'}</strong></span>
+                </div>
+              </div>
+              <div className="home-strip__grid">
+                {marketSnapshotItems.map(item => (
+                  <article key={item.ticker} className="home-strip__item">
+                    <span>{item.label}</span>
+                    <strong>{item.close === null ? 'n/a' : item.close.toFixed(2)}</strong>
+                    <small className={item.change1d !== null && item.change1d < 0 ? 'is-loss' : item.change1d !== null && item.change1d > 0 ? 'is-gain' : ''}>
+                      {item.change1d === null ? 'pending' : `${formatSignedNumber(item.close !== null && item.change1d !== null ? item.close * item.change1d : null)} · ${formatPercent(item.change1d)}`}
+                    </small>
+                  </article>
+                ))}
               </div>
             </section>
 
-            {/* Action Radar */}
-            <section className="panel wide">
-              <div className="section-header">
-                <div>
-                  <h2>Action Radar 今日焦點信號</h2>
-                  <p className="subtle">從 Stock Screener 過濾最強及最弱信號</p>
-                </div>
-                {stockState.rows.length === 0 && (
-                  <button type="button" className="refresh-button" disabled={isLoadingStocks} onClick={() => void loadStockData()}>
-                    {isLoadingStocks ? '載入中...' : '載入股票信號'}
-                  </button>
-                )}
-              </div>
-              {stockState.rows.length === 0 && !isLoadingStocks ? (
-                <p className="subtle">點擊「載入股票信號」以顯示 Action Radar。</p>
-              ) : isLoadingStocks ? (
-                <p className="subtle">載入股票數據中…</p>
-              ) : (
-                <div className="dashboard-radar">
-                  <div className="dashboard-radar__col">
-                    <div className="dashboard-radar__label dashboard-radar__label--attack">攻擊 — 升勢確認</div>
-                    {radarAttack.length === 0 ? (
-                      <p className="subtle">今日暫無強確認信號</p>
-                    ) : radarAttack.map(row => {
-                      const disp = getStockLabelDisplay(row.label)
-                      return (
-                        <div key={row.ticker} className="radar-card radar-card--long">
-                          <span className="radar-card__ticker">{row.ticker}</span>
-                          <span className="radar-card__name">{row.name}</span>
-                          <span className={`label-pill label-pill--stock label-pill--stock-long`}>{disp.lightEmoji} {disp.zhText}</span>
-                          {renderResearchFlags(row.researchFlags)}
-                        </div>
-                      )
-                    })}
+            <section className="home-desktop">
+              <div className="home-desktop__main">
+                <section className="panel home-state-panel">
+                  <div className="home-state-panel__gauge">
+                    <div className="home-state-panel__ring">
+                      <svg viewBox="0 0 120 120" aria-hidden="true">
+                        <circle cx="60" cy="60" r="46" className="home-state-panel__ring-track" />
+                        <circle
+                          cx="60"
+                          cy="60"
+                          r="46"
+                          className="home-state-panel__ring-value"
+                          strokeDasharray={`${Math.max(0, Math.min(289, (marketStateScore / 100) * 289))} 289`}
+                        />
+                      </svg>
+                      <div className="home-state-panel__score">
+                        <strong>{marketStateScore}</strong>
+                        <span>/100</span>
+                      </div>
+                    </div>
+                    <div className="home-state-panel__scorecopy">
+                      <h3>Market State / 市場基調</h3>
+                      <p>{weeklyState.regime === 'long_friendly' ? 'Bullish / 偏多' : weeklyState.regime === 'short_friendly' ? 'Defensive / 偏弱' : 'Neutral / 觀望'}</p>
+                      <small>市場處於{weeklyState.regime === 'long_friendly' ? '穩健上升' : weeklyState.regime === 'short_friendly' ? '防守模式' : '等待確認'}階段。</small>
+                    </div>
                   </div>
-                  <div className="dashboard-radar__col">
-                    <div className="dashboard-radar__label dashboard-radar__label--defend">防禦 — 弱勢迴避</div>
-                    {radarDefend.length === 0 ? (
-                      <p className="subtle">今日暫無弱勢確認信號</p>
-                    ) : radarDefend.map(row => {
-                      const disp = getStockLabelDisplay(row.label)
-                      return (
-                        <div key={row.ticker} className="radar-card radar-card--short">
-                          <span className="radar-card__ticker">{row.ticker}</span>
-                          <span className="radar-card__name">{row.name}</span>
-                          <span className={`label-pill label-pill--stock label-pill--stock-short`}>{disp.lightEmoji} {disp.zhText}</span>
-                        </div>
-                      )
-                    })}
+                  <div className="home-state-panel__readout">
+                    <div><span>Trend / 趨勢</span><strong>{weeklyState.regime === 'long_friendly' ? 'Uptrend' : weeklyState.regime === 'short_friendly' ? 'Risk-off' : 'Balanced'}</strong></div>
+                    <div><span>Breadth / 廣度</span><strong>{breadthPercent}% long-led</strong></div>
+                    <div><span>Risk / 風險</span><strong>{weeklyState.proxyWeakBreadth ? 'Moderate' : 'Normal'}</strong></div>
+                    <div><span>Market vs SPY</span><strong>{stockCounts.LONG > stockCounts.SHORT ? 'Outperform' : 'Mixed'}</strong></div>
                   </div>
-                </div>
-              )}
-            </section>
+                </section>
 
-            {/* Sector Snapshot */}
-            <section className="panel wide">
-              <div className="section-header">
-                <div>
-                  <h2>Sector Snapshot 板塊快覽</h2>
-                  <p className="subtle">從 ETF Weekly 提取 FAVOUR top 3 / AVOID bottom 3</p>
+                <div className="home-lower-grid">
+                  <section className="panel">
+                    <div className="section-header">
+                      <div>
+                        <h2>Action Radar / 今日焦點信號</h2>
+                        <p className="subtle">最值得即日查看的個股信號。</p>
+                      </div>
+                    </div>
+                    <div className="home-list-block">
+                      {radarAttack.concat(radarDefend).slice(0, 6).map(row => {
+                        const disp = getStockLabelDisplay(row.label)
+                        const group = stockLabelGroup(row.label).toLowerCase()
+                        return (
+                          <div key={row.ticker} className="home-list-row">
+                            <div className="home-list-row__identity">
+                              <StockLogo ticker={row.ticker} name={row.name} className="stock-logo--table" />
+                              <div>
+                                <strong>{row.ticker}</strong>
+                                <span>{row.name}</span>
+                              </div>
+                            </div>
+                            <span className={`label-pill label-pill--stock label-pill--stock-${group}`}>{disp.enCode}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </section>
+
+                  <section className="panel">
+                    <div className="section-header">
+                      <div>
+                        <h2>ETF Leaders / 板塊領先</h2>
+                        <p className="subtle">從 ETF weekly 中快速看強弱輪動。</p>
+                      </div>
+                    </div>
+                    <div className="home-list-block">
+                      {[...sectorFavour, ...sectorAvoid].slice(0, 6).map(row => (
+                        <div key={row.ticker} className="home-list-row">
+                          <div className="home-list-row__identity">
+                            <div className="home-etf-badge">{row.ticker.slice(0, 2)}</div>
+                            <div>
+                              <strong>{row.ticker}</strong>
+                              <span>{row.name}</span>
+                            </div>
+                          </div>
+                          <span className={row.label === 'AVOID' ? 'home-list-row__value is-loss' : 'home-list-row__value is-gain'}>
+                            {row.rankScore !== null ? row.rankScore.toFixed(0) : formatPercent(row.return13w)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 </div>
               </div>
-              {weeklyState.rows.length === 0 ? (
-                <p className="subtle">ETF 數據載入中…</p>
-              ) : (
-                <div className="dashboard-radar">
-                  <div className="dashboard-radar__col">
-                    <div className="dashboard-radar__label dashboard-radar__label--attack">FAVOUR — 強勢板塊</div>
-                    {sectorFavour.map(row => (
-                      <div key={row.ticker} className="radar-card radar-card--long">
-                        <span className="radar-card__ticker">{row.ticker}</span>
-                        <span className="radar-card__name">{row.name}</span>
-                        <span className="radar-card__stat">13W {formatPercent(row.return13w)}</span>
-                        {row.rankScore !== null && <span className="radar-card__rank">RS {row.rankScore.toFixed(2)}</span>}
+
+              <aside className="home-desktop__rail">
+                <section className="panel">
+                  <div className="section-header">
+                    <div>
+                      <h2>Regime & Breadth / 市場狀態</h2>
+                    </div>
+                  </div>
+                  <div className="rail-kpi-grid">
+                    <article className="rail-kpi">
+                      <span>Regime</span>
+                      <strong>{weeklyState.regime === 'long_friendly' ? 'Bullish' : weeklyState.regime === 'short_friendly' ? 'Weak' : 'Neutral'}</strong>
+                    </article>
+                    <article className="rail-kpi">
+                      <span>Strength</span>
+                      <strong>{marketStateScore}</strong>
+                    </article>
+                    <article className="rail-kpi">
+                      <span>Breadth</span>
+                      <strong>{breadthPercent}%</strong>
+                    </article>
+                  </div>
+                </section>
+
+                <section className="panel">
+                  <div className="section-header">
+                    <div>
+                      <h2>Market Warnings / 市場警示</h2>
+                    </div>
+                  </div>
+                  <div className="rail-stack">
+                    {marketWarnings.map(item => (
+                      <div key={item.title} className={`rail-note rail-note--${item.tone}`}>
+                        <strong>{item.title}</strong>
+                        <span>{item.note}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="dashboard-radar__col">
-                    <div className="dashboard-radar__label dashboard-radar__label--defend">AVOID — 弱勢板塊</div>
-                    {sectorAvoid.map(row => (
-                      <div key={row.ticker} className="radar-card radar-card--short">
-                        <span className="radar-card__ticker">{row.ticker}</span>
-                        <span className="radar-card__name">{row.name}</span>
-                        <span className="radar-card__stat">13W {formatPercent(row.return13w)}</span>
+                </section>
+
+                <section className="panel">
+                  <div className="section-header">
+                    <div>
+                      <h2>Upcoming Events / 即將事件</h2>
+                    </div>
+                  </div>
+                  <div className="rail-stack">
+                    {upcomingEvents.length === 0 ? <p className="subtle">No near earnings events loaded.</p> : upcomingEvents.map(row => (
+                      <div key={row.ticker} className="rail-note rail-note--info">
+                        <strong>{row.ticker} Earnings</strong>
+                        <span>{row.earningsDate}</span>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                </section>
+              </aside>
             </section>
           </>
 
@@ -3001,6 +3151,7 @@ export default function App() {
           </div>
         </div>
       )}
+      </div>
     </main>
   )
 }
