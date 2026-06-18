@@ -464,15 +464,17 @@
 
 所有 I1–I7 已落地。額外完成：
 
-- **EXP-009**：LONG_SETUP / LONG_WATCH / LONG_PULLBACK 加入 RS 過濾，修復 G3 gate failure
+- **EXP-009**：LONG_BASE / WATCH / LONG_BOUNCE RS 過濾（signal 重新設計後已更新追蹤目標）
+- **Signal 架構重設計**：舊 LONG_WATCH/LONG_SETUP/LONG_CONFIRM/LONG_PULLBACK 全面重命名，改為 structure+trigger 兩層設計（WATCH / LONG_BASE / LONG_BREAK / LONG_BOUNCE / LONG_VCP），UP_PROMOTION / DOWN_PROMOTION 移除
 - **UI 修復**：Quant Lab sub-tab overlap、backtick text、placeholder text
 
 ### Phase 2：研究版驗證（進行中）
 
 **當前阻塞項（必須先解）**：
 
-- [ ] EXP-009 驗證：刷新 Stock Research UI → 填回 `SIGNAL_IMPROVEMENT.md` EXP-009 改動後數據
+- [ ] 新設計首次 gate baseline：執行 `research:agent -- --mode observe --exp EXP-009`，取得 LONG_BASE / WATCH / LONG_BOUNCE 第一份數據
 - [ ] Gate Summary UI 加「📋 Copy MD」按鈕（自動格式化為 markdown table，免手動抄數）
+- [x] `SIGNAL_DEFINITION_RESEARCH.md` 已建立，signal 概念重設計完成（2026-06-18）
 
 **Phase 2 主線**：
 
@@ -484,8 +486,8 @@
 
 完成定義：
 
-- LONG_SETUP G3 通過（vs SPY > +0.5%）
-- 至少一項新 research variant（BASE_BREAK / DISTRIBUTION）有初步 gate evidence
+- LONG_BASE / LONG_BREAK G3 通過（vs SPY > +0.5%）
+- 至少一項新 research variant（LONG_BOUNCE / AVOID_DISTRIBUTION）有初步 gate evidence
 - Gate Summary 可一鍵匯出 markdown
 
 ### Phase 3：長期架構與多源資料
@@ -514,10 +516,10 @@
 
 ## 下一步（2026-06-18 更新）
 
-Phase 1 全部完成。Phase 2 優先順序：
+Phase 1 全部完成。Signal 架構重設計完成。Phase 2 優先順序：
 
-1. **EXP-009 驗證**：刷新 UI → 對比 LONG_SETUP vs SPY 是否升至 >0.5%；若仍 fail，把 RVOL 門檻從 1.2 升至 1.5（見 `SIGNAL_IMPROVEMENT.md`）
+1. **新設計 gate baseline**：執行 `npm run research:agent -- --mode observe --exp EXP-009`，取得 LONG_BASE / WATCH / LONG_BOUNCE 第一份 gate 數據
 2. **Gate Summary Copy MD 按鈕**：在 Stock Research Gate Summary section 加「📋 Copy MD」，自動格式化當前 gate 結果為 markdown table，取代手動抄數
-3. **R8 AVOID_DISTRIBUTION**：`patternTag: distributionWarning`，條件 RVOL>2.5 + 上影線 + 靠近 52W 高，與 BASE_BREAK 互補
+3. **R8 AVOID_DISTRIBUTION**：`patternTag: distributionWarning`，條件 RVOL>2.5 + 上影線 + 靠近 52W 高，與 LONG_BASE_BREAK 互補
 4. **R7 Walk-forward**：Gate 多視窗驗證（HYP-014），升級 `researchGate.ts` 為 rolling multi-window
 5. **R6 FRED 簡化濾網**：Worker proxy 已有 FRED endpoint，加 net liquidity slope 作 regime note

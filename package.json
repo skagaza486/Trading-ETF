@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "research:sync-exp009": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -p tsconfig.research-sync.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./scripts/patchResearchSyncImports.mjs && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./.cache/research-sync/scripts/syncSignalImprovement.js"
+    "research:sync-exp009": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -p tsconfig.research-sync.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./scripts/patchResearchSyncImports.mjs && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./.cache/research-sync/scripts/syncSignalImprovement.js",
+    "research:agent": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -p tsconfig.research-sync.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./scripts/patchResearchSyncImports.mjs && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./.cache/research-sync/scripts/researchAgent.js"
   },
   "dependencies": {
     "react": "^19.0.0",

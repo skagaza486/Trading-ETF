@@ -174,23 +174,32 @@ Runs on **daily** OHLCV bars for each watchlist stock.
 
 **Signal labels (from `signalClassifier.ts`):**
 
+Two-layer design: every entry signal requires both **Structure** (stock in the right position) and **Trigger** (something changed today or recently).
+
 ```
 REVIEW_DATA    — any required indicator is null
 REVIEW_EVENT   — earnings within ±7 days (via Finnhub)
 AVOID_CHOP     — RSI 45–55, RVOL < 0.8, EMA20 slope near zero, no breakout/breakdown
 
-LONG ladder (each requires regime ≠ short_friendly):
-  LONG_WATCH   — RSI > 50, MACD hist > 0, CMF > 0, OBV rising
-  LONG_SETUP   — close > EMA20, EMA20 slope > 0, RSI > 55, RVOL > 1.2, CMF > 0, above EMA200
-  LONG_CONFIRM — 20d ATR-normalised breakout, RVOL > 1.8, CMF > 0.1, CLV > 0.65,
-                 EMA20 > EMA50, RSI > 55, near 52w high, above EMA200
-                 + HYP-009: requires prior bar to be LONG_WATCH/LONG_SETUP/LONG_CONFIRM
-  LONG_PULLBACK — (VCP variant) pullback into EMA20 on low RVOL, RSI held above 50,
-                  followed by recovery; researched alongside LONG_CONFIRM
-  UP_PROMOTION — LONG_SETUP → LONG_CONFIRM with prior LONG_SETUP label
+Universe filter (not an entry signal, not gate-evaluated):
+  WATCH        — RSI > 50, MACD hist > 0, CMF > 0, OBV rising, RS > -0.02
+                 Purpose: watchlist candidate pool only
 
-SHORT ladder (mirror, requires regime ≠ long_friendly):
-  SHORT_WATCH, SHORT_SETUP, SHORT_CONFIRM, DOWN_PROMOTION
+LONG entry signals (each requires regime ≠ short_friendly):
+  LONG_BASE    — Structure: above EMA200, EMA20 > EMA50, EMA50 slope > 0, RS > 0
+                 Compression: atrSlope50 < 0 OR rvolRecentAvg10 < 0.8; RSI 45–65
+                 (setup awaiting trigger — not yet an entry)
+  LONG_VCP     — Volatility Contraction Pattern: above EMA200, ATR contracting 50D,
+                 prior 10D avg RVOL < 0.8, today breakout20d + RVOL > 1.5
+  LONG_BOUNCE  — Structure: long_friendly regime, EMA50 slope > 0, above EMA200, EMA20 > EMA50
+                 Multi-bar trigger: recentPullbackNearEma20 (any of last 5 bars low ≤ EMA20×1.02)
+                 + today close > EMA20, RSI 42–58, CLV > 0.6
+  LONG_BREAK   — Structure: EMA20 > EMA50, above EMA200, near 52w high
+                 Trigger: breakout20d + RVOL > 1.8 + CMF > 0.1 + CLV > 0.65
+                 + HYP-009: prior bar must be in long ladder
+
+SHORT entry signals (frozen — 2024-2026 bull market sample biases results):
+  SHORT_WATCH, SHORT_BASE, SHORT_BREAK
 
 NEUTRAL        — default
 ```
@@ -224,7 +233,8 @@ Used in "Stock Replay" (per-ticker signal history) and "Stock Research" (gate ev
 
 ## 10. Six-Gate Research Validation (`researchGate.ts`)
 
-For each directional signal label (LONG_WATCH through DOWN_PROMOTION), evaluates:
+For each directional signal label (LONG_BREAK, LONG_VCP, LONG_BOUNCE, LONG_BASE, SHORT_BREAK, SHORT_BASE, SHORT_WATCH), evaluates:
+Note: WATCH is excluded — it is a universe filter, not an entry signal.
 
 | Gate | Test |
 |---|---|
@@ -262,26 +272,14 @@ Benchmarks fetched separately: SPY, QQQ, ^VIX (ETF module); SPY, QQQ, IWM, ^VIX,
 
 All rendered within a single `App.tsx` component. No router.
 
-**Current structure (5 tabs):**
+**Current structure (4 tabs — I7 complete):**
 
 | Tab | Content |
 |---|---|
-| **ETF Weekly** | 4 summary cards (FAVOUR/WATCH/AVOID/REVIEW counts) + card/table toggle; cards show sparklines, accordion by sector, RS slope badge, ATR-stop indicator |
-| **ETF Replay** | Rolling 26-week replay table; FAVOUR vs SPY win rate, alpha stats |
-| **Stock Screener** | 4 summary cards (LONG/SHORT/NEUTRAL/REVIEW counts) + card/table toggle for ~100 stocks |
-| **Stock Replay** | Per-ticker signal history with forward-return outcomes, colour-coded correctness |
-| **Stock Research** | Forward-return dataset + 6-gate validation table; currently all labels INSUFFICIENT |
-
-**Planned restructure (ROADMAP I7):**
-
-```text
-[Dashboard]  [Stocks]  [ETFs]  [Quant Lab]
-```
-
-- Dashboard: regime hero + Action Radar (today's triggered signals) + Sector Snapshot (top/bottom 3 ETFs)
-- Stocks: current Stock Screener
-- ETFs: current ETF Weekly (accordion + sparklines already in place)
-- Quant Lab: merge ETF Replay + Stock Replay + Stock Research into one tab with sub-tabs
+| **Dashboard** | Regime hero + Action Radar (today's LONG_BREAK / LONG_BOUNCE / LONG_VCP top 3) + Sector Snapshot (top/bottom 3 ETFs) |
+| **Stocks** | 4 summary cards (LONG/SHORT/NEUTRAL/REVIEW) + card/table toggle for ~100 stocks |
+| **ETFs** | 4 summary cards (FAVOUR/WATCH/AVOID/REVIEW) + accordion by sector, sparklines, RS slope badge, ATR-stop indicator |
+| **Quant Lab** | Sub-tabs: ETF Replay · Stock Replay · Stock Research (gate evaluation + rolling robustness) |
 
 ### Card vs Table toggle
 Both ETF Weekly and Stock Screener offer a 卡片/列表 toggle (`etfViewMode`, `stockViewMode`), both defaulting to `'cards'`. Cards are the mobile-friendly default; tables are for dense data on desktop.
@@ -294,7 +292,7 @@ Maps every signal label to a `{ lightEmoji, zhText, plainReason, action, actionG
 
 ETF labels: FAVOUR → 值得留意, WATCH → 留意觀望, WAIT → 靜候信號, AVOID → 避開, REVIEW → 資料不足
 
-Stock labels (12 total): UP_PROMOTION, LONG_CONFIRM, LONG_SETUP, LONG_WATCH, NEUTRAL, AVOID_CHOP, SHORT_WATCH, SHORT_SETUP, SHORT_CONFIRM, DOWN_PROMOTION, REVIEW_DATA, REVIEW_EVENT
+Stock labels (11 total): WATCH, LONG_BASE, LONG_VCP, LONG_BOUNCE, LONG_BREAK, NEUTRAL, AVOID_CHOP, SHORT_WATCH, SHORT_BASE, SHORT_BREAK, REVIEW_DATA, REVIEW_EVENT
 
 ---
 
@@ -380,8 +378,8 @@ type TickerHistory = { ticker: string; bars: OHLCVBar[] }
 type RegimeClass = 'long_friendly' | 'short_friendly' | 'neutral'
 type ETFLabel = 'FAVOUR' | 'WATCH' | 'WAIT' | 'AVOID' | 'REVIEW'
 type StockSignalLabel =
-  | 'UP_PROMOTION' | 'LONG_CONFIRM' | 'LONG_SETUP' | 'LONG_WATCH'
-  | 'DOWN_PROMOTION' | 'SHORT_CONFIRM' | 'SHORT_SETUP' | 'SHORT_WATCH'
+  | 'WATCH' | 'LONG_BASE' | 'LONG_VCP' | 'LONG_BOUNCE' | 'LONG_BREAK'
+  | 'SHORT_WATCH' | 'SHORT_BASE' | 'SHORT_BREAK'
   | 'NEUTRAL' | 'AVOID_CHOP' | 'REVIEW_DATA' | 'REVIEW_EVENT'
 
 // types/research.ts
@@ -401,10 +399,11 @@ type ForwardReturnRecord = {
 - **No backend / no database.** All computation is client-side. Each browser session re-fetches everything from scratch (session-level in-memory cache only).
 - **Yahoo Finance is unofficial.** The proxy works with `curl` using a browser User-Agent. Rate limiting or format changes can break data fetch.
 - **Finnhub earnings is optional.** Without `FINNHUB_API_KEY`, `REVIEW_EVENT` labels never fire; earnings risk filtering is silently disabled.
-- **HYP-009 rule:** LONG_CONFIRM and SHORT_CONFIRM require the prior bar to be in the same direction ladder, preventing single-bar impulse breakouts from mislabelling.
-- **Research phase:** All six gates are currently INSUFFICIENT (n < 100). The app is a signal generator and backtesting workspace, not a validated trading system.
+- **HYP-009 rule:** LONG_BREAK and SHORT_BREAK require the prior bar to be in the same direction ladder, preventing single-bar impulse breakouts from mislabelling.
+- **Structure + Trigger design:** As of 2026-06-18, all entry signals require both a structural condition (trend alignment, above EMA200) and a trigger condition (breakout, bounce, compression). WATCH is a universe filter only and is not gate-evaluated.
+- **Research phase:** Gates still building sample size with new label taxonomy. The app is a signal generator and backtesting workspace, not a validated trading system.
 - **Safe-haven override:** GLD, IAU, SGOV, SHY, IEF, TLT, BIL, TIP are immune to regime downgrades in the ETF engine.
 
 ---
 
-Last updated: 2026-06-18 (added LONG_PULLBACK, AVOID_DISTRIBUTION research note, planned I7 tab restructure)
+Last updated: 2026-06-18 (signal taxonomy redesign — structure+trigger two-layer; I7 tab restructure complete)

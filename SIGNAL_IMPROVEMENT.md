@@ -42,9 +42,13 @@ Gate Summary 在 UI 的 Stock Research tab 裡。每次改動閾值後：
 
 ---
 
-## 現有閾值（v1 — 2026-06-18 更新後）
+## 現有閾值（v2 — 2026-06-18 signal 架構重設計）
 
-> v0 基準已被 v1 取代。以下為代碼當前實際值。
+> ⚠️ **v1 → v2 重設計說明（2026-06-18）**
+>
+> 舊標籤 LONG_WATCH / LONG_SETUP / LONG_CONFIRM / LONG_PULLBACK / UP_PROMOTION / DOWN_PROMOTION / SHORT_SETUP / SHORT_CONFIRM 已全面廢棄。
+> 以下為 v2 代碼當前實際值。所有 v1 實驗數據（下方 Experiment Log）以舊標籤名記錄，屬於 v1 era 歷史資料，不代表 v2 定義的表現。
+> v2 首次 gate baseline 尚待執行（執行 `npm run research:agent -- --mode observe --exp EXP-009`）。
 
 ### marketRegime.ts
 
@@ -54,43 +58,55 @@ short_friendly: VIX > 28 OR (SPY < EMA(50) AND QQQ < EMA(50))
 neutral:        其餘
 ```
 
-### signalClassifier.ts
+### signalClassifier.ts（v2）
 
 ```text
 AVOID_CHOP:
   RSI 45–55 AND RVOL < 0.8 AND |ema20Slope| < 0.001
   AND breakout20d != true AND breakdown20d != true
 
-LONG_WATCH:
+WATCH (universe filter — not an entry signal, not gate-evaluated):
   RSI > 50 AND macdHistogram > 0 AND CMF > 0 AND obvSlope > 0
+  AND relStrengthVsSpy > -0.02 AND regime != short_friendly
+
+LONG_BREAK (entry trigger — breakout):
+  breakout20d = true AND RVOL > 1.8 AND CMF > 0.1 AND CLV > 0.65
+  AND EMA20 > EMA50 AND RSI > 55
+  AND aboveEma200 != false AND nearHigh52w != false
+  AND regime != short_friendly
+  AND prior bar in long ladder (HYP-009)
+
+LONG_VCP (entry trigger — volatility contraction):
+  aboveEma200 = true AND atrSlope50 < 0 AND rvolRecentAvg10 < 0.8
+  AND breakout20d = true AND RVOL > 1.5 AND regime != short_friendly
+
+LONG_BASE (setup — structure + compression):
+  aboveEma200 != false AND EMA20 > EMA50 AND ema50Slope > 0
+  AND ema20Slope > 0 AND relStrengthVsSpy > 0
+  AND RSI 45–65
+  AND (atrSlope50 < 0 OR rvolRecentAvg10 < 0.8)
   AND regime != short_friendly
 
-LONG_SETUP:
-  close > EMA20 AND ema20Slope > 0 AND RSI > 55
-  AND RVOL > 1.2 AND CMF > 0
-  AND regime != short_friendly
-  AND aboveEma200 != false                        ← HYP-008 (EMA200 filter)
-
-LONG_CONFIRM:
-  breakout20d = true AND RVOL > 1.8 AND CMF > 0.1  ← HYP-002 (tighter volume/flow)
-  AND CLV > 0.65 AND EMA20 > EMA50 AND RSI > 55
-  AND regime != short_friendly                     ← HYP-002 (relaxed regime)
-  AND aboveEma200 != false                         ← HYP-008
-  AND nearHigh52w != false                         ← HYP-008 (Minervini H52)
+LONG_BOUNCE (entry trigger — pullback reversal):
+  regime = long_friendly AND ema50Slope > 0
+  AND aboveEma200 != false AND EMA20 > EMA50
+  AND recentPullbackNearEma20 = true   ← any of last 5 bars low ≤ EMA20×1.02
+  AND close > EMA20                    ← today bounced back above
+  AND RSI 42–58 AND CLV > 0.6 AND relStrengthVsSpy > 0
 
 SHORT_WATCH:
   close < EMA20 AND RSI < 50 AND relStrengthVsSpy < 0
   AND macdHistogram < 0 AND regime != long_friendly
 
-SHORT_SETUP:
+SHORT_BASE:
   close < EMA20 AND ema20Slope < 0 AND RSI < 45
-  AND RVOL > 1.5 AND CMF < 0                      ← RVOL added (high-vol weakness only)
-  AND regime != long_friendly
+  AND RVOL > 1.5 AND CMF < 0 AND regime != long_friendly
 
-SHORT_CONFIRM:
+SHORT_BREAK (entry trigger — breakdown):
   breakdown20d = true AND RVOL > 1.5 AND CMF < -0.05
   AND CLV < 0.35 AND EMA20 < EMA50 AND RSI < 45
-  AND regime != long_friendly                      ← relaxed from short_friendly
+  AND regime != long_friendly
+  AND prior bar in short ladder (HYP-009)
 ```
 
 ### stockScreenerEngine.ts
@@ -638,7 +654,7 @@ nearHigh52w:     close >= max(high, last 252 bars) * 0.75   (Minervini H52)
 | LONG_PULLBACK | 84 | 0.0% | -0.3% | 3.3% | ✗ | ✓ | ✗ | ✗ | — | ✗ | ✓ | INSUFFICIENT |
 | LONG_WATCH | 2988 | 0.6% | 0.4% | 3.5% | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ | FAIL |
 
-- 改動後 Gate Summary（auto-sync 18/6/2026, 08:51:47）:
+- 改動後 Gate Summary（auto-sync 18/6/2026, 09:14:26）:
 
 | Label | n | Avg 5D | Median 5D | vs SPY | MAE 5D | Neutral n | Neutral Avg 5D | G1 | G2 | G3 | G4 | G5 | G6 | G7 | Status |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -653,7 +669,7 @@ nearHigh52w:     close >= max(high, last 252 bars) * 0.75   (Minervini H52)
 | 🔴 SHORT_SETUP | 179 | 0.8% | 0.4% | 0.4% | 5.3% | 68 | 0.1% | PASS | FAIL | FAIL | FAIL | FAIL | FAIL | NA | FAIL |
 | 🟠 SHORT_WATCH | 1672 | 0.1% | 0.0% | -0.2% | 3.8% | 319 | 0.2% | PASS | FAIL | FAIL | FAIL | FAIL | FAIL | NA | FAIL |
 
-- Rolling Robustness（auto-sync 18/6/2026, 08:51:47）:
+- Rolling Robustness（auto-sync 18/6/2026, 09:14:26）:
 
 | Label | Window | G2 Pass | G3 Pass | G6 Pass | Full PASS | Avg 5D vs SPY |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
@@ -669,7 +685,7 @@ nearHigh52w:     close >= max(high, last 252 bars) * 0.75   (Minervini H52)
 
 - 預期：LONG_SETUP n 下降（~500-700）、vs SPY 上升至 >0.5%；LONG_WATCH n 輕微下降、vs SPY 接近 0.5%；LONG_PULLBACK vs SPY 轉正
 - 結論：PARTIAL（auto-sync）；LONG_SETUP 樣本由 922 降至 791；vs SPY 由 +0.2% 升至 +0.4%；仍未過 G3 > +0.5%；LONG_WATCH vs SPY +0.4%；LONG_PULLBACK vs SPY -0.5%
-- 下一步：按 ROADMAP 建議，把 LONG_SETUP 的 RVOL 門檻由 1.2 提高到 1.5，然後重新執行 `research:sync-exp009`
+- 下一步：按 ROADMAP 建議，把 LONG_SETUP 的 RVOL 門檻由 1.2 提高到 1.5，然後重新執行 `research:agent -- --mode observe --exp EXP-009`
 
 ---
 
