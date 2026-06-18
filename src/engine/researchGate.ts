@@ -3,6 +3,27 @@ import type { RegimeClass, StockSignalLabel } from '../types/signal'
 
 export type GateStatus = 'PASS' | 'FAIL' | 'INSUFFICIENT'
 
+export type RobustnessWindowSpec = {
+  id: '6m' | '12m' | '18m'
+  label: string
+  lookbackDays: number
+}
+
+export type RollingWindowSummary = {
+  window: RobustnessWindowSpec
+  totalWindows: number
+  gate2PassWindows: number
+  gate3PassWindows: number
+  gate6PassWindows: number
+  fullPassWindows: number
+  avgRet5dVsSpy: number | null
+}
+
+export type LabelRobustnessResult = {
+  label: StockSignalLabel
+  summaries: RollingWindowSummary[]
+}
+
 export type LabelGateResult = {
   label: StockSignalLabel
   count: number
@@ -57,6 +78,12 @@ const LABEL_ORDER: StockSignalLabel[] = [
   'SHORT_WATCH',
 ]
 
+export const DEFAULT_ROBUSTNESS_WINDOWS: RobustnessWindowSpec[] = [
+  { id: '6m', label: '6M Rolling', lookbackDays: 182 },
+  { id: '12m', label: '12M Rolling', lookbackDays: 365 },
+  { id: '18m', label: '18M Rolling', lookbackDays: 548 },
+]
+
 function mean(values: number[]): number | null {
   if (values.length === 0) return null
   return values.reduce((sum, v) => sum + v, 0) / values.length
@@ -71,6 +98,12 @@ function median(values: number[]): number | null {
 
 function compact<T>(values: (T | null | undefined)[]): T[] {
   return values.filter((v): v is T => v !== null && v !== undefined)
+}
+
+function isoDateDaysBefore(anchorDate: string, days: number): string {
+  const date = new Date(`${anchorDate}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() - days)
+  return date.toISOString().slice(0, 10)
 }
 
 export function evaluateAllGates(records: ForwardReturnRecord[]): LabelGateResult[] {
@@ -185,5 +218,59 @@ export function evaluateAllGates(records: ForwardReturnRecord[]): LabelGateResul
       gate7StopLossHitRate,
       status,
     }
+  })
+}
+
+export function evaluateRollingWindowRobustness(
+  records: ForwardReturnRecord[],
+  windows: RobustnessWindowSpec[] = DEFAULT_ROBUSTNESS_WINDOWS,
+  stepDays = 63
+): LabelRobustnessResult[] {
+  if (records.length === 0) return []
+
+  const presentLabels = new Set(records.map(r => r.label))
+  const labels = LABEL_ORDER.filter(label => DIRECTIONAL_LABELS.has(label) && presentLabels.has(label))
+  const latestDate = records.reduce((max, record) => record.signalDate > max ? record.signalDate : max, records[0]?.signalDate ?? '')
+  const earliestDate = records.reduce((min, record) => record.signalDate < min ? record.signalDate : min, records[0]?.signalDate ?? '')
+
+  return labels.map(label => {
+    const summaries = windows.map(window => {
+      const perWindowResults: LabelGateResult[] = []
+      let windowEnd = latestDate
+
+      while (windowEnd >= earliestDate) {
+        const windowStart = isoDateDaysBefore(windowEnd, window.lookbackDays)
+        const windowRecords = records.filter(record =>
+          record.label === label &&
+          record.signalDate >= windowStart &&
+          record.signalDate <= windowEnd
+        )
+
+        if (windowRecords.length > 0) {
+          const gateResult = evaluateAllGates(windowRecords).find(result => result.label === label)
+          if (gateResult) {
+            perWindowResults.push(gateResult)
+          }
+        }
+
+        const nextWindowEnd = isoDateDaysBefore(windowEnd, stepDays)
+        if (nextWindowEnd >= windowEnd) break
+        windowEnd = nextWindowEnd
+      }
+
+      const avgRet5dVsSpySeries = compact(perWindowResults.map(result => result.avgRet5dVsSpy))
+
+      return {
+        window,
+        totalWindows: perWindowResults.length,
+        gate2PassWindows: perWindowResults.filter(result => result.gate2Direction === true).length,
+        gate3PassWindows: perWindowResults.filter(result => result.gate3VsSpy === true).length,
+        gate6PassWindows: perWindowResults.filter(result => result.gate6Mae === true).length,
+        fullPassWindows: perWindowResults.filter(result => result.status === 'PASS').length,
+        avgRet5dVsSpy: mean(avgRet5dVsSpySeries)
+      }
+    })
+
+    return { label, summaries }
   })
 }

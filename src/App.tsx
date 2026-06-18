@@ -2,19 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { etfUniverse } from './data/etfUniverse'
 import { stockWatchlist } from './data/watchlist'
 import { replayETF } from './engine/etfReplayEngine'
+import { buildGateSummaryMarkdown } from './engine/gateSummaryMarkdown'
 import { classifyETF } from './engine/etfWeeklyEngine'
 import { classifyRegime, computeProxyWeakBreadth, deriveRegimeInputsFromHistories } from './engine/marketRegime'
 import { buildForwardReturnRecord, buildHistoricalSignals } from './engine/stockResearchEngine'
-import { evaluateAllGates } from './engine/researchGate'
-import type { LabelGateResult } from './engine/researchGate'
+import { evaluateAllGates, evaluateRollingWindowRobustness } from './engine/researchGate'
+import type { LabelGateResult, LabelRobustnessResult, RollingWindowSummary } from './engine/researchGate'
 import { classifyStock } from './engine/stockScreenerEngine'
 import { fetchEarningsCalendar, fetchHistoricalEarningsMap } from './services/marketData/earningsProvider'
 import { fetchYahooTickerHistory } from './services/marketData/yahooFinanceProvider'
 import type { TickerHistory } from './types/indicator'
 import type { ETFReplayWeek } from './types/replay'
 import type { ForwardReturnRecord } from './types/research'
-import type { ETFRecommendation, RegimeClass, StockSignalLabel } from './types/signal'
-import { getETFLabelDisplay, getStockLabelDisplay } from './ui/labelDisplay'
+import type { ETFRecommendation, RegimeClass, ResearchFlag, StockSignalLabel } from './types/signal'
+import { getETFLabelDisplay, getResearchFlagDisplay, getStockLabelDisplay } from './ui/labelDisplay'
 import type { ETFCategory } from './types/etf'
 import './styles/dashboard.css'
 import './styles/global.css'
@@ -63,7 +64,7 @@ type StockRow = {
   name: string
   sector: string
   label: StockSignalLabel
-  patternTag?: 'BASE_BREAK'
+  researchFlags: ResearchFlag[]
   regime: RegimeClass
   earningsDate: string | null
   rsi14: number | null
@@ -94,6 +95,14 @@ type HeroMetric = {
 }
 
 type SummaryTone = 'gain' | 'info' | 'warn' | 'loss' | 'violet'
+
+type ResearchFlagSummary = {
+  flag: ResearchFlag
+  count: number
+  avgRet5d: number | null
+  avgRet5dVsSpy: number | null
+  avgMae5d: number | null
+}
 
 const tabs: TabId[] = ['Dashboard', 'Stocks', 'ETFs', 'Quant Lab']
 const BENCHMARK_TICKERS = ['SPY', 'QQQ', '^VIX', 'RSP']
@@ -471,6 +480,7 @@ function buildStockRows(
           name: stock.name,
           sector: stock.sector,
           label: 'REVIEW_DATA' as const,
+          researchFlags: [],
           regime,
           earningsDate,
           rsi14: null,
@@ -487,7 +497,7 @@ function buildStockRows(
         name: stock.name,
         sector: stock.sector,
         label: signal.label,
-        patternTag: signal.patternTag,
+        researchFlags: signal.researchFlags,
         regime: signal.regime,
         earningsDate,
         rsi14: signal.indicators.rsi14,
@@ -555,6 +565,33 @@ function gateClass(result: boolean | null): string {
   return 'gate-na'
 }
 
+async function copyTextToClipboard(text: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  if (typeof document === 'undefined') {
+    throw new Error('Clipboard API is unavailable.')
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', 'true')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  textarea.setSelectionRange(0, textarea.value.length)
+
+  const copied = document.execCommand('copy')
+  document.body.removeChild(textarea)
+
+  if (!copied) {
+    throw new Error('Clipboard copy failed.')
+  }
+}
+
 function countDirectionalResearch(records: ForwardReturnRecord[]): {
   longCount: number
   shortCount: number
@@ -570,6 +607,47 @@ function countDirectionalResearch(records: ForwardReturnRecord[]): {
     excess5dLong: average(longRecords.flatMap(record => (record.ret5dVsSpy === null ? [] : [record.ret5dVsSpy]))),
     excess5dShort: average(shortRecords.flatMap(record => (record.ret5dVsSpy === null ? [] : [record.ret5dVsSpy]))),
   }
+}
+
+function researchFlagBadgeClass(flag: ResearchFlag): string {
+  return `pattern-tag pattern-tag--${flag.toLowerCase().replace(/_/g, '-')}`
+}
+
+function renderResearchFlags(flags: ResearchFlag[]) {
+  if (flags.length === 0) return null
+
+  return flags.map(flag => {
+    const display = getResearchFlagDisplay(flag)
+    return (
+      <span key={flag} className={researchFlagBadgeClass(flag)} title={display.zhText}>
+        {display.shortCode}
+      </span>
+    )
+  })
+}
+
+function renderWindowPasses(summary: RollingWindowSummary, passCount: number) {
+  if (summary.totalWindows === 0) return 'n/a'
+  return `${passCount} / ${summary.totalWindows}`
+}
+
+function buildResearchFlagSummary(records: ForwardReturnRecord[]): ResearchFlagSummary[] {
+  const flags: ResearchFlag[] = ['BASE_BREAK', 'DISTRIBUTION_WARNING']
+
+  return flags.map(flag => {
+    const matching = records.filter(record => record.researchFlags.includes(flag))
+    const withRet5d = matching.flatMap(record => record.ret5d === null ? [] : [record.ret5d])
+    const withRet5dVsSpy = matching.flatMap(record => record.ret5dVsSpy === null ? [] : [record.ret5dVsSpy])
+    const withMae5d = matching.flatMap(record => record.mae5d === null ? [] : [record.mae5d])
+
+    return {
+      flag,
+      count: matching.length,
+      avgRet5d: average(withRet5d),
+      avgRet5dVsSpy: average(withRet5dVsSpy),
+      avgMae5d: average(withMae5d)
+    }
+  })
 }
 
 type StockReplaySummary = {
@@ -742,7 +820,9 @@ export default function App() {
   const [researchError, setResearchError] = useState<string | null>(null)
   const [selectedStockReplayTicker, setSelectedStockReplayTicker] = useState<string>(stockWatchlist[0]?.ticker ?? '')
   const [showGateLegend, setShowGateLegend] = useState(false)
+  const [gateSummaryCopyStatus, setGateSummaryCopyStatus] = useState<string | null>(null)
   const [selectedResearchLabel, setSelectedResearchLabel] = useState<StockSignalLabel | 'ALL'>('ALL')
+  const [selectedResearchFlag, setSelectedResearchFlag] = useState<ResearchFlag | 'ALL'>('ALL')
   const [stockViewMode, setStockViewMode] = useState<'table' | 'cards'>('cards')
   const [etfViewMode, setEtfViewMode] = useState<'table' | 'cards'>('cards')
   const [onboardingStep, setOnboardingStep] = useState<number | null>(() =>
@@ -945,6 +1025,13 @@ export default function App() {
     }
   }, [activeTab, researchState.records.length, isLoadingResearch, stockState.histories])
 
+  useEffect(() => {
+    if (gateSummaryCopyStatus === null) return
+
+    const timeoutId = window.setTimeout(() => setGateSummaryCopyStatus(null), 2400)
+    return () => window.clearTimeout(timeoutId)
+  }, [gateSummaryCopyStatus])
+
   const counts = labelCounts(weeklyState.rows)
   const replayTickerOptions = ['ALL', ...etfUniverse.map(etf => etf.ticker)]
   const filteredReplayRows =
@@ -972,9 +1059,13 @@ export default function App() {
   const stockReplayRecords = researchState.records.filter(r => r.ticker === selectedStockReplayTicker)
   const stockReplaySummary = buildStockReplaySummary(stockReplayRecords)
   const passedResearchLabels = gateResults.filter(result => result.status === 'PASS').length
-  const filteredResearchRecords = selectedResearchLabel === 'ALL'
-    ? researchState.records
-    : researchState.records.filter(r => r.label === selectedResearchLabel)
+  const researchFlagSummary = buildResearchFlagSummary(researchState.records)
+  const robustnessResults = evaluateRollingWindowRobustness(researchState.records)
+  const filteredResearchRecords = researchState.records.filter(record => {
+    const labelMatches = selectedResearchLabel === 'ALL' || record.label === selectedResearchLabel
+    const flagMatches = selectedResearchFlag === 'ALL' || record.researchFlags.includes(selectedResearchFlag)
+    return labelMatches && flagMatches
+  })
   const researchFilterStats = (() => {
     const recs = filteredResearchRecords
     const with5d = recs.filter(r => r.ret5d !== null)
@@ -984,6 +1075,22 @@ export default function App() {
     const winRate5d = directional5d.length > 0 ? wins5d / directional5d.length : null
     return { n: recs.length, avg5d, winRate5d }
   })()
+
+  async function handleCopyGateSummaryMarkdown() {
+    if (gateResults.length === 0) {
+      setGateSummaryCopyStatus('No gate data to copy yet.')
+      return
+    }
+
+    try {
+      const markdown = buildGateSummaryMarkdown(gateResults, researchState.lastUpdated)
+      await copyTextToClipboard(markdown)
+      setGateSummaryCopyStatus(`Copied markdown for ${gateResults.length} labels.`)
+    } catch (error) {
+      setGateSummaryCopyStatus(error instanceof Error ? error.message : 'Failed to copy markdown.')
+    }
+  }
+
   // Dashboard Action Radar
   const radarAttack = useMemo(() =>
     stockState.rows.filter(r => r.label === 'LONG_CONFIRM' || r.label === 'LONG_PULLBACK' || r.label === 'UP_PROMOTION').slice(0, 3)
@@ -1133,7 +1240,7 @@ export default function App() {
                           <span className="radar-card__ticker">{row.ticker}</span>
                           <span className="radar-card__name">{row.name}</span>
                           <span className={`label-pill label-pill--stock label-pill--stock-long`}>{disp.lightEmoji} {disp.zhText}</span>
-                          {row.patternTag === 'BASE_BREAK' && <span className="pattern-tag">BASE_BREAK</span>}
+                          {renderResearchFlags(row.researchFlags)}
                         </div>
                       )
                     })}
@@ -1570,6 +1677,7 @@ export default function App() {
                             <th>5D vs SPY</th>
                             <th>MFE 5D</th>
                             <th>MAE 5D</th>
+                            <th>Flags</th>
                             <th>E?</th>
                           </tr>
                         </thead>
@@ -1597,6 +1705,7 @@ export default function App() {
                                 <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>
                                 <td>{formatPercent(record.mfe5d)}</td>
                                 <td>{formatPercent(record.mae5d)}</td>
+                                <td>{renderResearchFlags(record.researchFlags)}</td>
                                 <td>{record.earningsInWindow ? '⚠️' : '—'}</td>
                               </tr>
                             )
@@ -1663,10 +1772,14 @@ export default function App() {
                   <p className="subtle">G1 n≥100 · G2 方向正確 · G3 跑贏大市 · G4 前後半一致 · G5 中性市仍正確 · G6 MAE&lt;3% · G7 止損命中率&lt;30%</p>
                 </div>
                 <div className="header-actions">
+                  <button type="button" className="refresh-button" disabled={isLoadingResearch || gateResults.length === 0} onClick={() => void handleCopyGateSummaryMarkdown()}>
+                    📋 Copy MD
+                  </button>
                   <button type="button" onClick={() => setShowGateLegend(v => !v)} style={{ fontSize: '0.82rem' }}>? 點睇 Gate 說明</button>
                   <button type="button" className="refresh-button" disabled={isLoadingResearch} onClick={() => void loadResearchData()}>{isLoadingResearch ? 'Refreshing...' : 'Refresh Research'}</button>
                 </div>
               </div>
+              {gateSummaryCopyStatus && <p className="subtle">{gateSummaryCopyStatus}</p>}
               {showGateLegend && (
                 <div className="gate-legend">
                   <button type="button" className="gate-legend__close" onClick={() => setShowGateLegend(false)}>✕</button>
@@ -1716,6 +1829,129 @@ export default function App() {
                         <td className={gateClass(item.gate7StopLossHitRate)} title={item.stopLossHitRate !== null ? `${(item.stopLossHitRate * 100).toFixed(0)}%` : undefined}>{gateIcon(item.gate7StopLossHitRate)}</td>
                         <td><span className={`status-badge status-badge--${item.status.toLowerCase()}`}>{item.status}</span></td>
                       </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>Research Flags Snapshot 研究旗標快照</h2>
+                  <p className="subtle">用同一套 replay records 觀察 `BASE_BREAK` / `DISTRIBUTION_WARNING` 的樣本量與 5D 表現。</p>
+                </div>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Flag</th>
+                      <th>n</th>
+                      <th>Avg 5D</th>
+                      <th>5D vs SPY</th>
+                      <th>MAE 5D</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {researchFlagSummary.map(item => (
+                      <tr key={item.flag}>
+                        <td>{renderResearchFlags([item.flag])}</td>
+                        <td>{item.count}</td>
+                        <td>{formatPercent(item.avgRet5d)}</td>
+                        <td>{formatPercent(item.avgRet5dVsSpy)}</td>
+                        <td>{formatPercent(item.avgMae5d)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>Rolling Robustness Walk-forward 穩定性</h2>
+                  <p className="subtle">把同一批 records 切成 rolling 6M / 12M / 18M 視窗，觀察各 label 在多少個窗口仍通過 G2 / G3 / G6 與 Full PASS。</p>
+                </div>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Label</th>
+                      <th>Window</th>
+                      <th>G2 Pass</th>
+                      <th>G3 Pass</th>
+                      <th>G6 Pass</th>
+                      <th>Full PASS</th>
+                      <th>Avg 5D vs SPY</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {robustnessResults.flatMap((item: LabelRobustnessResult) => (
+                      item.summaries.map((summary, index) => (
+                        <tr key={`${item.label}:${summary.window.id}`}>
+                          <td>
+                            {index === 0 ? (
+                              <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(item.label).toLowerCase()}`}>
+                                {getStockLabelDisplay(item.label).lightEmoji} {item.label}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td>{summary.window.label}</td>
+                          <td>{renderWindowPasses(summary, summary.gate2PassWindows)}</td>
+                          <td>{renderWindowPasses(summary, summary.gate3PassWindows)}</td>
+                          <td>{renderWindowPasses(summary, summary.gate6PassWindows)}</td>
+                          <td>{renderWindowPasses(summary, summary.fullPassWindows)}</td>
+                          <td>{formatPercent(summary.avgRet5dVsSpy)}</td>
+                        </tr>
+                      ))
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="panel wide">
+              <div className="section-header">
+                <div>
+                  <h2>Rolling Robustness Walk-forward 穩定性</h2>
+                  <p className="subtle">把同一批 records 切成 rolling 6M / 12M / 18M 視窗，觀察各 label 在多少個窗口仍通過 G2 / G3 / G6 與 Full PASS。</p>
+                </div>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Label</th>
+                      <th>Window</th>
+                      <th>G2 Pass</th>
+                      <th>G3 Pass</th>
+                      <th>G6 Pass</th>
+                      <th>Full PASS</th>
+                      <th>Avg 5D vs SPY</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {robustnessResults.flatMap((item: LabelRobustnessResult) => (
+                      item.summaries.map((summary, index) => (
+                        <tr key={`${item.label}:${summary.window.id}`}>
+                          <td>
+                            {index === 0 ? (
+                              <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(item.label).toLowerCase()}`}>
+                                {getStockLabelDisplay(item.label).lightEmoji} {item.label}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td>{summary.window.label}</td>
+                          <td>{renderWindowPasses(summary, summary.gate2PassWindows)}</td>
+                          <td>{renderWindowPasses(summary, summary.gate3PassWindows)}</td>
+                          <td>{renderWindowPasses(summary, summary.gate6PassWindows)}</td>
+                          <td>{renderWindowPasses(summary, summary.fullPassWindows)}</td>
+                          <td>{formatPercent(summary.avgRet5dVsSpy)}</td>
+                        </tr>
+                      ))
                     ))}
                   </tbody>
                 </table>
@@ -1782,13 +2018,21 @@ export default function App() {
                       <option value="REVIEW_DATA">REVIEW_DATA</option>
                     </select>
                   </label>
+                  <label>
+                    Research Flag
+                    <select value={selectedResearchFlag} onChange={e => setSelectedResearchFlag(e.target.value as ResearchFlag | 'ALL')}>
+                      <option value="ALL">ALL — 全部</option>
+                      <option value="BASE_BREAK">BASE_BREAK</option>
+                      <option value="DISTRIBUTION_WARNING">DISTRIBUTION_WARNING</option>
+                    </select>
+                  </label>
                 </div>
               </div>
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
-                      <th>Date</th><th>Ticker</th><th>Label</th><th>Regime</th>
+                      <th>Date</th><th>Ticker</th><th>Label</th><th>Regime</th><th>Flags</th>
                       <th>5D</th><th>10D</th><th>5D vs SPY</th><th>MFE 5D</th><th>MAE 5D</th>
                     </tr>
                   </thead>
@@ -1803,6 +2047,7 @@ export default function App() {
                           </span>
                         </td>
                         <td>{record.regimeAtSignal}</td>
+                        <td>{renderResearchFlags(record.researchFlags)}</td>
                         <td className={returnClass(record.ret5d, record.label)}>{formatPercent(record.ret5d)}</td>
                         <td className={returnClass(record.ret10d, record.label)}>{formatPercent(record.ret10d)}</td>
                         <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>
@@ -1937,7 +2182,7 @@ export default function App() {
                         <div className="stock-card__footer">
                           <span className={`stock-card__action stock-card__action--${disp.actionGroup}`}>{disp.action}</span>
                           <span className="stock-card__code">{disp.enCode}</span>
-                          {row.patternTag === 'BASE_BREAK' && <span className="pattern-tag">BASE_BREAK</span>}
+                          {renderResearchFlags(row.researchFlags)}
                         </div>
                       </div>
                     )
@@ -1955,6 +2200,7 @@ export default function App() {
                         <th>RSI(14)</th>
                         <th>RVOL</th>
                         <th>RS vs SPY</th>
+                        <th>Flags</th>
                         <th>原因 Reason</th>
                       </tr>
                     </thead>
@@ -1978,6 +2224,7 @@ export default function App() {
                             <td>{row.rsi14 === null ? 'n/a' : row.rsi14.toFixed(1)}</td>
                             <td>{formatRatio(row.rvol)}</td>
                             <td>{formatPercent(row.relStrengthVsSpy)}</td>
+                            <td>{renderResearchFlags(row.researchFlags)}</td>
                             <td className="reason-cell">
                               <span className="reason-plain">{disp.plainReason}</span>
                               <span className="reason-technical">{row.reason}</span>
@@ -2077,6 +2324,7 @@ export default function App() {
                             <th>5D vs SPY</th>
                             <th>MFE 5D</th>
                             <th>MAE 5D</th>
+                            <th>Flags</th>
                             <th>E?</th>
                           </tr>
                         </thead>
@@ -2104,6 +2352,7 @@ export default function App() {
                                 <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>
                                 <td>{formatPercent(record.mfe5d)}</td>
                                 <td>{formatPercent(record.mae5d)}</td>
+                                <td>{renderResearchFlags(record.researchFlags)}</td>
                                 <td>{record.earningsInWindow ? '⚠️' : '—'}</td>
                               </tr>
                             )
@@ -2190,6 +2439,14 @@ export default function App() {
                   </p>
                 </div>
                 <div className="header-actions">
+                  <button
+                    type="button"
+                    className="refresh-button"
+                    disabled={isLoadingResearch || gateResults.length === 0}
+                    onClick={() => void handleCopyGateSummaryMarkdown()}
+                  >
+                    📋 Copy MD
+                  </button>
                   <button type="button" onClick={() => setShowGateLegend(v => !v)} style={{ fontSize: '0.82rem' }}>
                     ? 點睇 Gate 說明
                   </button>
@@ -2198,6 +2455,7 @@ export default function App() {
                   </button>
                 </div>
               </div>
+              {gateSummaryCopyStatus && <p className="subtle">{gateSummaryCopyStatus}</p>}
 
               {showGateLegend && (
                 <div className="gate-legend">
@@ -2356,6 +2614,17 @@ export default function App() {
                       <option value="REVIEW_DATA">REVIEW_DATA</option>
                     </select>
                   </label>
+                  <label>
+                    Research Flag
+                    <select
+                      value={selectedResearchFlag}
+                      onChange={e => setSelectedResearchFlag(e.target.value as ResearchFlag | 'ALL')}
+                    >
+                      <option value="ALL">ALL — 全部</option>
+                      <option value="BASE_BREAK">BASE_BREAK</option>
+                      <option value="DISTRIBUTION_WARNING">DISTRIBUTION_WARNING</option>
+                    </select>
+                  </label>
                 </div>
               </div>
 
@@ -2367,6 +2636,7 @@ export default function App() {
                       <th>Ticker</th>
                       <th>Label</th>
                       <th>Regime</th>
+                      <th>Flags</th>
                       <th>5D</th>
                       <th>10D</th>
                       <th>5D vs SPY</th>
@@ -2385,6 +2655,7 @@ export default function App() {
                           </span>
                         </td>
                         <td>{record.regimeAtSignal}</td>
+                        <td>{renderResearchFlags(record.researchFlags)}</td>
                         <td className={returnClass(record.ret5d, record.label)}>{formatPercent(record.ret5d)}</td>
                         <td className={returnClass(record.ret10d, record.label)}>{formatPercent(record.ret10d)}</td>
                         <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>

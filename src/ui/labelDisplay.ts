@@ -1,4 +1,4 @@
-import type { ETFLabel, RegimeClass, StockSignalLabel } from '../types/signal'
+import type { ETFLabel, RegimeClass, ResearchFlag, StockSignalLabel } from '../types/signal'
 
 export type StockLabelDisplay = {
   lightEmoji: string
@@ -16,6 +16,12 @@ export type ETFLabelDisplay = {
   plainReason: string
   action: string
   actionGroup: 'consider' | 'watch' | 'avoid'
+}
+
+export type ResearchFlagDisplay = {
+  shortCode: string
+  zhText: string
+  tone: 'violet' | 'warn'
 }
 
 const STOCK_LABEL_MAP: Record<StockSignalLabel, Omit<StockLabelDisplay, 'enCode'>> = {
@@ -163,6 +169,23 @@ const ETF_LABEL_MAP: Record<ETFLabel, Omit<ETFLabelDisplay, 'enCode'>> = {
 
 export function getETFLabelDisplay(label: ETFLabel): ETFLabelDisplay {
   return { ...ETF_LABEL_MAP[label], enCode: label }
+}
+
+const RESEARCH_FLAG_MAP: Record<ResearchFlag, ResearchFlagDisplay> = {
+  BASE_BREAK: {
+    shortCode: 'BASE_BREAK',
+    zhText: '長底突破',
+    tone: 'violet'
+  },
+  DISTRIBUTION_WARNING: {
+    shortCode: 'DISTRIBUTION',
+    zhText: '派發預警',
+    tone: 'warn'
+  }
+}
+
+export function getResearchFlagDisplay(flag: ResearchFlag): ResearchFlagDisplay {
+  return RESEARCH_FLAG_MAP[flag]
 }
 
 export function getRegimeBanner(regime: RegimeClass): {

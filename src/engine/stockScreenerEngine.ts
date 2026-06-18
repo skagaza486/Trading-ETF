@@ -1,5 +1,5 @@
 import type { TickerHistory } from '../types/indicator'
-import type { RegimeClass, StockSignal } from '../types/signal'
+import type { RegimeClass, ResearchFlag, StockSignal } from '../types/signal'
 import { classifyRegime } from './marketRegime'
 import { computeATR, computeCLV, computeCMF, computeEMA, computeEMASlope, computeMACD, computeOBV, computeRSI, computeRVOL } from './indicatorEngine'
 import { daysUntilDate, latestBar, percentChange, regressionSlope } from './historyUtils'
@@ -156,6 +156,7 @@ export function classifyStock(
       ticker: history.ticker,
       signalDate,
       label: 'REVIEW_DATA',
+      researchFlags: [],
       indicators: {
         close: latestBar(history)?.close ?? 0,
         low: latestBar(history)?.low ?? 0,
@@ -224,8 +225,9 @@ export function classifyStock(
     label = 'SHORT_SETUP'
   }
 
+  const researchFlags: ResearchFlag[] = []
+
   // I4: LONG_BASE_BREAK research prototype — low-RVOL base then volume expansion breakout
-  let patternTag: 'BASE_BREAK' | undefined
   if (label !== 'REVIEW_DATA' && label !== 'REVIEW_EVENT' && effectiveRegime !== 'short_friendly') {
     const rvolSeries = computeRVOL(history.bars, 20)
     const prior60Rvol = rvolSeries.slice(-61, -1).filter((v): v is number => v !== null)
@@ -239,7 +241,25 @@ export function classifyStock(
       high60d !== null &&
       indicators.close > high60d
     ) {
-      patternTag = 'BASE_BREAK'
+      researchFlags.push('BASE_BREAK')
+    }
+  }
+
+  // R8: Wyckoff-style distribution warning — heavy volume, weak finish, near 52W high.
+  if (label !== 'REVIEW_DATA' && label !== 'REVIEW_EVENT') {
+    const latest = latestBar(history)
+    const high52w = history.bars.length > 0
+      ? Math.max(...history.bars.slice(-Math.min(252, history.bars.length)).map(bar => bar.high))
+      : null
+    const dayRange = latest ? latest.high - latest.low : 0
+    const body = latest ? Math.abs(latest.close - latest.open) : 0
+    const upperShadow = latest ? latest.high - Math.max(latest.open, latest.close) : 0
+    const longUpperShadow = dayRange > 0 && upperShadow / dayRange >= 0.35 && upperShadow > body
+    const weakFinish = latest ? (longUpperShadow || latest.close < latest.open) : false
+    const near52wHigh = high52w !== null && indicators.close >= high52w * 0.95
+
+    if ((indicators.rvol ?? 0) > 2.5 && weakFinish && near52wHigh) {
+      researchFlags.push('DISTRIBUTION_WARNING')
     }
   }
 
@@ -263,12 +283,16 @@ export function classifyStock(
     reasonParts.push(`Earnings in ${earningsDays}d`)
   }
 
+  if (researchFlags.length > 0) {
+    reasonParts.push(`Flags ${researchFlags.join(',')}`)
+  }
+
   return {
     ticker: history.ticker,
     signalDate,
     label,
     previousLabel: previousLabel ?? undefined,
-    patternTag,
+    researchFlags,
     indicators,
     regime: effectiveRegime,
     earningsWithinWindow: earningsWithinReviewWindow,

@@ -436,6 +436,26 @@
 
 - 在資料層、樣本量、walk-forward、plateau test 未成熟前，ML 只會放大偏差
 
+### L9. Headless UI Smoke Test Harness
+
+目標：
+
+- 為 `Dashboard` / `Stocks` / `ETFs` / `Quant Lab` 建立第一套可重跑的 headless UI smoke test
+- 自動抓 layout 跑位、responsive 斷版、card overlap、table overflow、tab / sub-tab 切換失效、dialog 阻擋主流程等問題
+
+建議範圍：
+
+- `Playwright` headless smoke
+- 固定 viewport：desktop / tablet / mobile
+- 以 mocked market-data fixtures 為主，避免 Yahoo / Finnhub rate limit 令 smoke 不穩
+- 第一版先保護 `Dashboard`、`Stocks`、`Quant Lab`，之後再補 `ETFs` 與 global dialog / onboarding
+
+延後原因：
+
+- 這是高價值的品質基建，但不應早於 `EXP-009`、`R8`、`R7` 這些研究主線
+- 若研究條件與 UI 結構仍在快速改動，太早建立 smoke baseline 會令維護成本偏高
+- 較適合在 Phase 2 核心研究項初步穩定後，再作為 Phase 3 的 UI 穩定性護欄
+
 ---
 
 ## 建議時間線
@@ -470,11 +490,12 @@
 
 ### Phase 3：長期架構與多源資料
 
-- `L1-L7` 視需要逐步啟動
+- `L1-L9` 視需要逐步啟動
 
 完成定義：
 
 - 預計算架構穩定
+- headless UI smoke 對核心頁面提供基本護欄
 - 外部資料源接入有節制
 - repo 仍保持 explainable、可驗證、可維護
 

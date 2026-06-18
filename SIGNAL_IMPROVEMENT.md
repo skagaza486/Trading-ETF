@@ -638,10 +638,38 @@ nearHigh52w:     close >= max(high, last 252 bars) * 0.75   (Minervini H52)
 | LONG_PULLBACK | 84 | 0.0% | -0.3% | 3.3% | ✗ | ✓ | ✗ | ✗ | — | ✗ | ✓ | INSUFFICIENT |
 | LONG_WATCH | 2988 | 0.6% | 0.4% | 3.5% | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ | FAIL |
 
-- 改動後 Gate Summary：*(待 UI 刷新後回填)*
+- 改動後 Gate Summary（auto-sync 18/6/2026, 08:51:47）:
+
+| Label | n | Avg 5D | Median 5D | vs SPY | MAE 5D | Neutral n | Neutral Avg 5D | G1 | G2 | G3 | G4 | G5 | G6 | G7 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
+| 🟢 LONG_CONFIRM | 10 | 1.9% | 1.6% | 1.3% | 2.3% | 2 | 4.4% | FAIL | PASS | PASS | NA | NA | PASS | PASS | INSUFFICIENT |
+| 🟢 UP_PROMOTION | 16 | 2.2% | 3.4% | 1.9% | 4.0% | 2 | 2.3% | FAIL | PASS | PASS | NA | NA | FAIL | PASS | INSUFFICIENT |
+| 🟢 LONG_VCP | 9 | -1.6% | -2.0% | -2.2% | 5.8% | 0 | n/a | FAIL | NA | NA | NA | NA | NA | NA | INSUFFICIENT |
+| 🟢 LONG_SETUP | 791 | 0.4% | 0.2% | 0.4% | 3.8% | 78 | 1.1% | PASS | PASS | FAIL | PASS | PASS | FAIL | PASS | FAIL |
+| 🟢 LONG_PULLBACK | 82 | -0.1% | -0.2% | -0.5% | 3.4% | 0 | n/a | FAIL | FAIL | FAIL | FAIL | NA | FAIL | PASS | INSUFFICIENT |
+| 🟡 LONG_WATCH | 2766 | 0.5% | 0.3% | 0.4% | 3.5% | 277 | 0.3% | PASS | PASS | FAIL | PASS | PASS | FAIL | PASS | FAIL |
+| 🔴 SHORT_CONFIRM | 17 | 3.4% | 3.8% | 2.2% | 7.2% | 3 | 8.8% | FAIL | FAIL | FAIL | NA | NA | FAIL | NA | INSUFFICIENT |
+| 🔴 DOWN_PROMOTION | 15 | 2.4% | 3.0% | 1.4% | 7.2% | 4 | 0.1% | FAIL | FAIL | FAIL | NA | NA | FAIL | NA | INSUFFICIENT |
+| 🔴 SHORT_SETUP | 179 | 0.8% | 0.4% | 0.4% | 5.3% | 68 | 0.1% | PASS | FAIL | FAIL | FAIL | FAIL | FAIL | NA | FAIL |
+| 🟠 SHORT_WATCH | 1672 | 0.1% | 0.0% | -0.2% | 3.8% | 319 | 0.2% | PASS | FAIL | FAIL | FAIL | FAIL | FAIL | NA | FAIL |
+
+- Rolling Robustness（auto-sync 18/6/2026, 08:51:47）:
+
+| Label | Window | G2 Pass | G3 Pass | G6 Pass | Full PASS | Avg 5D vs SPY |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| LONG_SETUP | 6M Rolling | 5/5 | 1/5 | 1/5 | 0/5 | 0.4% |
+| LONG_SETUP | 12M Rolling | 5/5 | 1/5 | 1/5 | 0/5 | 0.4% |
+| LONG_SETUP | 18M Rolling | 5/5 | 1/5 | 1/5 | 0/5 | 0.4% |
+| LONG_PULLBACK | 6M Rolling | 1/5 | 0/5 | 1/5 | 0/5 | 0.2% |
+| LONG_PULLBACK | 12M Rolling | 0/5 | 0/5 | 0/5 | 0/5 | 0.1% |
+| LONG_PULLBACK | 18M Rolling | 0/5 | 0/5 | 0/5 | 0/5 | 0.1% |
+| LONG_WATCH | 6M Rolling | 4/5 | 2/5 | 1/5 | 1/5 | 0.3% |
+| LONG_WATCH | 12M Rolling | 4/5 | 1/5 | 1/5 | 1/5 | 0.3% |
+| LONG_WATCH | 18M Rolling | 4/5 | 1/5 | 1/5 | 1/5 | 0.3% |
+
 - 預期：LONG_SETUP n 下降（~500-700）、vs SPY 上升至 >0.5%；LONG_WATCH n 輕微下降、vs SPY 接近 0.5%；LONG_PULLBACK vs SPY 轉正
-- 結論：PENDING（需 UI 驗證）
-- 下一步：刷新 Stock Research，比對 n / vs SPY / MAE 變化
+- 結論：PARTIAL（auto-sync）；LONG_SETUP 樣本由 922 降至 791；vs SPY 由 +0.2% 升至 +0.4%；仍未過 G3 > +0.5%；LONG_WATCH vs SPY +0.4%；LONG_PULLBACK vs SPY -0.5%
+- 下一步：按 ROADMAP 建議，把 LONG_SETUP 的 RVOL 門檻由 1.2 提高到 1.5，然後重新執行 `research:sync-exp009`
 
 ---
 

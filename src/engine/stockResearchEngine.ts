@@ -97,6 +97,7 @@ export function buildForwardReturnRecord(
         mae10d: excursion10d.mae,
         earningsInWindow: signal.earningsWithinWindow,
         regimeAtSignal: signal.regime,
+        researchFlags: signal.researchFlags,
         rvolAtSignal: signal.indicators.rvol,
         atrAtSignal,
         suggestedStopLoss,

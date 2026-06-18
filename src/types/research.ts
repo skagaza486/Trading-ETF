@@ -1,4 +1,4 @@
-import type { RegimeClass, StockSignalLabel } from './signal'
+import type { RegimeClass, ResearchFlag, StockSignalLabel } from './signal'
 
 export type ForwardReturnRecord = {
   signalDate: string
@@ -17,6 +17,7 @@ export type ForwardReturnRecord = {
   mae10d: number | null
   earningsInWindow: boolean
   regimeAtSignal: RegimeClass
+  researchFlags: ResearchFlag[]
   rvolAtSignal: number | null
   atrAtSignal: number | null
   suggestedStopLoss: number | null

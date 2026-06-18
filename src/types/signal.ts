@@ -25,6 +25,10 @@ export type StockSignalLabel =
   | ShortSignalLabel
   | NeutralSignalLabel
 
+export type ResearchFlag =
+  | 'BASE_BREAK'
+  | 'DISTRIBUTION_WARNING'
+
 export type ETFRecommendation = {
   ticker: string
   label: ETFLabel
@@ -38,7 +42,7 @@ export type StockSignal = {
   signalDate: string
   label: StockSignalLabel
   previousLabel?: StockSignalLabel
-  patternTag?: 'BASE_BREAK'
+  researchFlags: ResearchFlag[]
   indicators: StockIndicatorSnapshot
   regime: RegimeClass
   earningsWithinWindow: boolean
