@@ -6,11 +6,77 @@
  */
 
 const WATCHLIST = [
-  'AAPL','MSFT','NVDA','AMZN','META','GOOGL','TSLA','AVGO','NFLX','AMD',
-  'PLTR','JPM','GS','XOM','CVX','LLY','UNH','COST','WMT','BA'
+  // Technology (62)
+  'AAPL','MSFT','NVDA','AVGO','AMD','PLTR','CRM','ORCL','ADBE','QCOM',
+  'MU','AMAT','NOW','PANW','SNOW','TTD','CRWD','LRCX','APP','ARM',
+  'SMCI','MRVL','KLAC','CRDO','ONTO','DDOG','NET','HUBS','MDB',
+  'TXN','ADI','MCHP','INTC','IBM','FTNT','ZS','OKTA','MPWR','SWKS',
+  'FSLR','ENPH','KEYS','DELL','GLW','CDNS','SNPS','CSCO','ANET','WDAY',
+  'INTU','PAYC','VRT','RBLX','NXPI','ZBRA','AKAM','CDW','NTAP','HPE',
+  'PSTG','PCTY',
+  // Communication Services (17)
+  'META','GOOGL','NFLX','DIS','T','ROKU','SNAP','RDDT','PINS','SPOT',
+  'ZM','MTCH','WBD','EXPE','DASH','LYFT','TMUS',
+  // Consumer Discretionary (36)
+  'AMZN','TSLA','HD','MCD','NKE','BKNG','ABNB','LOW','SBUX','UBER',
+  'LULU','DECK','ONON','ULTA','CELH','DUOL',
+  'TGT','BBY','ETSY','CMG','YUM','DPZ','WING','DKNG','MGM','LVS',
+  'KMX','CPRT','W','RH','ROST','TJX','DG','DLTR','AZO','BROS',
+  // Consumer Staples (12)
+  'COST','WMT','PG','KO','PEP','MDLZ','PM',
+  'CL','GIS','HSY','TSN','MKC',
+  // Financials (40)
+  'JPM','GS','BAC','V','MA','MS','BLK','AXP','SCHW','C','WFC','BX',
+  'COF','DFS','COIN','HOOD',
+  'USB','PNC','TFC','ALLY','SYF','SOFI','AFRM','PYPL','SQ','KKR',
+  'APO','ARES','TPG','CG','ICE','CME','SPGI','MCO','MSCI',
+  'FITB','RF','KEY','CFG','HBAN',
+  // Health Care (39)
+  'LLY','UNH','ABBV','JNJ','MRK','PFE','AMGN','ISRG','GILD','DXCM',
+  'CVS','GEHC','MDT','BSX','VEEV',
+  'TMO','DHR','SYK','REGN','VRTX','MRNA','BIIB','IDXX','IQV','ZBH',
+  'BDX','BAX','CRL','MTD','ELV','CI','HUM','CNC','HOLX',
+  'DGX','LH','WAT','A','MOH',
+  // Energy (16)
+  'XOM','CVX','COP','SLB','OXY','MPC',
+  'HAL','BKR','DVN','FANG','EOG','PSX','VLO','MRO','APA','CTRA',
+  // Industrials (31)
+  'BA','CAT','HON','GE','RTX','LMT','UPS','FDX','DE','NOC','GD','IONQ',
+  'ETN','PH','ROK','IR','MMM','EMR','AXON','LDOS','TDG','CARR','BAH',
+  'WM','RSG','FAST','URI','GWW','VRSK','SAIC','HEI',
+  // Materials (10)
+  'FCX','NEM','LIN','NUE',
+  'SHW','APD','ECL','ALB','PPG','CTVA',
+  // Real Estate (11)
+  'AMT','EQIX','PLD','WELL',
+  'SPG','O','VICI','DLR','PSA','AVB','EQR',
+  // Utilities (9)
+  'NEE','DUK','SO','CEG',
+  'AEP','EXC','D','PCG','ED',
+  // International (17)
+  'TSM','ASML','NVO','MELI','SHOP','BABA','SE',
+  'TM','SONY','SAP','BHP','DEO','BIDU','JD','PDD','RIO','UL',
 ]
-const BENCHMARKS = ['SPY', 'QQQ', 'IWM', '^VIX']
+const BENCHMARKS = ['SPY', 'QQQ', 'IWM', '^VIX', 'RSP', 'GLD']
 const MAX_SIGNAL_BARS = 180
+
+// Tier 1 = growth/momentum; Tier 2 = defensive/value
+const TIER1 = new Set([
+  'AAPL','MSFT','NVDA','AVGO','AMD','PLTR','CRM','ORCL','ADBE','QCOM',
+  'MU','AMAT','NOW','PANW','SNOW','TTD','CRWD','LRCX','APP','ARM',
+  'SMCI','MRVL','KLAC','CRDO','ONTO','DDOG','NET','HUBS','MDB',
+  'FTNT','ZS','OKTA','MPWR','FSLR','ENPH','CDNS','SNPS','ANET','WDAY',
+  'INTU','PAYC','VRT','RBLX','NXPI','PSTG','PCTY',
+  'META','GOOGL','NFLX','ROKU','SNAP','RDDT','PINS','SPOT','DASH','TMUS',
+  'AMZN','TSLA','BKNG','ABNB','UBER','LULU','DECK','ONON','ULTA','CELH',
+  'DUOL','ETSY','CMG','WING','DKNG','CPRT','W','RH','ROST','TJX','BROS',
+  'V','MA','COF','DFS','COIN','HOOD','SOFI','AFRM','PYPL','SQ',
+  'KKR','APO','ARES','TPG','ICE','CME','SPGI','MCO','MSCI',
+  'LLY','ISRG','DXCM','GEHC','BSX','VEEV','REGN','VRTX','MRNA',
+  'IDXX','IQV','ELV','HOLX',
+  'GE','IONQ','ETN','ROK','AXON','TDG','URI','HEI',
+  'TSM','ASML','NVO','MELI','SHOP',
+])
 
 // ── Fetch ──────────────────────────────────────────────────────────────────
 async function fetchHistory(ticker) {
@@ -165,56 +231,100 @@ function classifyRegime(histories) {
   return 'neutral'
 }
 
-// ── Signal Classifier ─────────────────────────────────────────────────────
-function resolveLabel(ind, regime, prevLabel, earningsWindow) {
+// ── Signal Classifier (mirrors signalClassifier.ts) ──────────────────────
+function resolveLabel(ind, regime, prevLabel, earningsWindow, tier=1) {
   const req = [ind.ema20,ind.ema50,ind.ema20Slope,ind.rsi14,ind.macdHistogram,
                ind.rvol,ind.cmf20,ind.obvSlope,ind.clv,ind.relStrengthVsSpy,ind.atr]
   if (req.some(v=>v===null)) return 'REVIEW_DATA'
   if (earningsWindow) return 'REVIEW_EVENT'
-  const {ema20,ema50,ema20Slope,rsi14,macdHistogram,rvol,cmf20,obvSlope,clv,relStrengthVsSpy,close,breakout20d,breakdown20d,aboveEma200,nearHigh52w} = ind
+
+  const {ema20,ema50,ema20Slope,rsi14,macdHistogram,rvol,cmf20,obvSlope,clv,
+         relStrengthVsSpy,close,breakout20d,breakdown20d,aboveEma200,nearHigh52w,
+         atrSlope50,rvolRecentAvg10,recentPullbackNearEma20,pullbackRvolAvg,
+         priorBaseStreak,ema150,extendedFromPivot,ema50Slope,rsiSlope3} = ind
+
   const choppy = rsi14>=45&&rsi14<=55&&rvol<0.8&&Math.abs(ema20Slope)<0.001&&breakout20d!==true&&breakdown20d!==true
   if (choppy) return 'AVOID_CHOP'
-  const lWatch = rsi14>50&&macdHistogram>0&&cmf20>0&&obvSlope>0&&regime!=='short_friendly'
-  const lSetup = close>ema20&&ema20Slope>0&&rsi14>55&&rvol>1.2&&cmf20>0&&regime!=='short_friendly'&&aboveEma200!==false
-  const lConfirm = breakout20d===true&&rvol>1.8&&cmf20>0.1&&clv>0.65&&ema20>ema50&&rsi14>55&&regime!=='short_friendly'&&aboveEma200!==false&&nearHigh52w!==false
-  // HYP-009: require prior bar in ladder (prevents single-day impulse breakouts)
-  if (lConfirm) {
-    const priorLong=prevLabel==='LONG_WATCH'||prevLabel==='LONG_SETUP'||prevLabel==='LONG_CONFIRM'||prevLabel==='UP_PROMOTION'
-    if (priorLong) return prevLabel==='LONG_SETUP'?'UP_PROMOTION':'LONG_CONFIRM'
+
+  // LONG_BREAK
+  const longBreak = breakout20d===true&&rvol>1.6&&cmf20>0.1&&clv>0.65&&ema20>ema50&&rsi14>55&&
+    regime!=='short_friendly'&&aboveEma200!==false&&nearHigh52w!==false&&
+    (priorBaseStreak===null||priorBaseStreak>=2)&&
+    (ema150===null||ema50>ema150)&&extendedFromPivot!==true
+  if (longBreak) {
+    const priorLong=['WATCH','LONG_BASE','LONG_VCP','LONG_BOUNCE','LONG_BREAK'].includes(prevLabel)
+    if (priorLong) return 'LONG_BREAK'
   }
-  if (lSetup) return 'LONG_SETUP'
-  if (lWatch) return 'LONG_WATCH'
-  const sWatch = close<ema20&&rsi14<50&&relStrengthVsSpy<0&&macdHistogram<0&&regime!=='long_friendly'
-  const sSetup = close<ema20&&ema20Slope<0&&rsi14<45&&rvol>1.5&&cmf20<0&&regime!=='long_friendly'
-  const sConfirm = breakdown20d===true&&rvol>1.5&&cmf20<-0.05&&clv<0.35&&ema20<ema50&&rsi14<45&&regime!=='long_friendly'
-  // HYP-009: require prior bar in short ladder
-  if (sConfirm) {
-    const priorShort=prevLabel==='SHORT_WATCH'||prevLabel==='SHORT_SETUP'||prevLabel==='SHORT_CONFIRM'||prevLabel==='DOWN_PROMOTION'
-    if (priorShort) return prevLabel==='SHORT_SETUP'?'DOWN_PROMOTION':'SHORT_CONFIRM'
+
+  // LONG_VCP — no hysteresis: atrSlope50<0 already implies multi-week base
+  const longVcp = aboveEma200!==false&&ema20>ema50&&nearHigh52w!==false&&
+    atrSlope50!==null&&atrSlope50<0&&
+    rvolRecentAvg10!==null&&rvolRecentAvg10<1.0&&breakout20d===true&&rvol>1.5&&clv>0.6&&
+    rsi14>50&&regime!=='short_friendly'&&(ema150===null||ema50>ema150)
+  if (longVcp) return 'LONG_VCP'
+
+  // LONG_BOUNCE — T1 growth stocks need tighter quality filters (higher volatility = more fakeouts)
+  const rsiLow       = tier === 1 ? 46 : 42
+  const rvolThresh   = tier === 1 ? 0.9 : 1.2
+  const rsThresh     = tier === 1 ? 0.02 : 0
+  const longBounce = regime==='long_friendly'&&ema50Slope!==null&&ema50Slope>0&&
+    aboveEma200!==false&&ema20>ema50&&recentPullbackNearEma20===true&&close>ema20&&
+    rsi14>=rsiLow&&rsi14<=58&&clv>0.6&&relStrengthVsSpy>rsThresh&&
+    (pullbackRvolAvg===null||pullbackRvolAvg<rvolThresh)
+  if (longBounce) return 'LONG_BOUNCE'
+
+  // LONG_BASE
+  const longBase = aboveEma200!==false&&ema20>ema50&&ema50Slope!==null&&ema50Slope>0&&
+    ema20Slope>0&&relStrengthVsSpy>0&&rsi14>=45&&rsi14<=65&&
+    ((atrSlope50!==null&&atrSlope50<0)||(rvolRecentAvg10!==null&&rvolRecentAvg10<0.8))&&
+    regime!=='short_friendly'
+  if (longBase) return 'LONG_BASE'
+
+  // WATCH
+  const watch = rsi14>50&&macdHistogram>0&&cmf20>0&&obvSlope>0&&
+    relStrengthVsSpy>-0.02&&(rsiSlope3===null||rsiSlope3>0)&&regime!=='short_friendly'
+  if (watch) return 'WATCH'
+
+  // SHORT_BREAK
+  const shortBreak = breakdown20d===true&&rvol>1.5&&cmf20<-0.05&&clv<0.35&&
+    ema20<ema50&&rsi14<45&&regime!=='long_friendly'
+  if (shortBreak) {
+    const priorShort=['SHORT_WATCH','SHORT_BASE','SHORT_BREAK'].includes(prevLabel)
+    if (priorShort) return 'SHORT_BREAK'
   }
-  if (sSetup) return 'SHORT_SETUP'
-  if (sWatch) return 'SHORT_WATCH'
+
+  // SHORT_BASE
+  const shortBase = close<ema20&&ema20Slope<0&&rsi14<45&&rvol>1.5&&cmf20<0&&regime!=='long_friendly'
+  if (shortBase) return 'SHORT_BASE'
+
+  // SHORT_WATCH
+  const shortWatch = close<ema20&&rsi14<50&&relStrengthVsSpy<0&&macdHistogram<0&&regime!=='long_friendly'
+  if (shortWatch) return 'SHORT_WATCH'
+
   return 'NEUTRAL'
 }
 
 function buildSnapshot(bars, benchmarks) {
-  const ema20=computeEMA(bars,20), ema50=computeEMA(bars,50), ema200=computeEMA(bars,200)
-  const ema20s=emaSlope(ema20,5), rsi=computeRSI(bars,14), macd=computeMACD(bars)
+  const ema20=computeEMA(bars,20), ema50=computeEMA(bars,50)
+  const ema150=computeEMA(bars,150), ema200=computeEMA(bars,200)
+  const ema20s=emaSlope(ema20,5), ema50s=emaSlope(ema50,5)
+  const rsi=computeRSI(bars,14), macd=computeMACD(bars)
   const rvol=computeRVOL(bars,20), cmf=computeCMF(bars,20), clv=computeCLV(bars), atr=computeATR(bars,14)
   const obv=computeOBV(bars), obvSlp=regressionSlope(obv.slice(-10))
   const close=bars.at(-1)?.close??0
   const latEma200=latestVal(ema200)
-  // 20d breakout/breakdown — ATR-normalized margin (0.5×ATR14)
   const atrVal=latestVal(atr)
+
+  // breakout/breakdown — ATR-normalized
   let breakout20d=null, breakdown20d=null
   if (bars.length>=21) {
     const cur=bars.at(-1), ph=Math.max(...bars.slice(-21,-1).map(b=>b.high)), pl=Math.min(...bars.slice(-21,-1).map(b=>b.low))
     const brkMargin=atrVal!==null?atrVal*0.5:ph*0.003
-    const brkdwnMargin=atrVal!==null?atrVal*0.5:0
     breakout20d=cur?cur.close>ph+brkMargin:null
-    breakdown20d=cur?cur.close<pl-brkdwnMargin:null
+    breakdown20d=cur?cur.close<pl-(atrVal??0)*0.5:null
   }
-  // RS vs SPY
+
+  // RS vs SPY (20d)
   let relStrengthVsSpy=null
   const spy=benchmarks.SPY
   if (spy&&bars.length>20&&spy.bars.length>20) {
@@ -222,15 +332,67 @@ function buildSnapshot(bars, benchmarks) {
     const spyr=pctChange(spy.bars.at(-1)?.close??NaN, spy.bars.at(-21)?.close??NaN)
     if (sr!==null&&spyr!==null) relStrengthVsSpy=sr-spyr
   }
+
   // 52w high
   const high52w=bars.length>0?Math.max(...bars.slice(-Math.min(252,bars.length)).map(b=>b.high)):null
+
+  // ATR slope (contraction)
+  const atrDefined=atr.filter(v=>v!==null)
+  const atrSlope50=atrDefined.length>=10?regressionSlope(atrDefined.slice(-50)):null
+
+  // RVOL recent avg (excl. today)
+  const rvolPrior10=rvol.slice(-11,-1).filter(v=>v!==null)
+  const rvolRecentAvg10=rvolPrior10.length>=5?rvolPrior10.reduce((a,v)=>a+v,0)/rvolPrior10.length:null
+
+  // recentPullbackNearEma20
+  const recentPullbackNearEma20=(() => {
+    const n=bars.length; if (n<7) return null
+    for (let i=n-6;i<n-1;i++) { const e=ema20[i]; if (e!==null&&bars[i].low<=e*1.02) return true }
+    return false
+  })()
+
+  // priorBaseStreak (RVOL < 0.8 days in last 5)
+  const priorBaseStreak=(() => {
+    const w=rvol.slice(-6,-1).filter(v=>v!==null); if (w.length<3) return null
+    return w.filter(v=>v<0.8).length
+  })()
+
+  // pullbackRvolAvg
+  const pullbackRvolAvg=(() => {
+    const n=bars.length; if (n<7) return null
+    const pvols=[]
+    for (let i=n-6;i<n-1;i++) {
+      const e=ema20[i],r=rvol[i]
+      if (e!==null&&r!==null&&bars[i].low<=e*1.02) pvols.push(r)
+    }
+    return pvols.length===0?null:pvols.reduce((a,v)=>a+v,0)/pvols.length
+  })()
+
+  // rsiSlope3
+  const rsiSlope3=(() => {
+    const len=rsi.length; if (len<4) return null
+    const t=rsi[len-1],p=rsi[len-4]; return (t===null||p===null)?null:t-p
+  })()
+
+  // extendedFromPivot (>5% above 20d high)
+  const extendedFromPivot=(() => {
+    if (bars.length<21) return null
+    const pivot=Math.max(...bars.slice(-21,-1).map(b=>b.high))
+    return close>pivot*1.05
+  })()
+
   return {
-    close, ema20:latestVal(ema20), ema50:latestVal(ema50), ema200:latEma200,
-    ema20Slope:latestVal(ema20s), rsi14:latestVal(rsi), macdHistogram:macd.at(-1)?.histogram??null,
+    close, ema20:latestVal(ema20), ema50:latestVal(ema50),
+    ema150:latestVal(ema150), ema200:latEma200,
+    ema20Slope:latestVal(ema20s), ema50Slope:latestVal(ema50s),
+    rsi14:latestVal(rsi), macdHistogram:macd.at(-1)?.histogram??null,
     rvol:latestVal(rvol), cmf20:latestVal(cmf), obvSlope:obvSlp, clv:clv.at(-1)??null,
-    breakout20d, breakdown20d, relStrengthVsSpy, atr:latestVal(atr),
+    atr:atrVal, atrSlope50, rvolRecentAvg10,
+    breakout20d, breakdown20d, relStrengthVsSpy,
     aboveEma200:latEma200!==null?close>=latEma200:null,
-    nearHigh52w:high52w!==null?close>=high52w*0.75:null
+    nearHigh52w:high52w!==null?close>=high52w*0.75:null,
+    recentPullbackNearEma20, priorBaseStreak, pullbackRvolAvg,
+    rsiSlope3, extendedFromPivot
   }
 }
 
@@ -252,7 +414,8 @@ function buildSignals(histories, tickers) {
       if (b.length<60) continue
       const regime=classifyRegime(sliced)
       const ind=buildSnapshot(b, sliced)
-      const label=resolveLabel(ind, regime, prevLabel, false)
+      const tier=TIER1.has(ticker)?1:2
+      const label=resolveLabel(ind, regime, prevLabel, false, tier)
       if (label!=='REVIEW_DATA') { signals.push({ticker,signalDate:date,label,regime}); }
       prevLabel=label
     }
@@ -280,10 +443,11 @@ function buildRecords(signals, histories) {
 }
 
 // ── Analysis ──────────────────────────────────────────────────────────────
-const LONG_LABELS  = new Set(['LONG_WATCH','LONG_SETUP','LONG_CONFIRM','UP_PROMOTION'])
-const SHORT_LABELS = new Set(['SHORT_WATCH','SHORT_SETUP','SHORT_CONFIRM','DOWN_PROMOTION'])
-const ALL_LABELS   = ['UP_PROMOTION','LONG_CONFIRM','LONG_SETUP','LONG_WATCH','NEUTRAL','AVOID_CHOP',
-                       'SHORT_WATCH','SHORT_SETUP','SHORT_CONFIRM','DOWN_PROMOTION','REVIEW_EVENT']
+const LONG_LABELS  = new Set(['WATCH','LONG_BASE','LONG_BOUNCE','LONG_VCP','LONG_BREAK'])
+const SHORT_LABELS = new Set(['SHORT_WATCH','SHORT_BASE','SHORT_BREAK'])
+const ALL_LABELS   = ['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE','WATCH',
+                       'NEUTRAL','AVOID_CHOP',
+                       'SHORT_WATCH','SHORT_BASE','SHORT_BREAK','REVIEW_EVENT']
 
 function avg(vals) { return vals.length===0?null:vals.reduce((a,v)=>a+v,0)/vals.length }
 
@@ -304,16 +468,25 @@ function analyzeLabel(records, label) {
   }
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────
-const all = [...new Set([...WATCHLIST, ...BENCHMARKS])]
-console.log(`\nFetching ${all.length} tickers from Yahoo Finance...`)
-const results = await Promise.allSettled(all.map(t=>fetchHistory(t).then(h=>[t,h])))
-const histories = {}
-for (const r of results) {
-  if (r.status==='fulfilled'&&r.value[1]) histories[r.value[0]]=r.value[1]
-  else if (r.status==='fulfilled') console.warn(`  ✗ ${r.value[0]} — no data`)
-  else console.warn(`  ✗ failed`)
+// ── Batched fetch with concurrency cap ────────────────────────────────────
+async function fetchBatch(tickers, concurrency = 6, delayMs = 200) {
+  const histories = {}
+  for (let i = 0; i < tickers.length; i += concurrency) {
+    const chunk = tickers.slice(i, i + concurrency)
+    const results = await Promise.allSettled(chunk.map(t => fetchHistory(t).then(h => [t, h])))
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value[1]) histories[r.value[0]] = r.value[1]
+      else if (r.status === 'fulfilled') console.warn(`  ✗ ${r.value[0]} — no data`)
+    }
+    if (i + concurrency < tickers.length) await new Promise(r => setTimeout(r, delayMs))
+  }
+  return histories
 }
+
+// ── Main ──────────────────────────────────────────────────────────────────
+const all = [...new Set([...BENCHMARKS, ...WATCHLIST])]
+console.log(`\nFetching ${all.length} tickers from Yahoo Finance...`)
+const histories = await fetchBatch(all, 6, 200)
 console.log(`  Loaded ${Object.keys(histories).length} tickers\n`)
 
 console.log('Building signals...')
@@ -337,12 +510,27 @@ console.log('═'.repeat(90))
 
 // Per-regime breakdown for LONG labels
 console.log('\n── LONG signals by regime ──')
-for (const label of ['LONG_CONFIRM','LONG_SETUP','UP_PROMOTION']) {
+for (const label of ['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE']) {
   for (const regime of ['long_friendly','neutral','short_friendly']) {
     const r=records.filter(x=>x.label===label&&x.regime===regime)
     const w=r.filter(x=>x.ret5d!==null&&x.ret5d>0)
     console.log(`  ${label} | ${regime} | n=${r.length} | 5D win=${r.length>0?(w.length/r.filter(x=>x.ret5d!==null).length*100).toFixed(0)+'%':'n/a'}`)
   }
 }
+
+// Per-tier breakdown for key LONG labels
+console.log('\n── Tier 1 (growth) vs Tier 2 (defensive) ──')
+console.log('─'.repeat(80))
+console.log(` LABEL              │ Tier │   n   │ Avg 5D  │ vs SPY 5D │ 5D WinRate`)
+console.log('─'.repeat(80))
+for (const label of ['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE','WATCH']) {
+  for (const tier of [1,2]) {
+    const r = records.filter(x=>x.label===label&&(tier===1?TIER1.has(x.ticker):!TIER1.has(x.ticker)))
+    if (r.length===0) continue
+    const s = analyzeLabel(r.map(x=>({...x,label})), label)
+    console.log(` ${label.padEnd(18)}│  T${tier}  │ ${String(s.n).padStart(5)} │ ${s.avg5d.padStart(7)} │ ${s.avgVsSpy5d.padStart(9)} │ ${s.winRate5d}`)
+  }
+}
+console.log('─'.repeat(80))
 
 console.log('\nDone.')

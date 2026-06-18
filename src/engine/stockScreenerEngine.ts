@@ -308,7 +308,8 @@ export function classifyStock(
   history: TickerHistory,
   benchmarks: Record<string, TickerHistory>,
   earningsDate: string | null,
-  regime: RegimeClass
+  regime: RegimeClass,
+  tier: 1 | 2 = 1
 ): StockSignal {
   const signalDate = latestBar(history)?.date ?? ''
 
@@ -387,11 +388,12 @@ export function classifyStock(
       previousIndicators,
       previousRegime,
       null,
-      previousEarningsDays !== null && previousEarningsDays <= 3
+      previousEarningsDays !== null && previousEarningsDays <= 3,
+      tier
     )
   }
 
-  let label = resolveStockLabel(indicators, effectiveRegime, previousLabel, earningsWithinReviewWindow)
+  let label = resolveStockLabel(indicators, effectiveRegime, previousLabel, earningsWithinReviewWindow, tier)
 
   if (earningsWithinDangerWindow && (label === 'LONG_BREAK' || label === 'LONG_VCP' || label === 'LONG_BOUNCE')) {
     label = 'LONG_BASE'

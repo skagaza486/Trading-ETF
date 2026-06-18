@@ -196,6 +196,11 @@ function formatRatio(value: number | null): string {
   return value.toFixed(2)
 }
 
+function formatSignedNumber(value: number | null): string {
+  if (value === null) return 'n/a'
+  return `${value > 0 ? '+' : ''}${value.toFixed(2)}`
+}
+
 function UiIcon({ name, label, className }: { name: string, label?: string, className?: string }) {
   const src = getUiAsset(name)
   if (!src) return null
@@ -723,6 +728,16 @@ function stockSignalStrengthPriority(label: StockSignalLabel): number {
     case 'AVOID_CHOP': return 9
     case 'REVIEW_EVENT': return 10
     case 'REVIEW_DATA': return 11
+  }
+}
+
+function latestMetric(history?: TickerHistory | null): { close: number | null, change1d: number | null } {
+  if (!history || history.bars.length < 2) return { close: null, change1d: null }
+  const latestClose = history.bars.at(-1)?.close ?? null
+  const previousClose = history.bars.at(-2)?.close ?? null
+  return {
+    close: latestClose,
+    change1d: latestClose !== null && previousClose !== null ? percentChange(latestClose, previousClose) : null
   }
 }
 

@@ -23,6 +23,8 @@ npm run dev
 輔助文檔集中於 `docs/`：
 
 - `docs/ui/UI_DESIGN.md` — UI 1.0 設計說明與結構原則。
+- `docs/ui/UI_1_1_VISUAL_PLAN.md` — UI 1.1 視覺升級方案與資產系統規劃。
+- `docs/ui/UI_1_1_300_STOCK_UX_ADDENDUM.md` — 300-stock universe 下的 Stocks / Verify UX 補充方案。
 - `docs/ui/UI_COPY_KEYS.md` — UI 文案 key 與中英命名對照。
 - `docs/ui/UI_QA_FLOW.md` — 人手 QA screening 流程（每次 UI 改動後參考）。
 - `docs/ui/FUTU_NAV_REFERENCE.md` — 富途 app 的資訊架構參考，偏結構與導航。

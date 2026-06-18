@@ -4,7 +4,8 @@ export function resolveStockLabel(
   indicators: StockIndicatorSnapshot,
   regime: RegimeClass,
   previousLabel: StockSignalLabel | null,
-  earningsWithinWindow: boolean
+  earningsWithinWindow: boolean,
+  tier: 1 | 2 = 1
 ): StockSignalLabel {
   const requiredValues = [
     indicators.ema20,
@@ -89,47 +90,45 @@ export function resolveStockLabel(
   // LONG_VCP: Volatility Contraction Pattern — structure + contraction + breakout trigger
   // VCP requires time to form: prior bar must already be in long ladder (hysteresis, same as LONG_BREAK)
   // CLV > 0.6 confirms breakout day had real buying support, not a fade-back close
+  // atrSlope50 < 0 already implies a multi-week base — hysteresis is redundant and kills n
   const longVcp =
-    indicators.aboveEma200 === true &&
+    indicators.aboveEma200 !== false &&
+    ema20 > ema50 &&
+    indicators.nearHigh52w !== false &&
     indicators.atrSlope50 !== null && indicators.atrSlope50 < 0 &&
-    indicators.rvolRecentAvg10 !== null && indicators.rvolRecentAvg10 < 0.8 &&
+    indicators.rvolRecentAvg10 !== null && indicators.rvolRecentAvg10 < 1.0 &&
     indicators.breakout20d === true &&
     rvol > 1.5 &&
     clv > 0.6 &&
+    rsi14 > 50 &&
     regime !== 'short_friendly' &&
-    (indicators.ema150 === null || ema50 > indicators.ema150)         // HYP-020: same EMA alignment as LONG_BREAK
+    (indicators.ema150 === null || ema50 > indicators.ema150)
 
-  if (longVcp) {
-    const priorLongVcp =
-      previousLabel === 'WATCH' ||
-      previousLabel === 'LONG_BASE' ||
-      previousLabel === 'LONG_VCP' ||
-      previousLabel === 'LONG_BOUNCE' ||
-      previousLabel === 'LONG_BREAK'
-    if (priorLongVcp) {
-      return 'LONG_VCP'
-    }
-  }
+  if (longVcp) return 'LONG_VCP'
 
   // LONG_BOUNCE: entry trigger — pullback to EMA20 over recent days, today bounced back above
   // Structure: uptrend intact, above EMA200
   // Multi-bar: price was near EMA20 in last 5 days (recentPullbackNearEma20)
   // HYP-018 (multi-bar): pullback should be on low volume — healthy retracement, not distribution
   // HYP-026: RS Line above EMA50 — research tag only, not a hard gate (EXP-012: no MAE benefit)
-  // HYP-028: ema20Slope > 0 — require short-term trend still rising on bounce day (EXP-013)
+  // EXP-013: MAE is regime-cyclical, not filterable via entry conditions — G6 3/6 rolling windows
   // Trigger: close reclaimed EMA20 today with quality close
+  // T1 growth stocks need tighter filters — higher volatility causes more EMA20 fakeouts
+  const rsiLow         = tier === 1 ? 46 : 42
+  const rvolThresh     = tier === 1 ? 0.9 : 1.2
+  const rsThresh       = tier === 1 ? 0.02 : 0
+
   const longBounce =
     regime === 'long_friendly' &&
     indicators.ema50Slope !== null && indicators.ema50Slope > 0 &&
-    ema20Slope > 0 &&                                                   // HYP-028: short-term trend must still be up
     indicators.aboveEma200 !== false &&
     ema20 > ema50 &&
     indicators.recentPullbackNearEma20 === true &&
     indicators.close > ema20 &&
-    rsi14 >= 42 && rsi14 <= 58 &&
+    rsi14 >= rsiLow && rsi14 <= 58 &&
     clv > 0.6 &&
-    relStrengthVsSpy > 0 &&
-    (indicators.pullbackRvolAvg === null || indicators.pullbackRvolAvg < 1.2)
+    relStrengthVsSpy > rsThresh &&
+    (indicators.pullbackRvolAvg === null || indicators.pullbackRvolAvg < rvolThresh)
 
   if (longBounce) {
     return 'LONG_BOUNCE'

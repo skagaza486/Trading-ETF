@@ -12,3 +12,7 @@
   實際 UI screening / QA 操作流程。
 - `HEADLESS_UI_SMOKE_TEST_PLAN.md`
   較早期的 smoke test 規劃稿，可作背景參考。
+- `UI_1_1_VISUAL_PLAN.md`
+  UI 1.1 視覺系統、logo / icon 資產、Stocks mobile 與 Home desktop 升級方案。
+- `UI_1_1_300_STOCK_UX_ADDENDUM.md`
+  當 Stocks universe 提升到約 300 檔時，對 Stocks / Verify / snapshot-first UX 的補充方案。

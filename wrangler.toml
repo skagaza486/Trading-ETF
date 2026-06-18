@@ -2,6 +2,28 @@ name = "trading-etf"
 compatibility_date = "2025-01-01"
 main = "worker.ts"
 
+[observability]
+enabled = true
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"
+
+# B1: Cloudflare KV for daily market snapshots
+# Run `wrangler kv namespace create SNAPSHOT_KV` to get your namespace IDs,
+# then replace the placeholders below.
+[[kv_namespaces]]
+binding = "SNAPSHOT_KV"
+id = "98f886f928b24909b9ca49e9bf4bd7b2"
+preview_id = "98f886f928b24909b9ca49e9bf4bd7b2"
+
+# B2: Cloudflare D1 — signal history + gate summary archive
+[[d1_databases]]
+binding = "trading_etf_db"
+database_name = "trading-etf-db"
+database_id = "7a5b3490-d69f-457d-9f3a-64c7b9139a62"
+
+# B1: Cron trigger — 21:30 UTC = 17:30 ET (90 min after US market close), Mon–Fri
+# Requires Workers Paid plan ($5/month) for sufficient CPU time.
+[triggers]
+crons = ["30 21 * * 1-5"]
