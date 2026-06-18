@@ -9,7 +9,7 @@ import type { TickerHistory } from '../src/types/indicator'
 
 const STOCK_BENCHMARK_TICKERS = ['SPY', 'QQQ', 'IWM', '^VIX', 'GLD', '2800.HK']
 const EXP009_HEADING = '### EXP-009 — LONG_BASE / WATCH / LONG_BOUNCE G3 驗證（signal 重新設計後）'
-const RESEARCH_SIGNAL_BARS = 180
+const RESEARCH_SIGNAL_BARS = 250
 const HISTORY_RANGE = '2y'
 const FETCH_CONCURRENCY = 8
 

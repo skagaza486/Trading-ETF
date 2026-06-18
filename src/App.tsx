@@ -989,7 +989,7 @@ export default function App() {
       const signals = buildHistoricalSignals(
         histories,
         stockWatchlist.map(stock => stock.ticker),
-        180,
+        250,
         historicalEarnings
       )
       const records = buildForwardReturnRecord(signals, histories).sort((left, right) => {
@@ -1650,7 +1650,7 @@ export default function App() {
               <div className="section-header">
                 <div>
                   <h2>歷史記錄 All Signals — {selectedStockReplayTicker}</h2>
-                  <p className="subtle">{stockReplayRecords.length} signals in 180-bar replay window</p>
+                  <p className="subtle">{stockReplayRecords.length} signals in 250-bar replay window</p>
                 </div>
               </div>
               {(() => {
@@ -1726,7 +1726,7 @@ export default function App() {
               <p className="eyebrow">Research Status</p>
               <h2>Stock Research 信號驗證</h2>
               <p className="subtle">
-                Forward-return dataset built from the last 180 signal bars across {stockWatchlist.length} watchlist names. Historical earnings dates loaded via Finnhub when configured.
+                Forward-return dataset built from the last 250 signal bars across {stockWatchlist.length} watchlist names. Historical earnings dates loaded via Finnhub when configured.
               </p>
               <p className="zh-subtitle">統計驗證工作區：追蹤每個信號標籤的實際勝率，六個 Gate 全通過才算可信。</p>
               <div className="status-row">
@@ -1751,7 +1751,7 @@ export default function App() {
               </article>
               <article className={`panel ${summaryToneClass('info')}`}>
                 <h2>Dataset Window</h2>
-                <strong><AnimatedMetricValue value="180" /> bars</strong>
+                <strong><AnimatedMetricValue value="250" /> bars</strong>
                 <span>Per ticker, excluding the last 10 bars for forward returns</span>
               </article>
               <article className={`panel ${summaryToneClass('violet')}`}>
@@ -2297,7 +2297,7 @@ export default function App() {
               <div className="section-header">
                 <div>
                   <h2>歷史記錄 All Signals — {selectedStockReplayTicker}</h2>
-                  <p className="subtle">{stockReplayRecords.length} signals in 180-bar replay window</p>
+                  <p className="subtle">{stockReplayRecords.length} signals in 250-bar replay window</p>
                 </div>
               </div>
               {(() => {
@@ -2375,7 +2375,7 @@ export default function App() {
               <p className="eyebrow">Research Status</p>
               <h2>Stock Research 信號驗證</h2>
               <p className="subtle">
-                Forward-return dataset built from the last 180 signal bars across {stockWatchlist.length} watchlist names. Historical earnings dates loaded via Finnhub when configured.
+                Forward-return dataset built from the last 250 signal bars across {stockWatchlist.length} watchlist names. Historical earnings dates loaded via Finnhub when configured.
               </p>
               <p className="zh-subtitle">統計驗證工作區：追蹤每個信號標籤的實際勝率，六個 Gate 全通過才算可信。</p>
               <div className="status-row">
@@ -2413,7 +2413,7 @@ export default function App() {
               </article>
               <article className={`panel ${summaryToneClass('info')}`}>
                 <h2>Dataset Window</h2>
-                <strong><AnimatedMetricValue value="180" /> bars</strong>
+                <strong><AnimatedMetricValue value="250" /> bars</strong>
                 <span>Per ticker, excluding the last 10 bars for forward returns</span>
               </article>
               <article className={`panel ${summaryToneClass('violet')}`}>

@@ -10,7 +10,7 @@ import type { TickerHistory } from '../src/types/indicator'
 import type { StockSignalLabel } from '../src/types/signal'
 
 const STOCK_BENCHMARK_TICKERS = ['SPY', 'QQQ', 'IWM', '^VIX', 'GLD', '2800.HK']
-const RESEARCH_SIGNAL_BARS = 180
+const RESEARCH_SIGNAL_BARS = 250
 const HISTORY_RANGE = '2y'
 const FETCH_CONCURRENCY = 8
 const SIGNAL_IMPROVEMENT_PATH = 'SIGNAL_IMPROVEMENT.md'
