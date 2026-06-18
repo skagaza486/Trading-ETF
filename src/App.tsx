@@ -105,6 +105,42 @@ type ResearchFlagSummary = {
 }
 
 const tabs: TabId[] = ['Dashboard', 'Stocks', 'ETFs', 'Quant Lab']
+const QUANT_SUBTAB_LABELS: Record<QuantLabSubTab, string> = {
+  'ETF Replay': 'ETF Check',
+  'Stock Replay': 'Stock Check',
+  'Stock Research': 'Signal Proof'
+}
+const TAB_META: Record<TabId, {
+  navLabel: string
+  headerTitle: string
+  helper: string
+  navMark: string
+}> = {
+  Dashboard: {
+    navLabel: 'Home / 總覽',
+    headerTitle: 'Home / 總覽',
+    helper: '市場總覽、今日焦點與板塊快覽。',
+    navMark: 'H'
+  },
+  Stocks: {
+    navLabel: 'Stocks / 股票',
+    headerTitle: 'Stocks / 股票',
+    helper: '即時股票信號與戰術掃描。',
+    navMark: 'S'
+  },
+  ETFs: {
+    navLabel: 'ETF',
+    headerTitle: 'ETF',
+    helper: '板塊與 ETF 強弱輪動。',
+    navMark: 'E'
+  },
+  'Quant Lab': {
+    navLabel: 'Verify / 驗證',
+    headerTitle: 'Verify / 驗證',
+    helper: '回看、驗證與規則證明。',
+    navMark: 'V'
+  }
+}
 const BENCHMARK_TICKERS = ['SPY', 'QQQ', '^VIX', 'RSP']
 
 const CATEGORY_ORDER: ETFCategory[] = [
@@ -693,37 +729,33 @@ function returnClass(ret: number | null, label: StockSignalLabel): string {
   return correct ? 'gate-pass' : 'gate-fail'
 }
 
-function pageIntro(activeTab: TabId, stockState: StockState): { eyebrow: string; title: string; description: string; zhSubtitle: string } {
+function pageIntro(activeTab: TabId, stockState: StockState): { title: string; helper: string; subnote: string } {
   switch (activeTab) {
     case 'Dashboard':
       return {
-        eyebrow: 'Overview',
-        title: 'ETF + US Stocks Signal App',
-        description: 'Market regime · today\'s top signals · sector snapshot — all in one view.',
-        zhSubtitle: '市場總覽 — 大市基調 · 今日焦點 · 板塊快覽'
+        title: TAB_META.Dashboard.headerTitle,
+        helper: TAB_META.Dashboard.helper,
+        subnote: 'Regime · Action Radar · Sector Snapshot'
       }
     case 'ETFs':
       return {
-        eyebrow: 'ETF Weekly',
-        title: 'ETF Weekly Advisor',
-        description: 'ETF Weekly is reading live Yahoo history and classifying the current universe.',
-        zhSubtitle: '每週 ETF 評級 — 🟢 值得留意  🟡 先觀察  🔴 避開'
+        title: TAB_META.ETFs.headerTitle,
+        helper: TAB_META.ETFs.helper,
+        subnote: 'Favour · Watch · Avoid'
       }
     case 'Stocks':
       return {
-        eyebrow: 'Screener',
-        title: 'US Stock Tactical Screener',
-        description: stockState.earningsConfigured
-          ? 'Daily stock signals are live with Yahoo price history and Finnhub earnings risk.'
-          : 'Daily stock signals are live from Yahoo history. Add Finnhub earnings risk by configuring FINNHUB_API_KEY.',
-        zhSubtitle: '每日股票信號 — 升降分析（研究階段，非投資建議）'
+        title: TAB_META.Stocks.headerTitle,
+        helper: TAB_META.Stocks.helper,
+        subnote: stockState.earningsConfigured
+          ? 'Yahoo price history + earnings risk'
+          : 'Yahoo price history · earnings risk not configured'
       }
     case 'Quant Lab':
       return {
-        eyebrow: 'Research',
-        title: 'Quant Lab',
-        description: 'Signal replay, forward-return research, and seven-gate validation in one workspace.',
-        zhSubtitle: '量化研究工作區 — 信號回放 · 統計驗證 · 七關卡 Gate'
+        title: TAB_META['Quant Lab'].headerTitle,
+        helper: TAB_META['Quant Lab'].helper,
+        subnote: 'Replay · Validation · Seven Gates'
       }
   }
 }
@@ -1114,70 +1146,75 @@ export default function App() {
     longExcess5d: researchDirectional.excess5dLong,
     earningsConfigured: stockState.earningsConfigured
   })
+
+  const primaryError =
+    activeTab === 'Stocks' ? stockError :
+      activeTab === 'Quant Lab' ? researchError :
+        loadError
+
+  async function handlePrimaryRefresh() {
+    if (activeTab === 'Stocks') {
+      await loadStockData()
+      return
+    }
+
+    if (activeTab === 'Quant Lab') {
+      await loadResearchData()
+      return
+    }
+
+    await loadWeeklyData()
+    if (activeTab === 'Dashboard' && stockState.rows.length > 0) {
+      await loadStockData()
+    }
+  }
+
   return (
     <main className="app-shell">
       <div className="workspace">
-        {/* ── HERO CARD ── */}
-        <section className="panel hero-card">
-          <div className="hero-card__glow" aria-hidden="true" />
-          <p className="eyebrow">{intro.eyebrow}</p>
-          <h1>{intro.title}</h1>
-          <p className="subtle">{intro.description}</p>
-          <p className="zh-subtitle">{intro.zhSubtitle}</p>
-
-          <div className="status-row">
-            <span className="status-chip">
-              Regime: <strong>{regimeSummary(activeRegime)}</strong>
-            </span>
-            <span className="status-chip">
-              Loaded: <strong>{heroLoadedCount}</strong>
-            </span>
-            <span className="status-chip">
-              Failed: <strong>{heroFailedCount}</strong>
-            </span>
-            <span className="status-chip">
-              Updated:{' '}
-              <strong>
-                {heroUpdatedAt
-                  ? new Date(heroUpdatedAt).toLocaleString('en-HK', { hour12: false })
-                  : 'pending'}
-              </strong>
-            </span>
+        <header className="app-header">
+          <div className="app-brand">
+            <div className="app-brand__mark" aria-hidden="true">
+              <span className="app-brand__line" />
+              <span className="app-brand__dot" />
+            </div>
+            <div className="app-brand__copy">
+              <span className="app-brand__name">Pulse</span>
+              <strong className="app-brand__title">{intro.title}</strong>
+            </div>
           </div>
+          <div className="app-header__actions">
+            <button type="button" className="header-tool" onClick={() => void handlePrimaryRefresh()}>
+              Refresh
+            </button>
+            <button type="button" className="header-tool" onClick={() => setShowHelp(v => !v)}>
+              Help
+            </button>
+          </div>
+        </header>
 
-          <div className="hero-metric-strip">
+        <section className="panel summary-strip">
+          <div className="summary-strip__intro">
+            <p className="summary-strip__helper">{intro.helper}</p>
+            <p className="summary-strip__subnote">{intro.subnote}</p>
+          </div>
+          <div className="summary-strip__status">
+            <span className="status-chip">Regime <strong>{regimeSummary(activeRegime)}</strong></span>
+            <span className="status-chip">Loaded <strong>{heroLoadedCount}</strong></span>
+            <span className="status-chip">Updated <strong>{heroUpdatedAt ? new Date(heroUpdatedAt).toLocaleString('en-HK', { hour12: false }) : 'pending'}</strong></span>
+          </div>
+          <div className="summary-strip__metrics">
             {heroMetrics.map(metric => (
-              <article key={metric.label} className={`hero-metric hero-metric--${metric.tone}`}>
-                <span className="hero-metric__label">{metric.label}</span>
-                <strong className="hero-metric__value"><AnimatedMetricValue value={metric.value} /></strong>
-                <span className="hero-metric__note">{metric.note}</span>
+              <article key={metric.label} className={`summary-pill summary-pill--${metric.tone}`}>
+                <span className="summary-pill__label">{metric.label}</span>
+                <strong className="summary-pill__value"><AnimatedMetricValue value={metric.value} /></strong>
+                <span className="summary-pill__note">{metric.note}</span>
               </article>
             ))}
           </div>
-
-          {/* Research-phase disclaimer */}
-          <p className="disclaimer-inline">
-            ⚠️ 研究階段 · 參考工具，非投資建議 · 最後決定喺你自己
-          </p>
-
-          {activeTab === 'Stocks'
-            ? stockError ? <div className="warning">{stockError}</div> : null
-            : loadError ? <div className="warning">{loadError}</div> : null}
+          <p className="summary-strip__disclaimer">研究階段 · 參考工具，非投資建議</p>
+          {primaryError ? <div className="warning">{primaryError}</div> : null}
         </section>
-
-        {/* ── TAB NAV ── */}
-        <nav aria-label="Workspace tabs" className="segmented-control">
-          {tabs.map(tab => (
-            <button
-              key={tab}
-              type="button"
-              className={tab === activeTab ? 'segmented-control__button is-active' : 'segmented-control__button'}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </nav>
 
         {/* ── DASHBOARD ── */}
         {activeTab === 'Dashboard' ? (
@@ -1456,7 +1493,7 @@ export default function App() {
                   className={sub === quantLabSubTab ? 'segmented-control__button is-active' : 'segmented-control__button'}
                   onClick={() => setQuantLabSubTab(sub)}
                 >
-                  {sub}
+                  {QUANT_SUBTAB_LABELS[sub]}
                 </button>
               ))}
             </nav>
@@ -2672,15 +2709,19 @@ export default function App() {
         )}
       </div>
 
-      {/* ── Persistent help button (B6) ── */}
-      <button
-        type="button"
-        className="help-fab"
-        aria-label="說明"
-        onClick={() => setShowHelp(v => !v)}
-      >
-        ?
-      </button>
+      <nav aria-label="Primary navigation" className="bottom-nav">
+        {tabs.map(tab => (
+          <button
+            key={tab}
+            type="button"
+            className={tab === activeTab ? 'bottom-nav__item is-active' : 'bottom-nav__item'}
+            onClick={() => setActiveTab(tab)}
+          >
+            <span className="bottom-nav__icon" aria-hidden="true">{TAB_META[tab].navMark}</span>
+            <span className="bottom-nav__label">{TAB_META[tab].navLabel}</span>
+          </button>
+        ))}
+      </nav>
 
       {/* ── Quick help panel ── */}
       {showHelp && (
@@ -2689,13 +2730,13 @@ export default function App() {
             <button type="button" className="modal-close" onClick={() => setShowHelp(false)}>✕</button>
             <h3>使用說明</h3>
             <dl className="gate-legend__list">
-              <dt>Dashboard</dt>
+              <dt>Home / 總覽</dt>
               <dd>市場基調一覽：Regime + 廣度警示 + 今日焦點信號 + 板塊快覽。</dd>
-              <dt>Stocks</dt>
+              <dt>Stocks / 股票</dt>
               <dd>即時個股信號，按梯形排列：WATCH → SETUP → CONFIRM → PROMOTION。</dd>
-              <dt>ETFs</dt>
+              <dt>ETF</dt>
               <dd>每週大市 ETF 信號：🟢升勢 / 🔴跌勢 / 🟡中性。配合 Regime 判斷大方向。</dd>
-              <dt>Quant Lab</dt>
+              <dt>Verify / 驗證</dt>
               <dd>深度研究：ETF Replay 回放 · Stock Replay 個股歷史 · Signal Research 七關卡驗證。</dd>
             </dl>
             <p className="gate-legend__note">⚠️ 本工具僅供研究，非投資建議。最終決定由你負責。</p>
@@ -2723,7 +2764,7 @@ export default function App() {
 
             {onboardingStep === 1 && (
               <>
-                <h2>歡迎使用 Global ETF 指揮中心</h2>
+                <h2>歡迎使用 Pulse</h2>
                 <p>本工具幫助你追蹤大市 ETF 和個股的趨勢信號。</p>
                 <p>信號分三個層級：<strong>WATCH（初現跡象）→ SETUP（成形）→ CONFIRM（確認）</strong>，越高層越可信。</p>
               </>
@@ -2741,9 +2782,9 @@ export default function App() {
             {onboardingStep === 3 && (
               <>
                 <h2>研究階段聲明</h2>
-                <p>⚠️ 目前所有信號仍屬<strong>研究階段</strong>，未通過六關卡（G1–G6）統計驗證。</p>
+                <p>⚠️ 目前所有信號仍屬<strong>研究階段</strong>，未通過七關卡（G1–G7）統計驗證。</p>
                 <p>本工具提供的是<strong>參考資訊</strong>，而非投資建議。最終買賣決定由你自己負責。</p>
-                <p>可在 Stock Research tab 查看每個信號的統計表現。</p>
+                <p>可在 Verify / 驗證 頁查看每個信號的統計表現。</p>
               </>
             )}
 

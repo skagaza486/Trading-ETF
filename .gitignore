@@ -2,5 +2,6 @@ node_modules/
 dist/
 .cache/
 .tools/
+test-results/
 *.local
 .DS_Store
