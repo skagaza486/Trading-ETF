@@ -1474,8 +1474,9 @@ export default function App() {
       : breadthPercent >= 50
       ? 'Participation steady'
       : 'Breadth below neutral'
-  const desktopStrengthNote = weeklyState.proxyWeakBreadth ? 'Narrow participation' : 'Trend participation healthy'
-  const desktopRiskNote = weeklyState.proxyWeakBreadth ? 'Moderate risk' : 'Risk contained'
+  const desktopStrengthNote = weeklyState.proxyWeakBreadth ? 'Narrow breadth' : 'Breadth healthy'
+  const desktopRiskNote = weeklyState.proxyWeakBreadth ? 'Moderate' : 'Contained'
+  const desktopBreadthDisplay = `Long-led ${breadthPercent}%`
 
   const heroMetrics = buildHeroMetrics({
     activeTab,
@@ -1642,7 +1643,7 @@ export default function App() {
                   </div>
                   <div className="home-state-panel__readout">
                     <div><span>Trend / 趨勢</span><strong>{weeklyState.regime === 'long_friendly' ? 'Uptrend' : weeklyState.regime === 'short_friendly' ? 'Risk-off' : 'Balanced'}</strong></div>
-                    <div><span>Breadth / 廣度</span><strong>{breadthPercent}% long-led</strong></div>
+                    <div><span>Breadth / 廣度</span><strong>{desktopBreadthDisplay}</strong></div>
                     <div><span>Risk / 風險</span><strong>{weeklyState.proxyWeakBreadth ? 'Moderate' : 'Normal'}</strong></div>
                     <div><span>Market vs SPY</span><strong>{stockCounts.LONG > stockCounts.SHORT ? 'Outperform' : 'Mixed'}</strong></div>
                   </div>
@@ -1711,8 +1712,8 @@ export default function App() {
                     </div>
                   </div>
                   <div className="rail-regime-panel__hero">
-                    <span className="rail-regime-panel__eyebrow">Desktop Overview</span>
-                    <p className="rail-regime-panel__summary">{desktopRegimeHeadline} market with {breadthPercent}% long-led breadth.</p>
+                    <span className="rail-regime-panel__eyebrow">Market Posture</span>
+                    <p className="rail-regime-panel__summary">{desktopRegimeHeadline} market with {desktopBreadthDisplay.toLowerCase()}.</p>
                   </div>
                   <div className="rail-regime-grid">
                     <article className="rail-regime-card rail-regime-card--regime">
@@ -1739,7 +1740,7 @@ export default function App() {
                   </div>
                   <div className="rail-regime-panel__footer">
                     <span>Risk {desktopRiskNote}</span>
-                    <span>Market vs SPY {stockCounts.LONG > stockCounts.SHORT ? 'Outperform' : 'Mixed'}</span>
+                    <span>vs SPY {stockCounts.LONG > stockCounts.SHORT ? 'Outperform' : 'Mixed'}</span>
                   </div>
                 </section>
 

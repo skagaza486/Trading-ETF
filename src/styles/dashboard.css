@@ -325,9 +325,12 @@
   font-size: 1.05rem;
   min-width: 0;
   text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.15;
+  max-width: 14ch;
+  justify-self: end;
 }
 
 .home-lower-grid {
@@ -448,13 +451,13 @@
 .rail-regime-panel__summary {
   margin: 0;
   color: var(--text-primary);
-  font-size: 0.92rem;
-  line-height: 1.45;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .rail-regime-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -470,6 +473,10 @@
   gap: 7px;
   align-content: start;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.rail-regime-card--regime {
+  grid-column: 1 / -1;
 }
 
 .rail-regime-card span {
@@ -509,11 +516,11 @@
 }
 
 .rail-regime-card--regime strong {
-  font-size: 1.55rem;
+  font-size: 1.7rem;
 }
 
 .rail-regime-card--strength strong {
-  font-size: 2.2rem;
+  font-size: 2rem;
 }
 
 .rail-regime-meter {
@@ -532,8 +539,8 @@
 
 .rail-breadth-donut {
   --breadth: 50%;
-  width: 72px;
-  height: 72px;
+  width: 66px;
+  height: 66px;
   border-radius: 50%;
   margin-top: 2px;
   display: grid;
@@ -546,7 +553,7 @@
 
 .rail-breadth-donut strong {
   margin: 0;
-  font-size: 0.96rem;
+  font-size: 0.9rem;
   letter-spacing: -0.03em;
 }
 
@@ -559,6 +566,7 @@
   border-top: 1px solid rgba(255,255,255,0.06);
   color: var(--text-secondary);
   font-size: 0.72rem;
+  flex-wrap: wrap;
 }
 
 .rail-stack {
