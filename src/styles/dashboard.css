@@ -2868,6 +2868,28 @@ td select { min-width: 92px; }
   color: var(--text-muted);
 }
 
+.stocks-section__expand {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background 0.15s, color 0.15s;
+}
+
+.stocks-section__expand:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+}
+
 /* ── Help FAB & Panel ────────────────────────────────────────────────── */
 .bottom-nav {
   position: fixed;
@@ -3799,24 +3821,207 @@ td select { min-width: 92px; }
     font-size: 1rem;
   }
 
-  /* Fix 8: Verify workbench cards — reduce 75% */
+  /* Verify workbench cards — compact */
   .verify-workbench__cards {
     grid-template-columns: 1fr;
     gap: 6px;
   }
 
   .verify-workbench__card {
-    padding: 9px 11px;
+    padding: 7px 10px;
     border-radius: 10px;
   }
 
   .verify-workbench__card strong {
-    font-size: 0.85rem;
-    margin: 4px 0 2px;
+    font-size: 0.78rem;
+    margin: 3px 0 2px;
   }
 
   .verify-workbench__card small {
+    font-size: 0.66rem;
+  }
+
+  .verify-workbench__card span {
+    font-size: 0.62rem;
+  }
+
+  /* Verify top summary-strip — compact */
+  .summary-strip {
+    gap: 8px;
+    padding: 10px 12px 9px;
+  }
+
+  .summary-strip__helper {
+    font-size: 0.82rem;
+  }
+
+  .summary-strip__subnote {
+    font-size: 0.62rem;
+    padding: 3px 7px;
+  }
+
+  .summary-pill {
+    padding: 7px 9px 6px;
+  }
+
+  .summary-pill__value {
+    font-size: 1.1rem;
+  }
+
+  /* Home Market Snapshot — compact */
+  .home-strip {
+    padding: 8px 14px 9px;
+    margin-bottom: 8px;
+  }
+
+  .home-strip__head {
+    margin-bottom: 8px;
+  }
+
+  .home-strip__item strong {
+    font-size: 1.05rem;
+    margin: 3px 0 2px;
+  }
+
+  .home-strip__item small {
     font-size: 0.72rem;
+  }
+
+  /* Home Market State — compact */
+  .home-state-panel__ring {
+    width: 80px;
+    height: 80px;
+  }
+
+  .home-state-panel__gauge {
+    grid-template-columns: 90px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .home-state-panel__score strong {
+    font-size: 1.4rem;
+  }
+
+  .home-state-panel__scorecopy p {
+    font-size: 0.88rem;
+  }
+
+  .home-state-panel__readout {
+    gap: 4px;
+  }
+
+  /* Action Radar & ETF Leaders rail-notes — compact */
+  .rail-note {
+    padding: 7px 9px;
+  }
+
+  .rail-note strong {
+    font-size: 0.8rem;
+    margin: 0 0 3px;
+  }
+
+  .rail-note span {
+    font-size: 0.72rem;
+  }
+
+  /* Stocks filter toolbar — 2-column on mobile */
+  .stocks-filter-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .stocks-filter-line {
+    padding: 9px 11px;
+    gap: 8px;
+  }
+
+  /* ETF summary cards — 4 in one row, compact */
+  .dashboard-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-grid .summary-card {
+    min-height: 68px;
+  }
+
+  .summary-card {
+    padding: 7px 8px 6px;
+  }
+
+  .summary-card h2 {
+    font-size: 0.55rem;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .summary-card strong {
+    font-size: 3.5rem;
+  }
+
+  .summary-card > span {
+    font-size: 0.6rem;
+  }
+
+  /* ETF weekly cards — compact */
+  .etf-card {
+    padding: 8px 9px 7px;
+  }
+
+  .etf-card__ticker {
+    font-size: 0.9rem;
+  }
+
+  .etf-card__name {
+    font-size: 0.65rem;
+  }
+
+  .etf-card__metric {
+    font-size: 0.65rem;
+  }
+
+  /* ETF panel section — compact top padding */
+  .panel.wide {
+    padding: 12px 14px 12px;
+  }
+
+  /* Bottom nav — more visible */
+  .bottom-nav {
+    background: rgba(4, 10, 10, 0.97);
+    border-color: rgba(255,255,255,0.1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(39,227,141,0.06);
+  }
+
+  .bottom-nav__icon {
+    width: 28px;
+    height: 28px;
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  .bottom-nav__icon-image {
+    width: 18px;
+    height: 18px;
+    opacity: 0.9;
+    filter: brightness(1.3);
+  }
+
+  .bottom-nav__item.is-active .bottom-nav__icon-image {
+    filter: drop-shadow(0 0 6px rgba(39,227,141,0.5)) brightness(1.4);
+  }
+
+  .bottom-nav__label-en {
+    font-size: 0.64rem;
+    color: rgba(255,255,255,0.8);
+  }
+
+  .bottom-nav__label-zh {
+    font-size: 0.58rem;
+    color: rgba(255,255,255,0.55);
+  }
+
+  .bottom-nav__item.is-active .bottom-nav__label-en {
+    color: var(--accent);
   }
 }
 

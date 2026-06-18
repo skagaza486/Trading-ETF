@@ -1023,6 +1023,7 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false)
   const [etfReplayExpanded, setEtfReplayExpanded] = useState(false)
   const [stockReplayExpanded, setStockReplayExpanded] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set())
   const [expandedEtfCategories, setExpandedEtfCategories] = useState<Set<ETFCategory>>(
     () => new Set(CATEGORY_ORDER)
   )
@@ -2774,44 +2775,38 @@ export default function App() {
                 const setupRows = sortedStockRows.filter(r => r.label === 'LONG_BASE' || r.label === 'WATCH' || r.label === 'SHORT_BASE' || r.label === 'SHORT_WATCH')
                 const neutralRows = sortedStockRows.filter(r => r.label === 'NEUTRAL' || r.label === 'AVOID_CHOP')
                 const reviewRows = sortedStockRows.filter(r => r.label === 'REVIEW_DATA' || r.label === 'REVIEW_EVENT')
+                const CAPS: Record<string, number> = { entry: 6, setup: 8, neutral: 5, review: 5 }
+                const toggleSection = (key: string) => setExpandedSections(prev => {
+                  const next = new Set(prev)
+                  next.has(key) ? next.delete(key) : next.add(key)
+                  return next
+                })
+                const renderSection = (rows: typeof entryRows, key: string, label: string, labelClass: string) => {
+                  if (rows.length === 0) return null
+                  const cap = CAPS[key] ?? 8
+                  const isExpanded = expandedSections.has(key)
+                  const displayed = isExpanded ? rows : rows.slice(0, cap)
+                  return (
+                    <div className="stocks-section">
+                      <div className="stocks-section__header">
+                        <span className={`stocks-section__label ${labelClass}`}>{label}</span>
+                        <span className="stocks-section__count">{rows.length}</span>
+                      </div>
+                      <div className="stocks-terminal">{renderStockTerminalRows(displayed, key as Parameters<typeof renderStockTerminalRows>[1])}</div>
+                      {rows.length > cap && (
+                        <button className="stocks-section__expand" onClick={() => toggleSection(key)}>
+                          {isExpanded ? `▲ 收起 Collapse` : `▼ 展開 +${rows.length - cap} more`}
+                        </button>
+                      )}
+                    </div>
+                  )
+                }
                 return (
                   <>
-                    {entryRows.length > 0 && (
-                      <div className="stocks-section">
-                        <div className="stocks-section__header">
-                          <span className="stocks-section__label stocks-section__label--entry">Entry Triggers 入場信號</span>
-                          <span className="stocks-section__count">{entryRows.length}</span>
-                        </div>
-                        <div className="stocks-terminal">{renderStockTerminalRows(entryRows, 'entry')}</div>
-                      </div>
-                    )}
-                    {setupRows.length > 0 && (
-                      <div className="stocks-section">
-                        <div className="stocks-section__header">
-                          <span className="stocks-section__label stocks-section__label--setup">Setups 候選觀察</span>
-                          <span className="stocks-section__count">{setupRows.length}</span>
-                        </div>
-                        <div className="stocks-terminal">{renderStockTerminalRows(setupRows, 'setup')}</div>
-                      </div>
-                    )}
-                    {neutralRows.length > 0 && (
-                      <div className="stocks-section">
-                        <div className="stocks-section__header">
-                          <span className="stocks-section__label stocks-section__label--neutral">Neutral / Chop 中性</span>
-                          <span className="stocks-section__count">{neutralRows.length}</span>
-                        </div>
-                        <div className="stocks-terminal">{renderStockTerminalRows(neutralRows, 'neutral')}</div>
-                      </div>
-                    )}
-                    {reviewRows.length > 0 && (
-                      <div className="stocks-section">
-                        <div className="stocks-section__header">
-                          <span className="stocks-section__label stocks-section__label--review">Review 待確認</span>
-                          <span className="stocks-section__count">{reviewRows.length}</span>
-                        </div>
-                        <div className="stocks-terminal">{renderStockTerminalRows(reviewRows, 'review')}</div>
-                      </div>
-                    )}
+                    {renderSection(entryRows, 'entry', 'Entry Triggers 入場信號', 'stocks-section__label--entry')}
+                    {renderSection(setupRows, 'setup', 'Setups 候選觀察', 'stocks-section__label--setup')}
+                    {renderSection(neutralRows, 'neutral', 'Neutral / Chop 中性', 'stocks-section__label--neutral')}
+                    {renderSection(reviewRows, 'review', 'Review 待確認', 'stocks-section__label--review')}
                   </>
                 )
               })()}
