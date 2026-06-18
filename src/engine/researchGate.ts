@@ -45,36 +45,30 @@ export type LabelGateResult = {
   status: GateStatus
 }
 
+// WATCH is a universe filter, not an entry signal — excluded from gate evaluation
 const DIRECTIONAL_LABELS: ReadonlySet<StockSignalLabel> = new Set([
-  'LONG_WATCH',
-  'LONG_SETUP',
+  'LONG_BREAK',
   'LONG_VCP',
-  'LONG_PULLBACK',
-  'LONG_CONFIRM',
-  'UP_PROMOTION',
+  'LONG_BOUNCE',
+  'LONG_BASE',
+  'SHORT_BREAK',
+  'SHORT_BASE',
   'SHORT_WATCH',
-  'SHORT_SETUP',
-  'SHORT_CONFIRM',
-  'DOWN_PROMOTION',
 ])
 
 const SHORT_LABELS: ReadonlySet<StockSignalLabel> = new Set([
+  'SHORT_BREAK',
+  'SHORT_BASE',
   'SHORT_WATCH',
-  'SHORT_SETUP',
-  'SHORT_CONFIRM',
-  'DOWN_PROMOTION',
 ])
 
 const LABEL_ORDER: StockSignalLabel[] = [
-  'LONG_CONFIRM',
-  'UP_PROMOTION',
+  'LONG_BREAK',
   'LONG_VCP',
-  'LONG_SETUP',
-  'LONG_PULLBACK',
-  'LONG_WATCH',
-  'SHORT_CONFIRM',
-  'DOWN_PROMOTION',
-  'SHORT_SETUP',
+  'LONG_BOUNCE',
+  'LONG_BASE',
+  'SHORT_BREAK',
+  'SHORT_BASE',
   'SHORT_WATCH',
 ]
 

@@ -118,6 +118,18 @@ function buildIndicatorSnapshot(
     ? Math.max(...bars.slice(-Math.min(252, bars.length)).map(b => b.high))
     : null
 
+  // recentPullbackNearEma20: any of last 5 bars (excluding today) had low <= EMA20 * 1.02
+  // Used by LONG_BOUNCE to confirm a multi-day pullback occurred before today's bounce
+  const recentPullbackNearEma20 = (() => {
+    const n = bars.length
+    if (n < 7) return null
+    for (let i = n - 6; i < n - 1; i++) {
+      const e = ema20[i]
+      if (e !== null && bars[i].low <= e * 1.02) return true
+    }
+    return false
+  })()
+
   return {
     close: latestClose,
     low: latestLow,
@@ -139,7 +151,8 @@ function buildIndicatorSnapshot(
     relStrengthVsSpy: computeRelativeStrengthVsSpy(history, benchmarks.SPY, 20),
     atr: latestValue(atr),
     aboveEma200: latestEma200 !== null ? latestClose >= latestEma200 : null,
-    nearHigh52w: high52w !== null ? latestClose >= high52w * 0.75 : null
+    nearHigh52w: high52w !== null ? latestClose >= high52w * 0.75 : null,
+    recentPullbackNearEma20
   }
 }
 
@@ -178,7 +191,8 @@ export function classifyStock(
         relStrengthVsSpy: null,
         atr: null,
         aboveEma200: null,
-        nearHigh52w: null
+        nearHigh52w: null,
+        recentPullbackNearEma20: null
       },
       regime,
       earningsWithinWindow: false,
@@ -217,12 +231,12 @@ export function classifyStock(
 
   let label = resolveStockLabel(indicators, effectiveRegime, previousLabel, earningsWithinReviewWindow)
 
-  if (earningsWithinDangerWindow && (label === 'LONG_CONFIRM' || label === 'UP_PROMOTION')) {
-    label = 'LONG_SETUP'
+  if (earningsWithinDangerWindow && (label === 'LONG_BREAK' || label === 'LONG_VCP' || label === 'LONG_BOUNCE')) {
+    label = 'LONG_BASE'
   }
 
-  if (earningsWithinDangerWindow && (label === 'SHORT_CONFIRM' || label === 'DOWN_PROMOTION')) {
-    label = 'SHORT_SETUP'
+  if (earningsWithinDangerWindow && label === 'SHORT_BREAK') {
+    label = 'SHORT_BASE'
   }
 
   const researchFlags: ResearchFlag[] = []

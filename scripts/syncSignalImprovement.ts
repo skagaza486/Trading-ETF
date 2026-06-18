@@ -8,16 +8,10 @@ import { fetchYahooTickerHistory } from '../src/services/marketData/yahooFinance
 import type { TickerHistory } from '../src/types/indicator'
 
 const STOCK_BENCHMARK_TICKERS = ['SPY', 'QQQ', 'IWM', '^VIX', 'GLD', '2800.HK']
-const EXP009_HEADING = '### EXP-009 — LONG_SETUP / LONG_WATCH / LONG_PULLBACK G3 修復（RS 過濾）'
+const EXP009_HEADING = '### EXP-009 — LONG_BASE / WATCH / LONG_BOUNCE G3 驗證（signal 重新設計後）'
 const RESEARCH_SIGNAL_BARS = 180
 const HISTORY_RANGE = '2y'
 const FETCH_CONCURRENCY = 8
-const EXP009_BASELINE = {
-  longSetupCount: 922,
-  longSetupVsSpy: 0.002,
-  longWatchVsSpy: 0.004,
-  longPullbackVsSpy: -0.003
-}
 
 const repoRoot = process.cwd()
 const signalImprovementPath = path.join(repoRoot, 'SIGNAL_IMPROVEMENT.md')
@@ -202,47 +196,40 @@ function buildExp009Narrative(gateResults: ReturnType<typeof evaluateAllGates>):
   conclusionLine: string
   nextStepLine: string
 } {
-  const longSetup = gateResults.find(result => result.label === 'LONG_SETUP')
-  const longWatch = gateResults.find(result => result.label === 'LONG_WATCH')
-  const longPullback = gateResults.find(result => result.label === 'LONG_PULLBACK')
+  const longBase = gateResults.find(result => result.label === 'LONG_BASE')
+  const watch = gateResults.find(result => result.label === 'WATCH')
+  const longBounce = gateResults.find(result => result.label === 'LONG_BOUNCE')
 
-  if (!longSetup || !longWatch || !longPullback) {
+  if (!longBase) {
     return {
-      conclusionLine: '- 結論：AUTO-SYNC FAILED（缺少 LONG_SETUP / LONG_WATCH / LONG_PULLBACK gate 結果）',
-      nextStepLine: '- 下一步：檢查 research dataset 是否完整生成，確認相關 label 沒有被條件改動意外消失'
+      conclusionLine: '- 結論：AUTO-SYNC FAILED（缺少 LONG_BASE gate 結果；signal 已重新設計，需要重新建立 baseline）',
+      nextStepLine: '- 下一步：執行 `research:sync-exp009` 建立新設計的第一份 baseline'
     }
   }
 
-  const setupSampleReduced = longSetup.count < EXP009_BASELINE.longSetupCount
-  const setupVsSpyImproved = (longSetup.avgRet5dVsSpy ?? Number.NEGATIVE_INFINITY) > EXP009_BASELINE.longSetupVsSpy
-  const setupG3Passed = longSetup.gate3VsSpy === true
-  const watchG3Passed = longWatch.gate3VsSpy === true
-  const pullbackTurnedPositive = (longPullback.avgRet5dVsSpy ?? Number.NEGATIVE_INFINITY) > 0
+  const baseG3Passed = longBase.gate3VsSpy === true
+  const watchPositive = (watch?.avgRet5dVsSpy ?? Number.NEGATIVE_INFINITY) > 0
+  const bouncePositive = (longBounce?.avgRet5dVsSpy ?? Number.NEGATIVE_INFINITY) > 0
 
   let verdict = 'PARTIAL'
-  if (setupG3Passed && watchG3Passed && pullbackTurnedPositive) {
+  if (baseG3Passed && watchPositive && bouncePositive) {
     verdict = 'PASS'
-  } else if (!setupSampleReduced && !setupVsSpyImproved) {
-    verdict = 'FAIL'
+  } else if (!longBase.gate1SampleSize) {
+    verdict = 'INSUFFICIENT'
   }
 
   const conclusionLine = [
     `- 結論：${verdict}（auto-sync）`,
-    `LONG_SETUP 樣本由 ${EXP009_BASELINE.longSetupCount} 降至 ${longSetup.count}`,
-    `vs SPY 由 ${formatSignedPercent(EXP009_BASELINE.longSetupVsSpy)} 升至 ${formatSignedPercent(longSetup.avgRet5dVsSpy)}`,
-    setupG3Passed ? '已通過 G3' : '仍未過 G3 > +0.5%',
-    `LONG_WATCH vs SPY ${formatSignedPercent(longWatch.avgRet5dVsSpy)}`,
-    `LONG_PULLBACK vs SPY ${formatSignedPercent(longPullback.avgRet5dVsSpy)}`
+    `LONG_BASE n=${longBase.count}, vs SPY ${formatSignedPercent(longBase.avgRet5dVsSpy)}`,
+    baseG3Passed ? 'G3 PASS' : 'G3 FAIL',
+    watch ? `WATCH vs SPY ${formatSignedPercent(watch.avgRet5dVsSpy)}` : 'WATCH n/a',
+    longBounce ? `LONG_BOUNCE vs SPY ${formatSignedPercent(longBounce.avgRet5dVsSpy)}` : 'LONG_BOUNCE n/a'
   ].join('；')
 
-  let nextStepLine = '- 下一步：保留當前 RS 過濾，繼續觀察下一輪自動同步結果'
+  let nextStepLine = '- 下一步：新設計首次 baseline 已建立，繼續觀察後續同步結果'
 
-  if (!setupG3Passed) {
-    nextStepLine = '- 下一步：按 ROADMAP 建議，把 LONG_SETUP 的 RVOL 門檻由 1.2 提高到 1.5，然後重新執行 `research:sync-exp009`'
-  } else if (!watchG3Passed) {
-    nextStepLine = '- 下一步：LONG_SETUP 已改善，但 LONG_WATCH 仍未過 G3；可考慮再收緊 LONG_WATCH 的 RS 或動量門檻，之後重新同步'
-  } else if (!pullbackTurnedPositive) {
-    nextStepLine = '- 下一步：LONG_PULLBACK 仍未轉正，建議把它獨立成下一個假設，不要和 LONG_SETUP 共用同一輪結論'
+  if (!baseG3Passed && longBase.gate1SampleSize) {
+    nextStepLine = '- 下一步：LONG_BASE G3 未過；考慮收緊壓縮條件（atrSlope50 + rvolRecentAvg10 同時要求）'
   }
 
   return { conclusionLine, nextStepLine }
@@ -252,7 +239,7 @@ function formatRollingRobustnessTable(
   robustnessResults: ReturnType<typeof evaluateRollingWindowRobustness>
 ): string {
   const rows = robustnessResults
-    .filter(item => item.label === 'LONG_SETUP' || item.label === 'LONG_WATCH' || item.label === 'LONG_PULLBACK')
+    .filter(item => item.label === 'LONG_BASE' || item.label === 'LONG_BOUNCE' || item.label === 'LONG_BREAK')
     .flatMap(item => item.summaries.map(summary => [
       item.label,
       summary.window.label,
@@ -320,16 +307,16 @@ async function main() {
   const nextContent = updateExp009Section(currentContent, syncedBlock, robustnessBlock, conclusionLine, nextStepLine)
   await writeFile(signalImprovementPath, nextContent, 'utf8')
 
-  const longSetup = gateResults.find(result => result.label === 'LONG_SETUP')
+  const longBase = gateResults.find(result => result.label === 'LONG_BASE')
 
   console.log(`Synced EXP-009 Gate Summary at ${formatSyncTimestamp(syncedAt)}`)
   console.log(`Records: ${records.length} | Labels: ${gateResults.length} | Failures: ${failedTickers.length}`)
   if (failedTickers.length > 0) {
     console.log(`Failed tickers: ${failedTickers.slice(0, 12).join(', ')}`)
   }
-  if (longSetup) {
+  if (longBase) {
     console.log(
-      `LONG_SETUP => n=${longSetup.count}, avg5D=${formatPercent(longSetup.avgRet5d)}, vsSPY=${formatPercent(longSetup.avgRet5dVsSpy)}, status=${longSetup.status}`
+      `LONG_BASE => n=${longBase.count}, avg5D=${formatPercent(longBase.avgRet5d)}, vsSPY=${formatPercent(longBase.avgRet5dVsSpy)}, status=${longBase.status}`
     )
   }
   console.log(conclusionLine)

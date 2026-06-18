@@ -39,6 +39,7 @@ export function resolveStockLabel(
   const clv = indicators.clv as number
   const relStrengthVsSpy = indicators.relStrengthVsSpy as number
 
+  // AVOID_CHOP: low-energy sideways — no direction, low vol, flat slope
   const choppy =
     rsi14 >= 45 &&
     rsi14 <= 55 &&
@@ -51,25 +52,12 @@ export function resolveStockLabel(
     return 'AVOID_CHOP'
   }
 
-  const longWatch =
-    rsi14 > 50 &&
-    macdHistogram > 0 &&
-    cmf20 > 0 &&
-    obvSlope > 0 &&
-    relStrengthVsSpy > -0.02 &&   // G3 fix: exclude severely underperforming names
-    regime !== 'short_friendly'
+  // ── LONG SIDE ────────────────────────────────────────────────────────────────
 
-  const longSetup =
-    indicators.close > ema20 &&
-    ema20Slope > 0 &&
-    rsi14 > 55 &&
-    rvol > 1.2 &&
-    cmf20 > 0 &&
-    relStrengthVsSpy > 0 &&       // G3 fix: require stock already beating SPY
-    regime !== 'short_friendly' &&
-    indicators.aboveEma200 !== false
-
-  const longConfirm =
+  // LONG_BREAK: entry trigger — volume breakout with confirmed prior ladder context
+  // Structure: trend aligned, near 52w high
+  // Trigger: breakout20d + RVOL expansion + quality close + CMF
+  const longBreak =
     indicators.breakout20d === true &&
     rvol > 1.8 &&
     cmf20 > 0.1 &&
@@ -81,20 +69,20 @@ export function resolveStockLabel(
     indicators.nearHigh52w !== false
 
   // HYP-009: require prior bar in long ladder to prevent single-day impulse breakouts
-  if (longConfirm) {
+  if (longBreak) {
     const priorLong =
-      previousLabel === 'LONG_WATCH' ||
-      previousLabel === 'LONG_SETUP' ||
+      previousLabel === 'WATCH' ||
+      previousLabel === 'LONG_BASE' ||
       previousLabel === 'LONG_VCP' ||
-      previousLabel === 'LONG_PULLBACK' ||
-      previousLabel === 'LONG_CONFIRM' ||
-      previousLabel === 'UP_PROMOTION'
+      previousLabel === 'LONG_BOUNCE' ||
+      previousLabel === 'LONG_BREAK'
     if (priorLong) {
-      return previousLabel === 'LONG_SETUP' ? 'UP_PROMOTION' : 'LONG_CONFIRM'
+      return 'LONG_BREAK'
     }
   }
 
-  // VCP: Volatility Contraction Pattern — volume dried up then breakout on volume
+  // LONG_VCP: Volatility Contraction Pattern — structure + contraction + breakout trigger
+  // VCP already embeds structure + trigger in a single well-defined pattern
   const longVcp =
     indicators.aboveEma200 === true &&
     indicators.atrSlope50 !== null && indicators.atrSlope50 < 0 &&
@@ -107,43 +95,63 @@ export function resolveStockLabel(
     return 'LONG_VCP'
   }
 
-  if (longSetup) {
-    return 'LONG_SETUP'
+  // LONG_BASE: setup — structure intact + compression forming, waiting for trigger
+  // Structure: trend aligned above EMA200, RS positive
+  // Compression: ATR contracting OR recent volume drying up
+  const longBase =
+    indicators.aboveEma200 !== false &&
+    ema20 > ema50 &&
+    indicators.ema50Slope !== null && indicators.ema50Slope > 0 &&
+    ema20Slope > 0 &&
+    relStrengthVsSpy > 0 &&
+    rsi14 >= 45 && rsi14 <= 65 &&
+    (
+      (indicators.atrSlope50 !== null && indicators.atrSlope50 < 0) ||
+      (indicators.rvolRecentAvg10 !== null && indicators.rvolRecentAvg10 < 0.8)
+    ) &&
+    regime !== 'short_friendly'
+
+  if (longBase) {
+    return 'LONG_BASE'
   }
 
-  // Pullback: trend intact, price pulled back to EMA20 support with bounce close
-  const longPullback =
+  // LONG_BOUNCE: entry trigger — pullback to EMA20 over recent days, today bounced back above
+  // Structure: uptrend intact, above EMA200
+  // Multi-bar: price was near EMA20 in last 5 days (recentPullbackNearEma20)
+  // Trigger: close reclaimed EMA20 today with quality close
+  const longBounce =
     regime === 'long_friendly' &&
     indicators.ema50Slope !== null && indicators.ema50Slope > 0 &&
-    indicators.ema20 !== null && indicators.low <= indicators.ema20 * 1.02 &&
-    rsi14 >= 40 && rsi14 <= 50 &&
-    clv > 0.8 &&
-    indicators.aboveEma200 !== false  // G3 fix: pullbacks only in long-term uptrend
+    indicators.aboveEma200 !== false &&
+    ema20 > ema50 &&
+    indicators.recentPullbackNearEma20 === true &&
+    indicators.close > ema20 &&
+    rsi14 >= 42 && rsi14 <= 58 &&
+    clv > 0.6 &&
+    relStrengthVsSpy > 0
 
-  if (longPullback) {
-    return 'LONG_PULLBACK'
+  if (longBounce) {
+    return 'LONG_BOUNCE'
   }
 
-  if (longWatch) {
-    return 'LONG_WATCH'
+  // WATCH: universe filter — momentum building, structural direction positive
+  // This is a watchlist candidate, not an entry signal — not gated
+  const watch =
+    rsi14 > 50 &&
+    macdHistogram > 0 &&
+    cmf20 > 0 &&
+    obvSlope > 0 &&
+    relStrengthVsSpy > -0.02 &&
+    regime !== 'short_friendly'
+
+  if (watch) {
+    return 'WATCH'
   }
 
-  const shortWatch =
-    indicators.close < ema20 &&
-    rsi14 < 50 &&
-    relStrengthVsSpy < 0 &&
-    macdHistogram < 0 &&
-    regime !== 'long_friendly'
+  // ── SHORT SIDE (frozen — 2024-2026 bull market sample biases results) ─────────
 
-  const shortSetup =
-    indicators.close < ema20 &&
-    ema20Slope < 0 &&
-    rsi14 < 45 &&
-    rvol > 1.5 &&
-    cmf20 < 0 &&
-    regime !== 'long_friendly'
-
-  const shortConfirm =
+  // SHORT_BREAK: entry trigger — breakdown with volume + prior short ladder context
+  const shortBreak =
     indicators.breakdown20d === true &&
     rvol > 1.5 &&
     cmf20 < -0.05 &&
@@ -152,21 +160,36 @@ export function resolveStockLabel(
     rsi14 < 45 &&
     regime !== 'long_friendly'
 
-  // HYP-009: require prior bar in short ladder to prevent single-day impulse breakdowns
-  if (shortConfirm) {
+  if (shortBreak) {
     const priorShort =
       previousLabel === 'SHORT_WATCH' ||
-      previousLabel === 'SHORT_SETUP' ||
-      previousLabel === 'SHORT_CONFIRM' ||
-      previousLabel === 'DOWN_PROMOTION'
+      previousLabel === 'SHORT_BASE' ||
+      previousLabel === 'SHORT_BREAK'
     if (priorShort) {
-      return previousLabel === 'SHORT_SETUP' ? 'DOWN_PROMOTION' : 'SHORT_CONFIRM'
+      return 'SHORT_BREAK'
     }
   }
 
-  if (shortSetup) {
-    return 'SHORT_SETUP'
+  // SHORT_BASE: setup — structure deteriorating, waiting for breakdown trigger
+  const shortBase =
+    indicators.close < ema20 &&
+    ema20Slope < 0 &&
+    rsi14 < 45 &&
+    rvol > 1.5 &&
+    cmf20 < 0 &&
+    regime !== 'long_friendly'
+
+  if (shortBase) {
+    return 'SHORT_BASE'
   }
+
+  // SHORT_WATCH: early weakness — price below EMA20, momentum turning negative
+  const shortWatch =
+    indicators.close < ema20 &&
+    rsi14 < 50 &&
+    relStrengthVsSpy < 0 &&
+    macdHistogram < 0 &&
+    regime !== 'long_friendly'
 
   if (shortWatch) {
     return 'SHORT_WATCH'

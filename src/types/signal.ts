@@ -1,18 +1,16 @@
 export type ETFLabel = 'FAVOUR' | 'WATCH' | 'WAIT' | 'AVOID' | 'REVIEW'
 
 export type LongSignalLabel =
-  | 'LONG_WATCH'
-  | 'LONG_SETUP'
+  | 'WATCH'
+  | 'LONG_BASE'
   | 'LONG_VCP'
-  | 'LONG_PULLBACK'
-  | 'LONG_CONFIRM'
-  | 'UP_PROMOTION'
+  | 'LONG_BOUNCE'
+  | 'LONG_BREAK'
 
 export type ShortSignalLabel =
   | 'SHORT_WATCH'
-  | 'SHORT_SETUP'
-  | 'SHORT_CONFIRM'
-  | 'DOWN_PROMOTION'
+  | 'SHORT_BASE'
+  | 'SHORT_BREAK'
 
 export type NeutralSignalLabel =
   | 'NEUTRAL'
@@ -84,4 +82,5 @@ export type StockIndicatorSnapshot = {
   atr: number | null
   aboveEma200: boolean | null
   nearHigh52w: boolean | null
+  recentPullbackNearEma20: boolean | null
 }

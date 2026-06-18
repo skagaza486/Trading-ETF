@@ -25,17 +25,10 @@ export type ResearchFlagDisplay = {
 }
 
 const STOCK_LABEL_MAP: Record<StockSignalLabel, Omit<StockLabelDisplay, 'enCode'>> = {
-  UP_PROMOTION: {
+  LONG_BREAK: {
     lightEmoji: '🟢',
-    zhText: '升勢確認＋加強',
-    plainReason: '連續轉強，升得有力',
-    action: '值得研究',
-    actionGroup: 'consider'
-  },
-  LONG_CONFIRM: {
-    lightEmoji: '🟢',
-    zhText: '升勢已確認',
-    plainReason: '升得有力，成交配合',
+    zhText: '放量突破，入場信號',
+    plainReason: '突破 20 日高點，成交大增，升勢確認',
     action: '值得研究',
     actionGroup: 'consider'
   },
@@ -46,24 +39,24 @@ const STOCK_LABEL_MAP: Record<StockSignalLabel, Omit<StockLabelDisplay, 'enCode'
     action: '值得研究',
     actionGroup: 'consider'
   },
-  LONG_SETUP: {
+  LONG_BOUNCE: {
     lightEmoji: '🟢',
-    zhText: '接近買入點',
-    plainReason: '升勢成形，留意入場',
+    zhText: '回調後反彈，買入機會',
+    plainReason: '升勢完好，近日回調至 EMA20，今日反彈收復',
     action: '值得研究',
     actionGroup: 'consider'
   },
-  LONG_PULLBACK: {
+  LONG_BASE: {
     lightEmoji: '🟢',
-    zhText: '升勢回調，趁低吸納',
-    plainReason: '升勢完好，回調至支撐，收市反彈',
+    zhText: '底部盤整，等待觸發',
+    plainReason: '趨勢完整，量能收縮，靜候突破或反彈信號',
     action: '值得研究',
     actionGroup: 'consider'
   },
-  LONG_WATCH: {
+  WATCH: {
     lightEmoji: '🟡',
-    zhText: '初現上升跡象',
-    plainReason: '啱啱轉好，未到位，先睇住',
+    zhText: '動量聚集，列入候選',
+    plainReason: '方向初現，動量轉正，納入觀察名單',
     action: '先觀察',
     actionGroup: 'watch'
   },
@@ -88,24 +81,17 @@ const STOCK_LABEL_MAP: Record<StockSignalLabel, Omit<StockLabelDisplay, 'enCode'
     action: '避開',
     actionGroup: 'avoid'
   },
-  SHORT_SETUP: {
+  SHORT_BASE: {
     lightEmoji: '🔴',
     zhText: '跌勢成形',
     plainReason: '跌緊，唔好接',
     action: '避開',
     actionGroup: 'avoid'
   },
-  SHORT_CONFIRM: {
+  SHORT_BREAK: {
     lightEmoji: '🔴',
-    zhText: '跌勢已確認',
-    plainReason: '明顯下跌，遠離',
-    action: '避開',
-    actionGroup: 'avoid'
-  },
-  DOWN_PROMOTION: {
-    lightEmoji: '🔴',
-    zhText: '跌勢確認＋加強',
-    plainReason: '連續轉弱，跌得急',
+    zhText: '放量跌破，跌勢確認',
+    plainReason: '跌穿 20 日低位，成交大增，明顯下跌',
     action: '避開',
     actionGroup: 'avoid'
   },

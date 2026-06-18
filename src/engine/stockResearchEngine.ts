@@ -6,7 +6,7 @@ import { classifyRegime, deriveRegimeInputsFromHistories } from './marketRegime'
 import { classifyStock } from './stockScreenerEngine'
 
 function isShortLabel(label: StockSignal['label']): boolean {
-  return label.startsWith('SHORT') || label === 'DOWN_PROMOTION'
+  return label.startsWith('SHORT')
 }
 
 function favorableAndAdverseExcursions(signal: StockSignal, history: TickerHistory, index: number, days: number): {

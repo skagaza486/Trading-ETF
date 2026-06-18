@@ -452,20 +452,18 @@ function buildStockRows(
 ): StockRow[] {
   const stockPriority = (label: StockSignalLabel): number => {
     switch (label) {
-      case 'UP_PROMOTION': return 0
-      case 'LONG_CONFIRM': return 1
-      case 'LONG_VCP': return 2
-      case 'LONG_SETUP': return 3
-      case 'LONG_PULLBACK': return 4
-      case 'LONG_WATCH': return 5
-      case 'DOWN_PROMOTION': return 6
-      case 'SHORT_CONFIRM': return 7
-      case 'SHORT_SETUP': return 8
-      case 'SHORT_WATCH': return 9
-      case 'NEUTRAL': return 10
-      case 'AVOID_CHOP': return 11
-      case 'REVIEW_EVENT': return 12
-      case 'REVIEW_DATA': return 13
+      case 'LONG_BREAK': return 0
+      case 'LONG_VCP': return 1
+      case 'LONG_BOUNCE': return 2
+      case 'LONG_BASE': return 3
+      case 'WATCH': return 4
+      case 'SHORT_BREAK': return 5
+      case 'SHORT_BASE': return 6
+      case 'SHORT_WATCH': return 7
+      case 'NEUTRAL': return 8
+      case 'AVOID_CHOP': return 9
+      case 'REVIEW_EVENT': return 10
+      case 'REVIEW_DATA': return 11
     }
   }
 
@@ -518,8 +516,8 @@ function buildStockRows(
 }
 
 function stockLabelGroup(label: StockSignalLabel): 'LONG' | 'SHORT' | 'NEUTRAL' | 'REVIEW' {
-  if (label.startsWith('LONG') || label === 'UP_PROMOTION') return 'LONG'
-  if (label.startsWith('SHORT') || label === 'DOWN_PROMOTION') return 'SHORT'
+  if (label.startsWith('LONG') || label === 'WATCH') return 'LONG'
+  if (label.startsWith('SHORT')) return 'SHORT'
   if (label === 'REVIEW_DATA' || label === 'REVIEW_EVENT') return 'REVIEW'
   return 'NEUTRAL'
 }
@@ -536,20 +534,18 @@ function countStockGroups(rows: StockRow[]): Record<'LONG' | 'SHORT' | 'NEUTRAL'
 
 function stockResearchLabelPriority(label: StockSignalLabel): number {
   switch (label) {
-    case 'UP_PROMOTION': return 0
-    case 'LONG_CONFIRM': return 1
-    case 'LONG_VCP': return 2
-    case 'LONG_SETUP': return 3
-    case 'LONG_PULLBACK': return 4
-    case 'LONG_WATCH': return 5
-    case 'DOWN_PROMOTION': return 6
-    case 'SHORT_CONFIRM': return 7
-    case 'SHORT_SETUP': return 8
-    case 'SHORT_WATCH': return 9
-    case 'NEUTRAL': return 10
-    case 'AVOID_CHOP': return 11
-    case 'REVIEW_EVENT': return 12
-    case 'REVIEW_DATA': return 13
+    case 'LONG_BREAK': return 0
+    case 'LONG_VCP': return 1
+    case 'LONG_BOUNCE': return 2
+    case 'LONG_BASE': return 3
+    case 'WATCH': return 4
+    case 'SHORT_BREAK': return 5
+    case 'SHORT_BASE': return 6
+    case 'SHORT_WATCH': return 7
+    case 'NEUTRAL': return 8
+    case 'AVOID_CHOP': return 9
+    case 'REVIEW_EVENT': return 10
+    case 'REVIEW_DATA': return 11
   }
 }
 
@@ -1093,10 +1089,10 @@ export default function App() {
 
   // Dashboard Action Radar
   const radarAttack = useMemo(() =>
-    stockState.rows.filter(r => r.label === 'LONG_CONFIRM' || r.label === 'LONG_PULLBACK' || r.label === 'UP_PROMOTION').slice(0, 3)
+    stockState.rows.filter(r => r.label === 'LONG_BREAK' || r.label === 'LONG_BOUNCE' || r.label === 'LONG_VCP').slice(0, 3)
   , [stockState.rows])
   const radarDefend = useMemo(() =>
-    stockState.rows.filter(r => r.label === 'AVOID_CHOP' || r.label === 'SHORT_CONFIRM' || r.label === 'DOWN_PROMOTION').slice(0, 3)
+    stockState.rows.filter(r => r.label === 'AVOID_CHOP' || r.label === 'SHORT_BREAK').slice(0, 3)
   , [stockState.rows])
   const sectorFavour = useMemo(() =>
     weeklyState.rows.filter(r => r.label === 'FAVOUR').slice(0, 3)
@@ -2004,13 +2000,13 @@ export default function App() {
                     Label 信號
                     <select value={selectedResearchLabel} onChange={e => setSelectedResearchLabel(e.target.value as StockSignalLabel | 'ALL')}>
                       <option value="ALL">ALL — 全部</option>
-                      <option value="UP_PROMOTION">UP_PROMOTION</option>
-                      <option value="LONG_CONFIRM">LONG_CONFIRM</option>
-                      <option value="LONG_SETUP">LONG_SETUP</option>
-                      <option value="LONG_WATCH">LONG_WATCH</option>
-                      <option value="DOWN_PROMOTION">DOWN_PROMOTION</option>
-                      <option value="SHORT_CONFIRM">SHORT_CONFIRM</option>
-                      <option value="SHORT_SETUP">SHORT_SETUP</option>
+                      <option value="LONG_BREAK">LONG_BREAK</option>
+                      <option value="LONG_VCP">LONG_VCP</option>
+                      <option value="LONG_BOUNCE">LONG_BOUNCE</option>
+                      <option value="LONG_BASE">LONG_BASE</option>
+                      <option value="WATCH">WATCH</option>
+                      <option value="SHORT_BREAK">SHORT_BREAK</option>
+                      <option value="SHORT_BASE">SHORT_BASE</option>
                       <option value="SHORT_WATCH">SHORT_WATCH</option>
                       <option value="NEUTRAL">NEUTRAL</option>
                       <option value="AVOID_CHOP">AVOID_CHOP</option>
@@ -2100,12 +2096,12 @@ export default function App() {
               <article className={`panel ${summaryToneClass('gain')}`}>
                 <h2>🟢 Long Labels 升勢</h2>
                 <strong><AnimatedMetricValue value={String(stockCounts.LONG)} /></strong>
-                <span>LONG_* and UP_PROMOTION</span>
+                <span>LONG_* and WATCH</span>
               </article>
               <article className={`panel ${summaryToneClass('loss')}`}>
                 <h2>🔴 Short Labels 跌勢</h2>
                 <strong><AnimatedMetricValue value={String(stockCounts.SHORT)} /></strong>
-                <span>SHORT_* and DOWN_PROMOTION</span>
+                <span>SHORT_*</span>
               </article>
               <article className={`panel ${summaryToneClass('warn')}`}>
                 <h2>🟠 Neutral 中性</h2>
@@ -2600,13 +2596,13 @@ export default function App() {
                       onChange={e => setSelectedResearchLabel(e.target.value as StockSignalLabel | 'ALL')}
                     >
                       <option value="ALL">ALL — 全部</option>
-                      <option value="UP_PROMOTION">UP_PROMOTION</option>
-                      <option value="LONG_CONFIRM">LONG_CONFIRM</option>
-                      <option value="LONG_SETUP">LONG_SETUP</option>
-                      <option value="LONG_WATCH">LONG_WATCH</option>
-                      <option value="DOWN_PROMOTION">DOWN_PROMOTION</option>
-                      <option value="SHORT_CONFIRM">SHORT_CONFIRM</option>
-                      <option value="SHORT_SETUP">SHORT_SETUP</option>
+                      <option value="LONG_BREAK">LONG_BREAK</option>
+                      <option value="LONG_VCP">LONG_VCP</option>
+                      <option value="LONG_BOUNCE">LONG_BOUNCE</option>
+                      <option value="LONG_BASE">LONG_BASE</option>
+                      <option value="WATCH">WATCH</option>
+                      <option value="SHORT_BREAK">SHORT_BREAK</option>
+                      <option value="SHORT_BASE">SHORT_BASE</option>
                       <option value="SHORT_WATCH">SHORT_WATCH</option>
                       <option value="NEUTRAL">NEUTRAL</option>
                       <option value="AVOID_CHOP">AVOID_CHOP</option>
@@ -2736,8 +2732,8 @@ export default function App() {
             {onboardingStep === 2 && (
               <>
                 <h2>信號梯形 Signal Ladder</h2>
-                <p>🟢 <strong>升勢</strong>：LONG_WATCH → LONG_SETUP → LONG_CONFIRM → UP_PROMOTION</p>
-                <p>🔴 <strong>跌勢</strong>：SHORT_WATCH → SHORT_SETUP → SHORT_CONFIRM → DOWN_PROMOTION</p>
+                <p>🟢 <strong>升勢</strong>：WATCH → LONG_BASE → LONG_BREAK（或 LONG_VCP / LONG_BOUNCE）</p>
+                <p>🔴 <strong>跌勢</strong>：SHORT_WATCH → SHORT_BASE → SHORT_BREAK</p>
                 <p>信號需要多日連續確認才會升梯。單日信號不代表可立刻行動。</p>
               </>
             )}
