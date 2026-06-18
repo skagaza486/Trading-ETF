@@ -1839,25 +1839,21 @@ export default function App() {
         ) : activeTab === 'ETFs' ? (
           <>
             <section className="dashboard-grid wide">
-              <article className={`panel ${summaryToneClass('gain')}`}>
-                <h2>🟢 Favour 值得留意</h2>
+              <article className={`panel ${summaryToneClass('gain')} summary-card--stat`}>
+                <h2>🟢 Favour</h2>
                 <strong><AnimatedMetricValue value={String(counts.FAVOUR)} /></strong>
-                <span>走勢及動力偏強</span>
               </article>
-              <article className={`panel ${summaryToneClass('warn')}`}>
-                <h2>🟡 Watch 留意觀望</h2>
+              <article className={`panel ${summaryToneClass('warn')} summary-card--stat`}>
+                <h2>🟡 Watch</h2>
                 <strong><AnimatedMetricValue value={String(counts.WATCH)} /></strong>
-                <span>有改善跡象，未到位</span>
               </article>
-              <article className={`panel ${summaryToneClass('loss')}`}>
-                <h2>🔴 Avoid 避開</h2>
+              <article className={`panel ${summaryToneClass('loss')} summary-card--stat`}>
+                <h2>🔴 Avoid</h2>
                 <strong><AnimatedMetricValue value={String(counts.AVOID)} /></strong>
-                <span>走勢偏弱，避免持倉</span>
               </article>
-              <article className={`panel ${summaryToneClass('violet')}`}>
-                <h2>⚫ Review 資料不足</h2>
+              <article className={`panel ${summaryToneClass('violet')} summary-card--stat`}>
+                <h2>⚫ Review</h2>
                 <strong><AnimatedMetricValue value={String(counts.REVIEW)} /></strong>
-                <span>Missing or insufficient data</span>
               </article>
             </section>
 
@@ -2101,7 +2097,7 @@ export default function App() {
               </div>
 
               {(() => {
-                const collapseLimit = Math.max(1, Math.ceil(filteredReplayRows.length / 3))
+                const collapseLimit = Math.min(5, Math.max(1, filteredReplayRows.length))
                 const displayedRows = etfReplayExpanded ? filteredReplayRows : filteredReplayRows.slice(0, collapseLimit)
                 return (
                   <>
@@ -2221,7 +2217,7 @@ export default function App() {
                 </div>
               </div>
               {(() => {
-                const collapseLimit = Math.max(1, Math.ceil(stockReplayRecords.length / 3))
+                const collapseLimit = Math.min(5, Math.max(1, stockReplayRecords.length))
                 const displayedRecords = stockReplayExpanded ? stockReplayRecords : stockReplayRecords.slice(0, collapseLimit)
                 return (
                   <>
@@ -2879,7 +2875,7 @@ export default function App() {
                 </div>
               </div>
               {(() => {
-                const collapseLimit = Math.max(1, Math.ceil(stockReplayRecords.length / 3))
+                const collapseLimit = Math.min(5, Math.max(1, stockReplayRecords.length))
                 const displayedRecords = stockReplayExpanded ? stockReplayRecords : stockReplayRecords.slice(0, collapseLimit)
                 return (
                   <>

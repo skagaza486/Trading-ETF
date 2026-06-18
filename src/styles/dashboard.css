@@ -855,7 +855,28 @@ h2 {
 }
 
 .dashboard-grid .summary-card {
-  min-height: 122px;
+  min-height: 0;
+  padding: 12px 14px 11px;
+}
+
+/* Stat-only cards: number + label, no description text */
+.summary-card--stat {
+  min-height: 0;
+  padding: 10px 13px 10px;
+}
+
+.summary-card--stat h2 {
+  margin-bottom: 6px;
+  font-size: 0.64rem;
+}
+
+.summary-card--stat strong {
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.summary-card--stat > span {
+  display: none;
 }
 
 /* ── Summary Cards ───────────────────────────────────────────────────── */
@@ -875,7 +896,7 @@ h2 {
 }
 
 .summary-card h2 {
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   font-size: 0.68rem;
   color: var(--text-secondary);
 }
@@ -2482,7 +2503,7 @@ td select { min-width: 92px; }
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   background: rgba(8, 18, 17, 0.56);
-  padding: 14px 15px;
+  padding: 10px 12px;
 }
 
 .verify-workbench__card.is-active {
@@ -2498,8 +2519,8 @@ td select { min-width: 92px; }
 
 .verify-workbench__card strong {
   display: block;
-  margin: 8px 0 4px;
-  font-size: 1.1rem;
+  margin: 5px 0 3px;
+  font-size: 1rem;
   color: var(--text-primary);
 }
 
