@@ -499,7 +499,8 @@
 
 **當前追蹤項**：
 
-- [ ] LONG_BOUNCE G6 borderline（MAE=3.0%）：觀察下一輪 sync 是否穩定；`pullbackRvolAvg` 閾值 1.2 暫維持
+- [x] LONG_BOUNCE G6 觀察（EXP-012 完成 2026-06-18）：HYP-026 rsLineAboveEma 過濾後 MAE=3.1%（微升），無效 — MAE 問題在 entry timing，非 RS 方向；rsLineAboveEma 降級為 research tag
+- [ ] LONG_BOUNCE MAE 控制（待驗證）：考慮提高 CLV floor（0.6→0.7）或收窄 `recentPullbackNearEma20` 定義（EXP-013）
 - [ ] LONG_BREAK n=10（G1 FAIL）：根本解是擴大 watchlist universe，而非鬆化條件
 - [ ] ADX（HYP-022）：在非牛市或更長時間跨度樣本中重新評估是否有區分力
 
@@ -516,9 +517,142 @@
 - LONG_BOUNCE 維持全 PASS（含 G6 MAE < 3%）
 - Gate Summary 多 window 驗證（R7）已有初步結果
 
-### Phase 3：長期架構與多源資料
+### Phase 3：架構演化（Backend Evolution）
 
-- `L1-L9` 視需要逐步啟動
+**觸發條件：** LONG_BREAK n ≥ 100（G1 PASS）且 LONG_BOUNCE 維持全 PASS ≥ 2 個月 — signal 定義穩定後才值得投入基建。
+
+**目標：** 突破 pure client-side 的三個根本限制：
+
+1. 大 universe 計算（500 隻 × 每日，瀏覽器做不到）
+2. 跨 session 數據積累（Gate 歷史、實驗對比）
+3. ML 模型服務（Stage C Meta-Labeling 需要 Python 生態）
+
+---
+
+#### B1. Cloudflare KV + Cron Triggers（最小改動，留在現有生態）
+
+**前提：** 已有 `worker.ts` 和 Cloudflare 部署，免費 tier 已涵蓋所需。
+
+**架構：**
+
+```text
+Cron Trigger（每日 16:30 ET 收市後）
+  → Worker 執行：
+      fetch S&P 500 ticker 清單（Wikipedia / Finnhub /stock/symbol）
+      fetch 所有股票 OHLCV（Yahoo Finance，已有 proxy 邏輯）
+      計算橫截面 RS 排名（126d return percentile）
+      計算個股 indicators snapshot
+  → 結果寫入 Cloudflare KV
+      key: "daily-snapshot:{date}"
+      value: JSON（所有股票當日 indicators + RS 排名）
+
+Browser SPA（現有）
+  → Worker 讀 KV 的 pre-computed snapshot
+  → 本地做 signal classification（現有 signalClassifier 不變）
+  → 顯示結果
+```
+
+**解鎖：**
+
+- **HYP-025 Path A**：真正的橫截面 RS 排名（500 隻 universe，排名有意義）
+- **Universe 擴大**：從 ~100 隻 watchlist 擴至 S&P 500，LONG_BREAK n 問題根本解
+- **每日自動刷新**：不再依賴用戶 page load 觸發計算
+
+**學到：** Edge computing、KV 存儲設計、Serverless cron、API 合約設計
+
+**Cloudflare 免費 tier 限制確認（截至 2026）：**
+
+- KV：10 GB 存儲，100K 讀/日，1K 寫/日 — 每日一個 snapshot 完全足夠
+- Cron Triggers：每個 Worker 支援多個 cron，每月 100K 次調用
+
+---
+
+#### B2. Cloudflare D1（SQLite Edge Database）
+
+**前提：** B1 穩定運行 ≥ 1 個月，確認 KV 架構無問題後才加 DB。
+
+**架構：** KV 存最新快照（讀取快），D1 存歷史序列（可查詢）。
+
+**Schema 設計（初版）：**
+
+```sql
+-- 每次 EXP 的 Gate Summary 快照
+CREATE TABLE gate_snapshots (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  exp_id      TEXT NOT NULL,          -- 'EXP-012'
+  snapshot_date TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  n           INTEGER,
+  avg_5d      REAL,
+  vs_spy      REAL,
+  mae_5d      REAL,
+  g1 TEXT, g2 TEXT, g3 TEXT, g4 TEXT, g5 TEXT, g6 TEXT, g7 TEXT,
+  status      TEXT
+);
+
+-- 信號歷史（供 walk-forward 查詢）
+CREATE TABLE signals (
+  ticker      TEXT NOT NULL,
+  signal_date TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  regime      TEXT,
+  indicators  TEXT,                   -- JSON blob
+  ret_5d      REAL,
+  ret_5d_vs_spy REAL,
+  mae_5d      REAL,
+  PRIMARY KEY (ticker, signal_date)
+);
+```
+
+**解鎖：**
+
+- **跨 session 實驗對比**：EXP-009 vs EXP-011 vs EXP-012 自動記錄，不再靠手動複製 MD 表格
+- **Gate Summary 歷史趨勢**：觀察每個 label 的 n / MAE / vs SPY 隨時間變化
+- **R7 Walk-forward（HYP-014）升級**：直接 SQL 查詢切片，不再在瀏覽器記憶體做
+
+**學到：** 關聯式資料庫基礎、Schema 設計、SQL 查詢、Edge database 概念
+
+---
+
+#### B3. Python Research Backend（Meta-Labeling 前置條件）
+
+**前提：** Gate Summary 多 window 驗證（R7/HYP-014）穩定 — 數據層乾淨才能進 ML。
+
+**架構：**
+
+```text
+Python (FastAPI / 本地 or Railway 免費 tier)
+  ├── data_pipeline.py    → 讀 D1 信號歷史，用 yfinance 補齊數據
+  ├── features.py         → 計算特徵向量（現有 indicators + RS Line + Alpha158 子集）
+  ├── labeler.py          → Triple-Barrier Method 標籤生成（HYP Stage B）
+  ├── model.py            → LightGBM Meta-Labeling 訓練（Stage C）
+  └── api.py              → /predict endpoint 供前端 SPA 呼叫
+
+Browser SPA
+  → 現有 signal classification（primary model，保留不動）
+  → 呼叫 Python /predict（secondary model — take/skip）
+  → 顯示 ML 過濾後的高信心信號
+```
+
+**解鎖：**
+
+- **Stage C Meta-Labeling**：保留現有 rule engine 作 primary model，LightGBM 做二級 take/skip 過濾
+- **Stage B Triple-Barrier 標籤**：比固定 5D return 更貼近實盤的標籤方法
+- **HYP-025 Path A + ML 交叉**：橫截面 RS 排名作為 LightGBM feature 之一
+
+**學到：** Python 後端架構、REST API、ML pipeline（特徵工程 → 訓練 → 推論）、前後端 API 合約設計
+
+---
+
+**Phase 3 完成定義：**
+
+- B1：S&P 500 daily snapshot 穩定寫入 KV，HYP-025 Path A 已實作並產生橫截面排名數據
+- B2：Gate Summary 歷史在 D1 中積累 ≥ 30 天，EXP 對比流程自動化
+- B3：Meta-Labeling 二級模型在 OOS 樣本中 Sharpe > rule-only baseline
+
+### Phase 4：長期多源資料
+
+- `L1-L9` 視 Phase 3 成熟度逐步啟動
 
 完成定義：
 
@@ -549,7 +683,7 @@ Phase 1 全部完成。Signal 架構重設計完成。Multi-bar signal 改版（
 Phase 2 當前優先順序：
 
 1. **LONG_BREAK 樣本擴充**：n=10（G1 FAIL），根本解是擴大 watchlist universe；RVOL 1.4 降低暫緩（需先有足夠樣本才能驗證）
-2. **LONG_BOUNCE G6 觀察**：MAE=3.0% 臨界，下一輪 sync 確認是否穩定通過
+2. **LONG_BOUNCE MAE 控制（EXP-013）**：HYP-026 rsLineAboveEma 已驗證無效（EXP-012，MAE 3.1%）；下一個假設：提高 CLV floor 或收窄 pullback 定義
 3. **R7 Walk-forward**：Gate 多視窗驗證（HYP-014），升級 `researchGate.ts` 為 rolling multi-window
 4. **R6 FRED 簡化濾網**：Worker proxy 已有 FRED endpoint，加 net liquidity slope 作 regime note
 5. **R1 breadth regime**：I1 proxyWeakBreadth 已有，觀察 live 表現後決定是否升級為正式 regime state

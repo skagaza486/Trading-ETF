@@ -411,4 +411,62 @@ type ForwardReturnRecord = {
 
 ---
 
-Last updated: 2026-06-18 (signal taxonomy redesign — structure+trigger two-layer; I7 tab restructure complete)
+---
+
+## 20. Architecture Evolution Plan
+
+Current architecture is **pure client-side**: all data fetched and computed in browser on each page load. Three capabilities require a backend:
+
+| Capability | Blocked by | Unlocked at |
+|---|---|---|
+| Cross-sectional RS ranking (HYP-025 Path A) | All stocks must be computed simultaneously | B1 |
+| S&P 500 universe (500 stocks) | Browser fetch latency | B1 |
+| Gate Summary history across sessions | No persistence | B2 |
+| Walk-forward via SQL (HYP-014) | No queryable store | B2 |
+| Meta-Labeling / LightGBM (Stage C) | Needs Python ML ecosystem | B3 |
+
+**Trigger to start:** LONG_BREAK n ≥ 100 (G1 PASS) and LONG_BOUNCE stable full-PASS ≥ 2 months.
+
+### B1 — Cloudflare KV + Cron Triggers
+
+Extends existing `worker.ts`. No new infrastructure required.
+
+```text
+worker.ts (Cron, daily 16:30 ET)
+  → fetch S&P 500 tickers + OHLCV
+  → compute cross-sectional RS ranking + indicators
+  → write to Cloudflare KV: "daily-snapshot:{date}" → JSON
+
+worker.ts (HTTP handler)
+  → read KV snapshot → return to SPA
+
+SPA (existing)
+  → receive pre-computed snapshot
+  → run signalClassifier locally (unchanged)
+```
+
+New files: `src/engine/snapshotBuilder.ts` (extracted from stockScreenerEngine), `worker-cron.ts` or extended `worker.ts`.
+
+### B2 — Cloudflare D1 (SQLite)
+
+KV stores latest snapshot (fast reads). D1 stores historical series (queryable).
+
+Key tables: `gate_snapshots` (per-EXP gate results), `signals` (per-ticker per-date signal + forward returns).
+
+New API routes in `worker.ts`: `GET /api/gate-history`, `POST /api/signals/batch`.
+
+### B3 — Python Research Backend
+
+Separate service (local dev or Railway free tier). Consumes D1 data via API, serves ML predictions.
+
+```text
+FastAPI
+  /train  → reads signals from D1, trains LightGBM Meta-Labeling model
+  /predict → accepts indicator snapshot, returns take/skip probability
+```
+
+SPA calls `/predict` after primary signal classification to apply secondary ML filter.
+
+---
+
+Last updated: 2026-06-18 (signal taxonomy redesign — structure+trigger two-layer; I7 tab restructure complete; HYP-026/027 RS Line implemented; backend architecture evolution plan added)
