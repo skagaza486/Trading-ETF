@@ -1039,7 +1039,7 @@ export default function App() {
       } else if (snapshotResult.status === 'ok' && snapshotResult.stale) {
         setStockError('Snapshot is stale (> 25h old). Cron may not have run today.')
       } else {
-        setStockError(snapshotResult.reason)
+        setStockError(snapshotResult.status === 'unavailable' ? snapshotResult.reason : 'Unknown snapshot error')
       }
     } catch (error) {
       setStockError(error instanceof Error ? error.message : 'Failed to load snapshot.')
@@ -1731,7 +1731,7 @@ export default function App() {
                     </article>
                     <article className="rail-regime-card rail-regime-card--breadth">
                       <span>Market Breadth</span>
-                      <div className="rail-breadth-donut" style={{ ['--breadth' as '--breadth']: `${breadthPercent}%` }}>
+                      <div className="rail-breadth-donut" style={{ ['--breadth']: `${breadthPercent}%` } as React.CSSProperties}>
                         <strong>{breadthPercent}%</strong>
                       </div>
                       <small>{desktopBreadthNote}</small>

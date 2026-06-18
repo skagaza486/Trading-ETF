@@ -195,7 +195,7 @@ function buildForwardReturnRecordsLite(
         rvol: s.indicators.rvol,
       },
       earningsWithinWindow: s.earningsWithinWindow,
-      previousLabel: null,
+      previousLabel: undefined,
       reason: '',
     })),
     histories
