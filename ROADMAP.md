@@ -470,15 +470,41 @@
 
 ### Phase 2：研究版驗證（進行中）
 
-**當前阻塞項（必須先解）**：
+**已完成**：
 
-- [ ] 新設計首次 gate baseline：執行 `research:agent -- --mode observe --exp EXP-009`，取得 LONG_BASE / WATCH / LONG_BOUNCE 第一份數據
-- [ ] Gate Summary UI 加「📋 Copy MD」按鈕（自動格式化為 markdown table，免手動抄數）
-- [x] `SIGNAL_DEFINITION_RESEARCH.md` 已建立，signal 概念重設計完成（2026-06-18）
+- [x] 新設計首次 gate baseline（EXP-009）：LONG_BOUNCE 全 PASS，LONG_BASE G3 FAIL，LONG_BREAK G1 FAIL（n 不足）
+- [x] Gate Summary UI「📋 Copy MD」按鈕已實作
+- [x] `SIGNAL_DEFINITION_RESEARCH.md` 已與 `SIGNAL_IMPROVEMENT.md` 合併（2026-06-18）
+- [x] R8 AVOID_DISTRIBUTION 派發預警已實作
+- [x] **Multi-bar signal 改版**（2026-06-18）：
+  - LONG_BREAK：RVOL 1.8 → 1.6，新增 `priorBaseStreak >= 2`（HYP-017）
+  - LONG_BOUNCE：新增 `pullbackRvolAvg < 1.2`（HYP-018）
+  - WATCH：新增 `rsiSlope3 > 0`（HYP-019）
+  - 新 indicator 字段：`lowRvolDaysInWindow`, `atrCompressing`, `priorBaseStreak`, `pullbackRvolAvg`, `rsiSlope3`
+- [x] **LONG_BASE 降級為 universe filter**（2026-06-18）：
+  - 根本問題：base formation 期間 5D 回報天然偏低，G2 FAIL 是架構問題而非閾值問題
+  - Minervini 框架：entry 在 pivot breakout，不在 base formation 中
+  - LONG_BASE 從 gate-evaluated entry signal 改為 universe filter，不再納入 Gate Summary
+- [x] **外部研究（兩輪，2026-06-18）**：
+  - GitHub（RyanJHamby、Minervini screener）、Reddit r/algotrading、學術論文（arXiv 2512.12924）
+  - 發現：EMA150 缺口（Minervini 8 條件）、ADX 趨勢強度、NR7、VCP 遞減結構、ADX 牛市樣本限制
+  - 確認：RVOL 1.6 合理（社群 min ≥ 1.5）、RSI 42–58 回調邊界正確、regime conditioning 方向正確
+- [x] **EXP-011 外部研究改版驗證**（2026-06-18）：
+  - WATCH `rsiSlope3` → null-safe（廣篩優先）
+  - LONG_VCP 加入 `previousLabel` hysteresis + `CLV > 0.6`：avg5D -1.5% → +1.5%（方向修正）
+  - LONG_BREAK 加入 `EMA50 > EMA150`（null-safe）+ `extendedFromPivot != true`：n=16 → 10，方向維持
+  - LONG_BOUNCE RSI 58→62 測試後回退：vs SPY +0.9% → +0.4%，rolling G3 6/6 → 1/6，58 是真實邊界
+  - ADX > 25 測試後不加入（排除 10/16 信號，2024–2026 牛市樣本不具區分力）
+  - 新 indicators 落地：`ema150`, `adx14`, `udVolRatio50`, `nr7`, `extendedFromPivot`（均為研究字段）
 
-**Phase 2 主線**：
+**當前追蹤項**：
 
-- [ ] `R8` AVOID_DISTRIBUTION 派發預警（成本低，與 I4 互補，優先）
+- [ ] LONG_BOUNCE G6 borderline（MAE=3.0%）：觀察下一輪 sync 是否穩定；`pullbackRvolAvg` 閾值 1.2 暫維持
+- [ ] LONG_BREAK n=10（G1 FAIL）：根本解是擴大 watchlist universe，而非鬆化條件
+- [ ] ADX（HYP-022）：在非牛市或更長時間跨度樣本中重新評估是否有區分力
+
+**Phase 2 剩餘主線**：
+
 - [ ] `R1` 正式 breadth regime 評估（I1 已有 proxyWeakBreadth，觀察 live 後決定是否升級）
 - [ ] `R7` walk-forward robustness（Gate 多 window 驗證，見 SIGNAL_IMPROVEMENT.md HYP-014）
 - [ ] `R2` conditional routing 驗證
@@ -486,9 +512,9 @@
 
 完成定義：
 
-- LONG_BASE / LONG_BREAK G3 通過（vs SPY > +0.5%）
-- 至少一項新 research variant（LONG_BOUNCE / AVOID_DISTRIBUTION）有初步 gate evidence
-- Gate Summary 可一鍵匯出 markdown
+- LONG_BREAK n 達到 100+（G1 PASS）
+- LONG_BOUNCE 維持全 PASS（含 G6 MAE < 3%）
+- Gate Summary 多 window 驗證（R7）已有初步結果
 
 ### Phase 3：長期架構與多源資料
 
@@ -516,10 +542,14 @@
 
 ## 下一步（2026-06-18 更新）
 
-Phase 1 全部完成。Signal 架構重設計完成。Phase 2 優先順序：
+Phase 1 全部完成。Signal 架構重設計完成。Multi-bar signal 改版（HYP-016~019）及外部研究改版（HYP-020~022，EXP-011）完成。
 
-1. **新設計 gate baseline**：執行 `npm run research:agent -- --mode observe --exp EXP-009`，取得 LONG_BASE / WATCH / LONG_BOUNCE 第一份 gate 數據
-2. **Gate Summary Copy MD 按鈕**：在 Stock Research Gate Summary section 加「📋 Copy MD」，自動格式化當前 gate 結果為 markdown table，取代手動抄數
-3. **R8 AVOID_DISTRIBUTION**：`patternTag: distributionWarning`，條件 RVOL>2.5 + 上影線 + 靠近 52W 高，與 LONG_BASE_BREAK 互補
-4. **R7 Walk-forward**：Gate 多視窗驗證（HYP-014），升級 `researchGate.ts` 為 rolling multi-window
-5. **R6 FRED 簡化濾網**：Worker proxy 已有 FRED endpoint，加 net liquidity slope 作 regime note
+**本輪確立的研究原則**：改動目標是優化 signal 真實成效，不是讓 gate 通過。每個條件改動前須先說明市場假設，gate 結果只是驗證假設是否在數據中可見。
+
+Phase 2 當前優先順序：
+
+1. **LONG_BREAK 樣本擴充**：n=10（G1 FAIL），根本解是擴大 watchlist universe；RVOL 1.4 降低暫緩（需先有足夠樣本才能驗證）
+2. **LONG_BOUNCE G6 觀察**：MAE=3.0% 臨界，下一輪 sync 確認是否穩定通過
+3. **R7 Walk-forward**：Gate 多視窗驗證（HYP-014），升級 `researchGate.ts` 為 rolling multi-window
+4. **R6 FRED 簡化濾網**：Worker proxy 已有 FRED endpoint，加 net liquidity slope 作 regime note
+5. **R1 breadth regime**：I1 proxyWeakBreadth 已有，觀察 live 表現後決定是否升級為正式 regime state

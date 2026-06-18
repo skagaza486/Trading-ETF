@@ -57,16 +57,21 @@ export function resolveStockLabel(
   // LONG_BREAK: entry trigger — volume breakout with confirmed prior ladder context
   // Structure: trend aligned, near 52w high
   // Trigger: breakout20d + RVOL expansion + quality close + CMF
+  // HYP-017 (multi-bar): require prior base buildup — at least 2 of last 5 days had RVOL < 0.8
   const longBreak =
     indicators.breakout20d === true &&
-    rvol > 1.8 &&
+    rvol > 1.6 &&
     cmf20 > 0.1 &&
     clv > 0.65 &&
     ema20 > ema50 &&
     rsi14 > 55 &&
     regime !== 'short_friendly' &&
     indicators.aboveEma200 !== false &&
-    indicators.nearHigh52w !== false
+    indicators.nearHigh52w !== false &&
+    (indicators.priorBaseStreak === null || indicators.priorBaseStreak >= 2) &&
+    (indicators.ema150 === null || ema50 > indicators.ema150) &&      // HYP-020: EMA50 > EMA150 multi-timeframe alignment
+    indicators.extendedFromPivot !== true                              // HYP-021: suppress if already >5% above pivot
+    // ADX > 25 (HYP-022) is computed but NOT used as hard gate — n too small to validate; observe via udVolRatio50/adx14 fields
 
   // HYP-009: require prior bar in long ladder to prevent single-day impulse breakouts
   if (longBreak) {
@@ -82,22 +87,55 @@ export function resolveStockLabel(
   }
 
   // LONG_VCP: Volatility Contraction Pattern — structure + contraction + breakout trigger
-  // VCP already embeds structure + trigger in a single well-defined pattern
+  // VCP requires time to form: prior bar must already be in long ladder (hysteresis, same as LONG_BREAK)
+  // CLV > 0.6 confirms breakout day had real buying support, not a fade-back close
   const longVcp =
     indicators.aboveEma200 === true &&
     indicators.atrSlope50 !== null && indicators.atrSlope50 < 0 &&
     indicators.rvolRecentAvg10 !== null && indicators.rvolRecentAvg10 < 0.8 &&
     indicators.breakout20d === true &&
     rvol > 1.5 &&
-    regime !== 'short_friendly'
+    clv > 0.6 &&
+    regime !== 'short_friendly' &&
+    (indicators.ema150 === null || ema50 > indicators.ema150)         // HYP-020: same EMA alignment as LONG_BREAK
 
   if (longVcp) {
-    return 'LONG_VCP'
+    const priorLongVcp =
+      previousLabel === 'WATCH' ||
+      previousLabel === 'LONG_BASE' ||
+      previousLabel === 'LONG_VCP' ||
+      previousLabel === 'LONG_BOUNCE' ||
+      previousLabel === 'LONG_BREAK'
+    if (priorLongVcp) {
+      return 'LONG_VCP'
+    }
   }
 
-  // LONG_BASE: setup — structure intact + compression forming, waiting for trigger
-  // Structure: trend aligned above EMA200, RS positive
-  // Compression: ATR contracting OR recent volume drying up
+  // LONG_BOUNCE: entry trigger — pullback to EMA20 over recent days, today bounced back above
+  // Structure: uptrend intact, above EMA200
+  // Multi-bar: price was near EMA20 in last 5 days (recentPullbackNearEma20)
+  // HYP-018 (multi-bar): pullback should be on low volume — healthy retracement, not distribution
+  // Trigger: close reclaimed EMA20 today with quality close
+  const longBounce =
+    regime === 'long_friendly' &&
+    indicators.ema50Slope !== null && indicators.ema50Slope > 0 &&
+    indicators.aboveEma200 !== false &&
+    ema20 > ema50 &&
+    indicators.recentPullbackNearEma20 === true &&
+    indicators.close > ema20 &&
+    rsi14 >= 42 && rsi14 <= 58 &&
+    clv > 0.6 &&
+    relStrengthVsSpy > 0 &&
+    (indicators.pullbackRvolAvg === null || indicators.pullbackRvolAvg < 1.2)
+
+  if (longBounce) {
+    return 'LONG_BOUNCE'
+  }
+
+  // LONG_BASE: universe filter — structure intact + compression forming, waiting for a trigger
+  // Higher-quality than WATCH: requires EMA200 above, RS positive, sustained compression
+  // Not an entry signal — identifies candidates likely to produce LONG_BREAK or LONG_BOUNCE soon
+  // HYP-016 (multi-bar): lowRvolDaysInWindow tracks compression persistence (not used as hard gate here)
   const longBase =
     indicators.aboveEma200 !== false &&
     ema20 > ema50 &&
@@ -115,26 +153,8 @@ export function resolveStockLabel(
     return 'LONG_BASE'
   }
 
-  // LONG_BOUNCE: entry trigger — pullback to EMA20 over recent days, today bounced back above
-  // Structure: uptrend intact, above EMA200
-  // Multi-bar: price was near EMA20 in last 5 days (recentPullbackNearEma20)
-  // Trigger: close reclaimed EMA20 today with quality close
-  const longBounce =
-    regime === 'long_friendly' &&
-    indicators.ema50Slope !== null && indicators.ema50Slope > 0 &&
-    indicators.aboveEma200 !== false &&
-    ema20 > ema50 &&
-    indicators.recentPullbackNearEma20 === true &&
-    indicators.close > ema20 &&
-    rsi14 >= 42 && rsi14 <= 58 &&
-    clv > 0.6 &&
-    relStrengthVsSpy > 0
-
-  if (longBounce) {
-    return 'LONG_BOUNCE'
-  }
-
   // WATCH: universe filter — momentum building, structural direction positive
+  // HYP-019 (multi-bar): RSI must be trending up over last 3 days — not just today's snapshot
   // This is a watchlist candidate, not an entry signal — not gated
   const watch =
     rsi14 > 50 &&
@@ -142,6 +162,7 @@ export function resolveStockLabel(
     cmf20 > 0 &&
     obvSlope > 0 &&
     relStrengthVsSpy > -0.02 &&
+    (indicators.rsiSlope3 === null || indicators.rsiSlope3 > 0) &&
     regime !== 'short_friendly'
 
   if (watch) {

@@ -197,6 +197,59 @@ export function computeATR(bars: OHLCVBar[], period: number): (number | null)[] 
   return output
 }
 
+// ADX(14): trend strength indicator (direction-neutral, 0–100 scale)
+// Uses Wilder smoothing (same as ATR). >25 = trending; <20 = ranging.
+export function computeADX(bars: OHLCVBar[], period: number): (number | null)[] {
+  const output: (number | null)[] = new Array(bars.length).fill(null)
+  if (period <= 0 || bars.length < period * 2) return output
+
+  const dmPlus: number[] = []
+  const dmMinus: number[] = []
+  const tr: number[] = []
+
+  for (let i = 1; i < bars.length; i++) {
+    const high = bars[i].high
+    const low = bars[i].low
+    const prevHigh = bars[i - 1].high
+    const prevLow = bars[i - 1].low
+    const prevClose = bars[i - 1].close
+
+    const upMove = high - prevHigh
+    const downMove = prevLow - low
+    dmPlus.push(upMove > downMove && upMove > 0 ? upMove : 0)
+    dmMinus.push(downMove > upMove && downMove > 0 ? downMove : 0)
+    tr.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)))
+  }
+
+  // Wilder smoothing
+  let smoothTr = tr.slice(0, period).reduce((s, v) => s + v, 0)
+  let smoothDmPlus = dmPlus.slice(0, period).reduce((s, v) => s + v, 0)
+  let smoothDmMinus = dmMinus.slice(0, period).reduce((s, v) => s + v, 0)
+
+  const dx: number[] = []
+  for (let i = period; i < tr.length; i++) {
+    smoothTr = smoothTr - smoothTr / period + tr[i]
+    smoothDmPlus = smoothDmPlus - smoothDmPlus / period + dmPlus[i]
+    smoothDmMinus = smoothDmMinus - smoothDmMinus / period + dmMinus[i]
+    const diPlus = smoothTr === 0 ? 0 : (smoothDmPlus / smoothTr) * 100
+    const diMinus = smoothTr === 0 ? 0 : (smoothDmMinus / smoothTr) * 100
+    const diSum = diPlus + diMinus
+    dx.push(diSum === 0 ? 0 : (Math.abs(diPlus - diMinus) / diSum) * 100)
+  }
+
+  // ADX = Wilder-smoothed average of DX
+  if (dx.length < period) return output
+  let adx = dx.slice(0, period).reduce((s, v) => s + v, 0) / period
+  const startIndex = period * 2
+  output[startIndex] = adx
+  for (let i = period; i < dx.length; i++) {
+    adx = (adx * (period - 1) + dx[i]) / period
+    output[startIndex + (i - period) + 1] = adx
+  }
+
+  return output
+}
+
 export function computeEMASlope(ema: (number | null)[], lookback: number): (number | null)[] {
   const output: (number | null)[] = new Array(ema.length).fill(null)
   if (lookback <= 0) return output

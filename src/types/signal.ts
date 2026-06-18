@@ -83,4 +83,16 @@ export type StockIndicatorSnapshot = {
   aboveEma200: boolean | null
   nearHigh52w: boolean | null
   recentPullbackNearEma20: boolean | null
+  // Multi-bar context fields (HYP-016 to HYP-019)
+  lowRvolDaysInWindow: number | null    // count of RVOL < 0.8 in last 10 bars (excl. today)
+  atrCompressing: boolean | null        // ATR today < ATR 5 bars ago
+  priorBaseStreak: number | null        // count of RVOL < 0.8 in last 5 bars (excl. today)
+  pullbackRvolAvg: number | null        // avg RVOL during pullback bars (low ≤ EMA20×1.02)
+  rsiSlope3: number | null              // RSI[today] − RSI[3 days ago]
+  // Trend structure fields (HYP-020 to HYP-022)
+  ema150: number | null                 // EMA(150) — Minervini Stage 2 middle MA layer
+  adx14: number | null                  // ADX(14) — trend strength (>25 = trending)
+  udVolRatio50: number | null           // up-day vol / down-day vol over last 50 bars — net accumulation proxy
+  nr7: boolean | null                   // today's high-low range is smallest of last 7 bars — volatility compression
+  extendedFromPivot: boolean | null     // close >5% above 20d high — chasing risk flag
 }

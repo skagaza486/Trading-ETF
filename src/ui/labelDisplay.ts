@@ -47,11 +47,11 @@ const STOCK_LABEL_MAP: Record<StockSignalLabel, Omit<StockLabelDisplay, 'enCode'
     actionGroup: 'consider'
   },
   LONG_BASE: {
-    lightEmoji: '🟢',
-    zhText: '底部盤整，等待觸發',
-    plainReason: '趨勢完整，量能收縮，靜候突破或反彈信號',
-    action: '值得研究',
-    actionGroup: 'consider'
+    lightEmoji: '🟡',
+    zhText: '盤整候選，等待觸發',
+    plainReason: '趨勢完整，量能收縮，等待突破或反彈信號出現',
+    action: '先觀察',
+    actionGroup: 'watch'
   },
   WATCH: {
     lightEmoji: '🟡',

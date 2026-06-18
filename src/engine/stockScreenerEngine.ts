@@ -1,7 +1,7 @@
 import type { TickerHistory } from '../types/indicator'
 import type { RegimeClass, ResearchFlag, StockSignal } from '../types/signal'
 import { classifyRegime } from './marketRegime'
-import { computeATR, computeCLV, computeCMF, computeEMA, computeEMASlope, computeMACD, computeOBV, computeRSI, computeRVOL } from './indicatorEngine'
+import { computeADX, computeATR, computeCLV, computeCMF, computeEMA, computeEMASlope, computeMACD, computeOBV, computeRSI, computeRVOL } from './indicatorEngine'
 import { daysUntilDate, latestBar, percentChange, regressionSlope } from './historyUtils'
 import { resolveStockLabel } from './signalClassifier'
 import type { RegimeInputs } from '../types/market'
@@ -90,6 +90,7 @@ function buildIndicatorSnapshot(
 ): StockIndicatorSnapshot {
   const ema20 = computeEMA(history.bars, 20)
   const ema50 = computeEMA(history.bars, 50)
+  const ema150 = computeEMA(history.bars, 150)
   const ema200 = computeEMA(history.bars, 200)
   const ema20Slope = computeEMASlope(ema20, 5)
   const ema50Slope = computeEMASlope(ema50, 5)
@@ -130,11 +131,97 @@ function buildIndicatorSnapshot(
     return false
   })()
 
+  // HYP-016: count of RVOL < 0.8 days in last 10 bars (excl. today) — compression persistence
+  const lowRvolDaysInWindow = (() => {
+    const window = rvol.slice(-11, -1).filter((v): v is number => v !== null)
+    if (window.length < 5) return null
+    return window.filter(v => v < 0.8).length
+  })()
+
+  // HYP-016: ATR today < ATR 5 bars ago — volatility still contracting
+  const atrCompressing = (() => {
+    const n = atr.length
+    if (n < 6) return null
+    const today = atr[n - 1]
+    const fiveAgo = atr[n - 6]
+    if (today === null || fiveAgo === null) return null
+    return today < fiveAgo
+  })()
+
+  // HYP-017: count of RVOL < 0.8 days in last 5 bars (excl. today) — pre-breakout base quality
+  const priorBaseStreak = (() => {
+    const window = rvol.slice(-6, -1).filter((v): v is number => v !== null)
+    if (window.length < 3) return null
+    return window.filter(v => v < 0.8).length
+  })()
+
+  // HYP-018: avg RVOL during pullback bars (bars where low <= EMA20 * 1.02) — volume dry-up check
+  const pullbackRvolAvg = (() => {
+    const n = bars.length
+    if (n < 7) return null
+    const pullbackRvols: number[] = []
+    for (let i = n - 6; i < n - 1; i++) {
+      const e = ema20[i]
+      const r = rvol[i]
+      if (e !== null && r !== null && bars[i].low <= e * 1.02) {
+        pullbackRvols.push(r)
+      }
+    }
+    if (pullbackRvols.length === 0) return null
+    return pullbackRvols.reduce((s, v) => s + v, 0) / pullbackRvols.length
+  })()
+
+  // HYP-019: RSI trend over last 3 days — momentum direction persistence
+  const rsiSlope3 = (() => {
+    const len = rsi14.length
+    if (len < 4) return null
+    const today = rsi14[len - 1]
+    const threeDaysAgo = rsi14[len - 4]
+    if (today === null || threeDaysAgo === null) return null
+    return today - threeDaysAgo
+  })()
+
+  // HYP-020: ADX(14) — trend strength filter; >25 = trending, signals have higher follow-through
+  const adx14 = (() => {
+    const adxSeries = computeADX(history.bars, 14)
+    return adxSeries.at(-1) ?? null
+  })()
+
+  // HYP-022: Up-day vs Down-day volume ratio over last 50 bars — net institutional accumulation proxy
+  const udVolRatio50 = (() => {
+    const sample = bars.slice(-50)
+    if (sample.length < 20) return null
+    let upVol = 0
+    let downVol = 0
+    for (const bar of sample) {
+      if (bar.close >= bar.open) upVol += bar.volume
+      else downVol += bar.volume
+    }
+    return downVol === 0 ? null : upVol / downVol
+  })()
+
+  // HYP-021: NR7 — today's range is the smallest of the last 7 bars (volatility compression before expansion)
+  const nr7 = (() => {
+    if (bars.length < 7) return null
+    const last7 = bars.slice(-7)
+    const todayRange = last7[last7.length - 1].high - last7[last7.length - 1].low
+    const minRange = Math.min(...last7.map(b => b.high - b.low))
+    return todayRange === minRange
+  })()
+
+  // Extended-from-pivot flag: close >5% above 20-day prior high — chasing risk
+  const extendedFromPivot = (() => {
+    if (bars.length < 21) return null
+    const pivot = Math.max(...bars.slice(-21, -1).map(b => b.high))
+    return latestClose > pivot * 1.05
+  })()
+
   return {
     close: latestClose,
     low: latestLow,
     ema20: latestValue(ema20),
     ema50: latestValue(ema50),
+    ema150: latestValue(ema150),
     ema200: latestEma200,
     ema20Slope: latestValue(ema20Slope),
     ema50Slope: latestValue(ema50Slope),
@@ -152,7 +239,16 @@ function buildIndicatorSnapshot(
     atr: latestValue(atr),
     aboveEma200: latestEma200 !== null ? latestClose >= latestEma200 : null,
     nearHigh52w: high52w !== null ? latestClose >= high52w * 0.75 : null,
-    recentPullbackNearEma20
+    recentPullbackNearEma20,
+    lowRvolDaysInWindow,
+    atrCompressing,
+    priorBaseStreak,
+    pullbackRvolAvg,
+    rsiSlope3,
+    adx14,
+    udVolRatio50,
+    nr7,
+    extendedFromPivot
   }
 }
 
@@ -192,7 +288,17 @@ export function classifyStock(
         atr: null,
         aboveEma200: null,
         nearHigh52w: null,
-        recentPullbackNearEma20: null
+        recentPullbackNearEma20: null,
+        lowRvolDaysInWindow: null,
+        atrCompressing: null,
+        priorBaseStreak: null,
+        pullbackRvolAvg: null,
+        rsiSlope3: null,
+        ema150: null,
+        adx14: null,
+        udVolRatio50: null,
+        nr7: null,
+        extendedFromPivot: null
       },
       regime,
       earningsWithinWindow: false,

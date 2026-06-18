@@ -196,40 +196,40 @@ function buildExp009Narrative(gateResults: ReturnType<typeof evaluateAllGates>):
   conclusionLine: string
   nextStepLine: string
 } {
-  const longBase = gateResults.find(result => result.label === 'LONG_BASE')
-  const watch = gateResults.find(result => result.label === 'WATCH')
+  // LONG_BASE is now a universe filter (not gate-evaluated); track LONG_BOUNCE + LONG_BREAK instead
   const longBounce = gateResults.find(result => result.label === 'LONG_BOUNCE')
+  const longBreak = gateResults.find(result => result.label === 'LONG_BREAK')
 
-  if (!longBase) {
+  if (!longBounce) {
     return {
-      conclusionLine: '- 結論：AUTO-SYNC FAILED（缺少 LONG_BASE gate 結果；signal 已重新設計，需要重新建立 baseline）',
-      nextStepLine: '- 下一步：執行 `research:sync-exp009` 建立新設計的第一份 baseline'
+      conclusionLine: '- 結論：AUTO-SYNC FAILED（缺少 LONG_BOUNCE gate 結果）',
+      nextStepLine: '- 下一步：執行 `research:sync-exp009` 建立 baseline'
     }
   }
 
-  const baseG3Passed = longBase.gate3VsSpy === true
-  const watchPositive = (watch?.avgRet5dVsSpy ?? Number.NEGATIVE_INFINITY) > 0
-  const bouncePositive = (longBounce?.avgRet5dVsSpy ?? Number.NEGATIVE_INFINITY) > 0
+  const bounceAllPass = longBounce.status === 'PASS'
+  const breakG1Pass = longBreak?.gate1SampleSize === true
+  const breakVsSpy = longBreak?.avgRet5dVsSpy ?? null
 
   let verdict = 'PARTIAL'
-  if (baseG3Passed && watchPositive && bouncePositive) {
+  if (bounceAllPass && breakG1Pass) {
     verdict = 'PASS'
-  } else if (!longBase.gate1SampleSize) {
+  } else if (!longBounce.gate1SampleSize) {
     verdict = 'INSUFFICIENT'
   }
 
   const conclusionLine = [
     `- 結論：${verdict}（auto-sync）`,
-    `LONG_BASE n=${longBase.count}, vs SPY ${formatSignedPercent(longBase.avgRet5dVsSpy)}`,
-    baseG3Passed ? 'G3 PASS' : 'G3 FAIL',
-    watch ? `WATCH vs SPY ${formatSignedPercent(watch.avgRet5dVsSpy)}` : 'WATCH n/a',
-    longBounce ? `LONG_BOUNCE vs SPY ${formatSignedPercent(longBounce.avgRet5dVsSpy)}` : 'LONG_BOUNCE n/a'
+    `LONG_BOUNCE n=${longBounce.count}, vs SPY ${formatSignedPercent(longBounce.avgRet5dVsSpy)}, status=${longBounce.status}`,
+    longBreak ? `LONG_BREAK n=${longBreak.count}, vs SPY ${formatSignedPercent(breakVsSpy)}, G1=${longBreak.gate1SampleSize ? 'PASS' : 'FAIL'}` : 'LONG_BREAK n/a'
   ].join('；')
 
-  let nextStepLine = '- 下一步：新設計首次 baseline 已建立，繼續觀察後續同步結果'
+  let nextStepLine = '- 下一步：LONG_BOUNCE 維持 PASS；繼續觀察 LONG_BREAK 樣本量增長'
 
-  if (!baseG3Passed && longBase.gate1SampleSize) {
-    nextStepLine = '- 下一步：LONG_BASE G3 未過；考慮收緊壓縮條件（atrSlope50 + rvolRecentAvg10 同時要求）'
+  if (!bounceAllPass) {
+    nextStepLine = '- 下一步：LONG_BOUNCE 退步，檢查 pullbackRvolAvg 條件是否過嚴'
+  } else if (!breakG1Pass) {
+    nextStepLine = '- 下一步：LONG_BREAK n 不足（G1 FAIL）；考慮擴大 universe 或放寬 RVOL 閾值'
   }
 
   return { conclusionLine, nextStepLine }
@@ -307,16 +307,16 @@ async function main() {
   const nextContent = updateExp009Section(currentContent, syncedBlock, robustnessBlock, conclusionLine, nextStepLine)
   await writeFile(signalImprovementPath, nextContent, 'utf8')
 
-  const longBase = gateResults.find(result => result.label === 'LONG_BASE')
+  const longBounce = gateResults.find(result => result.label === 'LONG_BOUNCE')
 
   console.log(`Synced EXP-009 Gate Summary at ${formatSyncTimestamp(syncedAt)}`)
   console.log(`Records: ${records.length} | Labels: ${gateResults.length} | Failures: ${failedTickers.length}`)
   if (failedTickers.length > 0) {
     console.log(`Failed tickers: ${failedTickers.slice(0, 12).join(', ')}`)
   }
-  if (longBase) {
+  if (longBounce) {
     console.log(
-      `LONG_BASE => n=${longBase.count}, avg5D=${formatPercent(longBase.avgRet5d)}, vsSPY=${formatPercent(longBase.avgRet5dVsSpy)}, status=${longBase.status}`
+      `LONG_BOUNCE => n=${longBounce.count}, avg5D=${formatPercent(longBounce.avgRet5d)}, vsSPY=${formatPercent(longBounce.avgRet5dVsSpy)}, status=${longBounce.status}`
     )
   }
   console.log(conclusionLine)
