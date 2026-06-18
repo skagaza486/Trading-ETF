@@ -52,16 +52,11 @@
 
 ---
 
-## 立即做
+## 立即做 ✅ 全部完成（2026-06-18）
 
-這一層的標準是：
+> Phase 1 已於 2026-06-18 完成。所有 I1–I7 已落地並推送至 main。
 
-- 對現有架構入侵小
-- 用現有資料即可開始
-- 有明顯研究回報
-- 不會令 repo 失焦
-
-### I1. Regime Proxy Breadth 第一版
+### I1. Regime Proxy Breadth 第一版 ✅
 
 目標：用極少額外資料成本，提升市場內部結構判斷力。
 
@@ -85,7 +80,7 @@
 - 邏輯清晰
 - 不會立即擴大 type / UI / replay 複雜度
 
-### I2. ETF Ranking 升級，不先重寫分類
+### I2. ETF Ranking 升級，不先重寫分類 ✅
 
 目標：提升 ETF weekly output 的排序品質，而不破壞現有 `FAVOUR/WATCH/WAIT/AVOID` 流程。
 
@@ -107,7 +102,7 @@
 - 排序優化比分類重寫更安全
 - 較容易觀察新因子是否真的提高可用性
 
-### I3. SGOV 作無風險基準
+### I3. SGOV 作無風險基準 ✅
 
 目標：避免把只是「有升」但其實沒跑贏現金替代的 ETF 錯判為優秀動量。
 
@@ -117,7 +112,7 @@
 - 先只用於 ranking score
 - 未來才考慮升級成 regime routing 條件
 
-### I4. LONG_BASE_BREAK 研究版原型
+### I4. LONG_BASE_BREAK 研究版原型 ✅
 
 目標：研究「長期沉澱後首次異動」是否優於一般 breakout。
 
@@ -146,7 +141,7 @@
 - 新 label 容易樣本太少
 - 現有 gate 對樣本數有要求，先觀察再升級更穩
 
-### I5. Parameter Plateau 離線版
+### I5. Parameter Plateau 離線版 ✅
 
 目標：驗證現有訊號是否存在明顯過擬合。
 
@@ -191,7 +186,7 @@
 - 這是已知缺口
 - 不需要改 engine 就能提升 usability
 
-### I7. Tab 架構重組 + Dashboard 主控台
+### I7. Tab 架構重組 + Dashboard 主控台 ✅
 
 目標：把 App 從「資料陳列櫃」變成「決策駕駛艙」，讓用戶 3 秒看懂今日市場基調。
 
@@ -443,37 +438,33 @@
 
 ## 建議時間線
 
-### Phase 1：立即做
+### Phase 1：立即做 ✅ 完成（2026-06-18）
 
-- `I1` Regime proxy breadth 第一版
-- `I2` ETF ranking 升級
-- `I3` SGOV 基準
-- `I5` plateau 離線 runner（含 ATR 止損模擬）
-- `I6` ETF Weekly 卡片化（已完成）
-- `I7` Tab 架構重組 + Dashboard MVP
+所有 I1–I7 已落地。額外完成：
 
-完成定義：
+- **EXP-009**：LONG_SETUP / LONG_WATCH / LONG_PULLBACK 加入 RS 過濾，修復 G3 gate failure
+- **UI 修復**：Quant Lab sub-tab overlap、backtick text、placeholder text
 
-- 新增 breadth flag 可見
-- ETF weekly 有更合理排序
-- research 可開始評估參數高原
-- App 有可用的 Dashboard，Tab 順序符合交易者工作流
-- Dashboard 的 FRED / breadth 面板空位預留，等後續 I1 / R6 接入
+### Phase 2：研究版驗證（進行中）
 
-### Phase 2：研究版驗證
+**當前阻塞項（必須先解）**：
 
-- `I4` LONG_BASE_BREAK 原型
-- `R1` 正式 breadth regime 評估
-- `R2` conditional routing 驗證
-- `R6` FRED 簡化濾網
-- `R7` walk-forward robustness
-- `R8` AVOID_DISTRIBUTION 派發預警（與 I4 互補，成本低先做）
+- [ ] EXP-009 驗證：刷新 Stock Research UI → 填回 `SIGNAL_IMPROVEMENT.md` EXP-009 改動後數據
+- [ ] Gate Summary UI 加「📋 Copy MD」按鈕（自動格式化為 markdown table，免手動抄數）
+
+**Phase 2 主線**：
+
+- [ ] `R8` AVOID_DISTRIBUTION 派發預警（成本低，與 I4 互補，優先）
+- [ ] `R1` 正式 breadth regime 評估（I1 已有 proxyWeakBreadth，觀察 live 後決定是否升級）
+- [ ] `R7` walk-forward robustness（Gate 多 window 驗證，見 SIGNAL_IMPROVEMENT.md HYP-014）
+- [ ] `R2` conditional routing 驗證
+- [ ] `R6` FRED 簡化濾網
 
 完成定義：
 
-- 至少一項新 research variant 有初步 evidence
-- breadth filter 是否正式升級有明確結論
-- 多視窗研究開始取代單窗直覺判斷
+- LONG_SETUP G3 通過（vs SPY > +0.5%）
+- 至少一項新 research variant（BASE_BREAK / DISTRIBUTION）有初步 gate evidence
+- Gate Summary 可一鍵匯出 markdown
 
 ### Phase 3：長期架構與多源資料
 
@@ -498,12 +489,12 @@
 
 ---
 
-## 下一步（最務實版本）
+## 下一步（2026-06-18 更新）
 
-1. 先做 `RSP` 接入與 breadth warning，保持現有 regime enum 不變
-2. 在 ETF weekly 補一層 `riskAdjustedMomentum` 排序
-3. 寫第一版 plateau 離線 script，先跑 `LONG_CONFIRM` 的小參數網格（含 ATR 止損模擬）
-4. 規劃 `LONG_BASE_BREAK` 為 research variant，而不是 production 主 label
-5. 規劃 `AVOID_DISTRIBUTION` 為 research variant，與 `LONG_BASE_BREAK` 互補（一找進場，一找出場）
-6. ETF Weekly 卡片化已完成，確保新資訊（breadth warning、ranking score）接入後能在 UI 顯示
-7. 重組 Tab 為 `[Dashboard, Stocks, ETFs, Quant Lab]`，Dashboard MVP 用現有資料實作，不等 FRED / Insider 數據
+Phase 1 全部完成。Phase 2 優先順序：
+
+1. **EXP-009 驗證**：刷新 UI → 對比 LONG_SETUP vs SPY 是否升至 >0.5%；若仍 fail，把 RVOL 門檻從 1.2 升至 1.5（見 `SIGNAL_IMPROVEMENT.md`）
+2. **Gate Summary Copy MD 按鈕**：在 Stock Research Gate Summary section 加「📋 Copy MD」，自動格式化當前 gate 結果為 markdown table，取代手動抄數
+3. **R8 AVOID_DISTRIBUTION**：`patternTag: distributionWarning`，條件 RVOL>2.5 + 上影線 + 靠近 52W 高，與 BASE_BREAK 互補
+4. **R7 Walk-forward**：Gate 多視窗驗證（HYP-014），升級 `researchGate.ts` 為 rolling multi-window
+5. **R6 FRED 簡化濾網**：Worker proxy 已有 FRED endpoint，加 net liquidity slope 作 regime note
