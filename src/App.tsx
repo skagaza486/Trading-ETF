@@ -111,31 +111,36 @@ const QUANT_SUBTAB_LABELS: Record<QuantLabSubTab, string> = {
   'Stock Research': 'Signal Proof'
 }
 const TAB_META: Record<TabId, {
-  navLabel: string
+  navLabelEn: string
+  navLabelZh: string
   headerTitle: string
   helper: string
   navMark: string
 }> = {
   Dashboard: {
-    navLabel: 'Home / 總覽',
+    navLabelEn: 'Home',
+    navLabelZh: '總覽',
     headerTitle: 'Home / 總覽',
     helper: '市場總覽、今日焦點與板塊快覽。',
     navMark: 'H'
   },
   Stocks: {
-    navLabel: 'Stocks / 股票',
+    navLabelEn: 'Stocks',
+    navLabelZh: '股票',
     headerTitle: 'Stocks / 股票',
     helper: '即時股票信號與戰術掃描。',
     navMark: 'S'
   },
   ETFs: {
-    navLabel: 'ETF',
+    navLabelEn: 'ETF',
+    navLabelZh: '',
     headerTitle: 'ETF',
     helper: '板塊與 ETF 強弱輪動。',
     navMark: 'E'
   },
   'Quant Lab': {
-    navLabel: 'Verify / 驗證',
+    navLabelEn: 'Verify',
+    navLabelZh: '驗證',
     headerTitle: 'Verify / 驗證',
     helper: '回看、驗證與規則證明。',
     navMark: 'V'
@@ -230,10 +235,14 @@ function buildReplayRows(histories: Record<string, TickerHistory>): ReplayRow[] 
       const history = histories[etf.ticker]
       if (!history) return []
 
-      return replayETF(history, histories, REPLAY_WEEKS).map(week => ({
-        ...week,
-        name: etf.name
-      }))
+      try {
+        return replayETF(history, histories, REPLAY_WEEKS).map(week => ({
+          ...week,
+          name: etf.name
+        }))
+      } catch {
+        return []
+      }
     })
     .sort((left, right) => {
       if (left.weekEndingDate !== right.weekEndingDate) {
@@ -1195,8 +1204,10 @@ export default function App() {
 
         <section className="panel summary-strip">
           <div className="summary-strip__intro">
-            <p className="summary-strip__helper">{intro.helper}</p>
-            <p className="summary-strip__subnote">{intro.subnote}</p>
+            <div className="summary-strip__copy">
+              <p className="summary-strip__helper">{intro.helper}</p>
+              <p className="summary-strip__subnote">{intro.subnote}</p>
+            </div>
           </div>
           <div className="summary-strip__status">
             <span className="status-chip">Regime <strong>{regimeSummary(activeRegime)}</strong></span>
@@ -1365,8 +1376,7 @@ export default function App() {
                 <div>
                   <h2>ETF Weekly</h2>
                   <p className="subtle">
-                    Latest completed-history classification using Yahoo daily OHLCV, weekly aggregation, and
-                    simplified regime inputs from SPY, QQQ, and VIX.
+                    Yahoo 日線資料聚合為週線後的第一層 ETF 分類，重點看強弱輪動，而不是預測。
                   </p>
                 </div>
                 <div className="header-actions">
@@ -1632,10 +1642,9 @@ export default function App() {
                 <div>
                   <h2>個股信號歷史 Signal History</h2>
                   <p className="subtle">
-                    Every past signal label with actual forward-return outcome. Entry = next-bar open (HYP-012).
-                    Colour = directional correctness — 🟢 signal worked, 🔴 signal failed.
+                    每次歷史信號與其後續表現，方便看同一標的在不同市況下是否真的有 edge。
                   </p>
-                  <p className="subtle">綠色 = 信號方向正確；紅色 = 方向錯誤。</p>
+                  <p className="subtle">綠色代表方向正確；紅色代表方向錯誤。入場假設為 next-bar open。</p>
                 </div>
                 <div className="header-actions">
                   <label>
@@ -1759,18 +1768,20 @@ export default function App() {
             </section>
             </>) : (<>
             {/* ── STOCK RESEARCH (Quant Lab sub-tab) ── */}
-            <section className="panel hero-card wide">
-              <p className="eyebrow">Research Status</p>
-              <h2>Stock Research 信號驗證</h2>
-              <p className="subtle">
-                Forward-return dataset built from the last 250 signal bars across {stockWatchlist.length} watchlist names. Historical earnings dates loaded via Finnhub when configured.
-              </p>
-              <p className="zh-subtitle">統計驗證工作區：追蹤每個信號標籤的實際勝率，六個 Gate 全通過才算可信。</p>
+            <section className="panel wide quant-summary-panel">
+              <div className="section-header">
+                <div>
+                  <h2>Signal Proof 信號驗證</h2>
+                  <p className="subtle">
+                    以最近 250 bars 的 replay records 檢查信號是否通過七關卡，而不是只看單次案例。
+                  </p>
+                </div>
+              </div>
               <div className="status-row">
-                <span className="status-chip">Records: <strong>{researchState.records.length}</strong></span>
-                <span className="status-chip">Long Signals: <strong>{researchDirectional.longCount}</strong></span>
-                <span className="status-chip">Short Signals: <strong>{researchDirectional.shortCount}</strong></span>
-                <span className="status-chip">Updated: <strong>{researchState.lastUpdated ? new Date(researchState.lastUpdated).toLocaleString('en-HK', { hour12: false }) : 'pending'}</strong></span>
+                <span className="status-chip">Records <strong>{researchState.records.length}</strong></span>
+                <span className="status-chip">Long <strong>{researchDirectional.longCount}</strong></span>
+                <span className="status-chip">Short <strong>{researchDirectional.shortCount}</strong></span>
+                <span className="status-chip">Updated <strong>{researchState.lastUpdated ? new Date(researchState.lastUpdated).toLocaleString('en-HK', { hour12: false }) : 'pending'}</strong></span>
               </div>
               {researchError ? <div className="warning">{researchError}</div> : null}
             </section>
@@ -1808,7 +1819,7 @@ export default function App() {
                   <button type="button" className="refresh-button" disabled={isLoadingResearch || gateResults.length === 0} onClick={() => void handleCopyGateSummaryMarkdown()}>
                     📋 Copy MD
                   </button>
-                  <button type="button" onClick={() => setShowGateLegend(v => !v)} style={{ fontSize: '0.82rem' }}>? 點睇 Gate 說明</button>
+                  <button type="button" onClick={() => setShowGateLegend(v => !v)} style={{ fontSize: '0.82rem' }}>Gate 說明</button>
                   <button type="button" className="refresh-button" disabled={isLoadingResearch} onClick={() => void loadResearchData()}>{isLoadingResearch ? 'Refreshing...' : 'Refresh Research'}</button>
                 </div>
               </div>
@@ -1816,7 +1827,7 @@ export default function App() {
               {showGateLegend && (
                 <div className="gate-legend">
                   <button type="button" className="gate-legend__close" onClick={() => setShowGateLegend(false)}>✕</button>
-                  <h3>六關卡說明 Gate Criteria</h3>
+                  <h3>七關卡說明 Gate Criteria</h3>
                   <dl className="gate-legend__list">
                     <dt>G1 — 樣本量</dt><dd>n ≥ 100。</dd>
                     <dt>G2 — 方向正確</dt><dd>Long label Avg 5D &gt; 0；Short &lt; 0。</dd>
@@ -1895,51 +1906,6 @@ export default function App() {
                         <td>{formatPercent(item.avgRet5dVsSpy)}</td>
                         <td>{formatPercent(item.avgMae5d)}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <section className="panel wide">
-              <div className="section-header">
-                <div>
-                  <h2>Rolling Robustness Walk-forward 穩定性</h2>
-                  <p className="subtle">把同一批 records 切成 rolling 6M / 12M / 18M 視窗，觀察各 label 在多少個窗口仍通過 G2 / G3 / G6 與 Full PASS。</p>
-                </div>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Label</th>
-                      <th>Window</th>
-                      <th>G2 Pass</th>
-                      <th>G3 Pass</th>
-                      <th>G6 Pass</th>
-                      <th>Full PASS</th>
-                      <th>Avg 5D vs SPY</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {robustnessResults.flatMap((item: LabelRobustnessResult) => (
-                      item.summaries.map((summary, index) => (
-                        <tr key={`${item.label}:${summary.window.id}`}>
-                          <td>
-                            {index === 0 ? (
-                              <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(item.label).toLowerCase()}`}>
-                                {getStockLabelDisplay(item.label).lightEmoji} {item.label}
-                              </span>
-                            ) : '—'}
-                          </td>
-                          <td>{summary.window.label}</td>
-                          <td>{renderWindowPasses(summary, summary.gate2PassWindows)}</td>
-                          <td>{renderWindowPasses(summary, summary.gate3PassWindows)}</td>
-                          <td>{renderWindowPasses(summary, summary.gate6PassWindows)}</td>
-                          <td>{renderWindowPasses(summary, summary.fullPassWindows)}</td>
-                          <td>{formatPercent(summary.avgRet5dVsSpy)}</td>
-                        </tr>
-                      ))
                     ))}
                   </tbody>
                 </table>
@@ -2406,302 +2372,6 @@ export default function App() {
             </section>
           </>
 
-        ) : activeTab === ('Stock Research' as string) ? (
-          <>
-            <section className="panel hero-card wide">
-              <p className="eyebrow">Research Status</p>
-              <h2>Stock Research 信號驗證</h2>
-              <p className="subtle">
-                Forward-return dataset built from the last 250 signal bars across {stockWatchlist.length} watchlist names. Historical earnings dates loaded via Finnhub when configured.
-              </p>
-              <p className="zh-subtitle">統計驗證工作區：追蹤每個信號標籤的實際勝率，六個 Gate 全通過才算可信。</p>
-              <div className="status-row">
-                <span className="status-chip">
-                  Records: <strong>{researchState.records.length}</strong>
-                </span>
-                <span className="status-chip">
-                  Long Signals: <strong>{researchDirectional.longCount}</strong>
-                </span>
-                <span className="status-chip">
-                  Short Signals: <strong>{researchDirectional.shortCount}</strong>
-                </span>
-                <span className="status-chip">
-                  Updated:{' '}
-                  <strong>
-                    {researchState.lastUpdated
-                      ? new Date(researchState.lastUpdated).toLocaleString('en-HK', { hour12: false })
-                      : 'pending'}
-                  </strong>
-                </span>
-              </div>
-              {researchError ? <div className="warning">{researchError}</div> : null}
-            </section>
-
-            <section className="dashboard-grid wide">
-              <article className={`panel ${summaryToneClass('gain')}`}>
-                <h2>Long Excess 5D 升幅超大市</h2>
-                <strong><AnimatedMetricValue value={formatPercent(researchDirectional.excess5dLong)} /></strong>
-                <span>Mean 5D return vs SPY for long labels</span>
-              </article>
-              <article className={`panel ${summaryToneClass('loss')}`}>
-                <h2>Short Excess 5D 跌幅超大市</h2>
-                <strong><AnimatedMetricValue value={formatPercent(researchDirectional.excess5dShort)} /></strong>
-                <span>Mean 5D return vs SPY for short labels</span>
-              </article>
-              <article className={`panel ${summaryToneClass('info')}`}>
-                <h2>Dataset Window</h2>
-                <strong><AnimatedMetricValue value="250" /> bars</strong>
-                <span>Per ticker, excluding the last 10 bars for forward returns</span>
-              </article>
-              <article className={`panel ${summaryToneClass('violet')}`}>
-                <h2>Universe</h2>
-                <strong><AnimatedMetricValue value={String(stockWatchlist.length)} /></strong>
-                <span>Starter watchlist names included in research</span>
-              </article>
-            </section>
-
-            <section className="panel wide">
-              <div className="section-header">
-                <div>
-                  <h2>Gate Summary 七關卡驗證</h2>
-                  <p className="subtle">
-                    G1 n≥100 樣本量 · G2 方向正確 · G3 跑贏大市&gt;0.5% · G4 前後半一致 · G5 中性市仍正確 · G6 MAE&lt;3% · G7 止損命中率&lt;30%
-                  </p>
-                  <p className="subtle">
-                    七個 Gate 全 ✓ 才算通過，目前所有 label 仍在研究階段。
-                  </p>
-                </div>
-                <div className="header-actions">
-                  <button
-                    type="button"
-                    className="refresh-button"
-                    disabled={isLoadingResearch || gateResults.length === 0}
-                    onClick={() => void handleCopyGateSummaryMarkdown()}
-                  >
-                    📋 Copy MD
-                  </button>
-                  <button type="button" onClick={() => setShowGateLegend(v => !v)} style={{ fontSize: '0.82rem' }}>
-                    ? 點睇 Gate 說明
-                  </button>
-                  <button type="button" className="refresh-button" disabled={isLoadingResearch} onClick={() => void loadResearchData()}>
-                    {isLoadingResearch ? 'Refreshing...' : 'Refresh Research'}
-                  </button>
-                </div>
-              </div>
-              {gateSummaryCopyStatus && <p className="subtle">{gateSummaryCopyStatus}</p>}
-
-              {showGateLegend && (
-                <div className="gate-legend">
-                  <button type="button" className="gate-legend__close" onClick={() => setShowGateLegend(false)}>✕</button>
-                  <h3>六關卡說明 Gate Criteria</h3>
-                  <dl className="gate-legend__list">
-                    <dt>G1 — 樣本量</dt>
-                    <dd>n ≥ 100。樣本太少，其餘 Gate 的統計無意義。</dd>
-                    <dt>G2 — 方向正確</dt>
-                    <dd>Long label 的 Avg 5D &gt; 0；Short label 的 Avg 5D &lt; 0。</dd>
-                    <dt>G3 — 跑贏大市</dt>
-                    <dd>Long label 的 Avg 5D vs SPY &gt; +0.5%；Short label &lt; −0.5%。</dd>
-                    <dt>G4 — 前後半一致</dt>
-                    <dd>把樣本按時間排序後，前半與後半都要方向正確。防止信號只在某個時期有效。</dd>
-                    <dt>G5 — 中性市仍正確</dt>
-                    <dd>即使 regime 為 neutral（大市普通），信號的方向仍然正確。需要 ≥ 5 個 neutral 樣本才評估；不足則顯示 INSUFFICIENT。</dd>
-                    <dt>G6 — MAE 受控</dt>
-                    <dd>5D 內的最大逆向波動（Maximum Adverse Excursion）平均 &lt; 3%。</dd>
-                    <dt>G7 — 止損命中率</dt>
-                    <dd>Long 信號在 5D 內被 2×ATR14 止損的比率 &lt; 30%。命中率過高代表信號容易被震倉，實盤難跟。需要 ≥ 10 個有效止損樣本才評估。</dd>
-                  </dl>
-                  <p className="gate-legend__note">所有 label 必須通過 G1–G7 才能正式建議。目前所有 label 仍屬研究階段。</p>
-                </div>
-              )}
-
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Label 信號</th>
-                      <th>n</th>
-                      <th>Avg 5D</th>
-                      <th>Median 5D</th>
-                      <th>vs SPY</th>
-                      <th>MAE 5D</th>
-                      <th title="n ≥ 100 樣本量">G1</th>
-                      <th title="方向正確">G2</th>
-                      <th title="跑贏大市 > 0.5%">G3</th>
-                      <th title="前後半一致">G4</th>
-                      <th title="中性市仍正確">G5</th>
-                      <th title="MAE < 3%">G6</th>
-                      <th title="止損命中率 < 30%">G7</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gateResults.map((item: LabelGateResult) => (
-                      <tr key={item.label}>
-                        <td>
-                          <div className="label-cell">
-                            <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(item.label).toLowerCase()}`}>
-                              {getStockLabelDisplay(item.label).lightEmoji} {getStockLabelDisplay(item.label).zhText}
-                            </span>
-                            <span className="label-code">{item.label}</span>
-                          </div>
-                        </td>
-                        <td>{item.count}</td>
-                        <td>{formatPercent(item.avgRet5d)}</td>
-                        <td>{formatPercent(item.medianRet5d)}</td>
-                        <td>{formatPercent(item.avgRet5dVsSpy)}</td>
-                        <td>{formatPercent(item.avgMae5d)}</td>
-                        <td className={gateClass(item.gate1SampleSize)}>{gateIcon(item.gate1SampleSize)}</td>
-                        <td className={gateClass(item.gate2Direction)}>{gateIcon(item.gate2Direction)}</td>
-                        <td className={gateClass(item.gate3VsSpy)}>{gateIcon(item.gate3VsSpy)}</td>
-                        <td className={gateClass(item.gate4Consistent)}>{gateIcon(item.gate4Consistent)}</td>
-                        <td className={gateClass(item.gate5NeutralRegime)}>{gateIcon(item.gate5NeutralRegime)}</td>
-                        <td className={gateClass(item.gate6Mae)}>{gateIcon(item.gate6Mae)}</td>
-                        <td className={gateClass(item.gate7StopLossHitRate)} title={item.stopLossHitRate !== null ? `${(item.stopLossHitRate * 100).toFixed(0)}%` : undefined}>{gateIcon(item.gate7StopLossHitRate)}</td>
-                        <td>
-                          <span className={`status-badge status-badge--${item.status.toLowerCase()}`}>
-                            {item.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <section className="panel wide">
-              <div className="section-header">
-                <div>
-                  <h2>Regime Split 大市環境分拆</h2>
-                  <p className="subtle">
-                    Avg 5D return by signal label across regimes.
-                    Gate G5 requires the correct direction in neutral regime.
-                  </p>
-                  <p className="subtle">大市偏好時升、中性市時仍能升、偏弱市時仍能跌，才是真正可信的信號。</p>
-                </div>
-              </div>
-
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Label</th>
-                      <th>🟢 long_friendly n</th>
-                      <th>Avg 5D</th>
-                      <th>🟡 neutral n</th>
-                      <th>Avg 5D</th>
-                      <th>🔴 short_friendly n</th>
-                      <th>Avg 5D</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gateResults.map((item: LabelGateResult) => (
-                      <tr key={item.label}>
-                        <td>
-                          <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(item.label).toLowerCase()}`}>
-                            {getStockLabelDisplay(item.label).lightEmoji} {item.label}
-                          </span>
-                        </td>
-                        <td>{item.regimeSplit.long_friendly.count}</td>
-                        <td>{formatPercent(item.regimeSplit.long_friendly.avgRet5d)}</td>
-                        <td>{item.regimeSplit.neutral.count}</td>
-                        <td>{formatPercent(item.regimeSplit.neutral.avgRet5d)}</td>
-                        <td>{item.regimeSplit.short_friendly.count}</td>
-                        <td>{formatPercent(item.regimeSplit.short_friendly.avgRet5d)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            <section className="panel wide">
-              <div className="section-header">
-                <div>
-                  <h2>Record Explorer 記錄探查</h2>
-                  <p className="subtle">
-                    {selectedResearchLabel === 'ALL'
-                      ? `Showing ${Math.min(filteredResearchRecords.length, 120)} of ${filteredResearchRecords.length} records (most recent first). Select a label to drill down.`
-                      : `${filteredResearchRecords.length} records for ${selectedResearchLabel} · Avg 5D ${formatPercent(researchFilterStats.avg5d)} · Win Rate ${formatPercent(researchFilterStats.winRate5d)}`}
-                  </p>
-                </div>
-                <div className="header-actions">
-                  <label>
-                    Label 信號
-                    <select
-                      value={selectedResearchLabel}
-                      onChange={e => setSelectedResearchLabel(e.target.value as StockSignalLabel | 'ALL')}
-                    >
-                      <option value="ALL">ALL — 全部</option>
-                      <option value="LONG_BREAK">LONG_BREAK</option>
-                      <option value="LONG_VCP">LONG_VCP</option>
-                      <option value="LONG_BOUNCE">LONG_BOUNCE</option>
-                      <option value="LONG_BASE">LONG_BASE</option>
-                      <option value="WATCH">WATCH</option>
-                      <option value="SHORT_BREAK">SHORT_BREAK</option>
-                      <option value="SHORT_BASE">SHORT_BASE</option>
-                      <option value="SHORT_WATCH">SHORT_WATCH</option>
-                      <option value="NEUTRAL">NEUTRAL</option>
-                      <option value="AVOID_CHOP">AVOID_CHOP</option>
-                      <option value="REVIEW_EVENT">REVIEW_EVENT</option>
-                      <option value="REVIEW_DATA">REVIEW_DATA</option>
-                    </select>
-                  </label>
-                  <label>
-                    Research Flag
-                    <select
-                      value={selectedResearchFlag}
-                      onChange={e => setSelectedResearchFlag(e.target.value as ResearchFlag | 'ALL')}
-                    >
-                      <option value="ALL">ALL — 全部</option>
-                      <option value="BASE_BREAK">BASE_BREAK</option>
-                      <option value="DISTRIBUTION_WARNING">DISTRIBUTION_WARNING</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Ticker</th>
-                      <th>Label</th>
-                      <th>Regime</th>
-                      <th>Flags</th>
-                      <th>5D</th>
-                      <th>10D</th>
-                      <th>5D vs SPY</th>
-                      <th>MFE 5D</th>
-                      <th>MAE 5D</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredResearchRecords.slice(0, selectedResearchLabel === 'ALL' ? 120 : 500).map(record => (
-                      <tr key={`${record.signalDate}:${record.ticker}:${record.label}`}>
-                        <td>{record.signalDate}</td>
-                        <td>{record.ticker}</td>
-                        <td>
-                          <span className={`label-pill label-pill--stock label-pill--stock-${stockLabelGroup(record.label).toLowerCase()}`}>
-                            {getStockLabelDisplay(record.label).lightEmoji} {record.label}
-                          </span>
-                        </td>
-                        <td>{record.regimeAtSignal}</td>
-                        <td>{renderResearchFlags(record.researchFlags)}</td>
-                        <td className={returnClass(record.ret5d, record.label)}>{formatPercent(record.ret5d)}</td>
-                        <td className={returnClass(record.ret10d, record.label)}>{formatPercent(record.ret10d)}</td>
-                        <td className={returnClass(record.ret5dVsSpy, record.label)}>{formatPercent(record.ret5dVsSpy)}</td>
-                        <td>{formatPercent(record.mfe5d)}</td>
-                        <td>{formatPercent(record.mae5d)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </>
-
         ) : (
           <section className="panel wide">
             <div>Coming soon: {activeTab}</div>
@@ -2718,7 +2388,10 @@ export default function App() {
             onClick={() => setActiveTab(tab)}
           >
             <span className="bottom-nav__icon" aria-hidden="true">{TAB_META[tab].navMark}</span>
-            <span className="bottom-nav__label">{TAB_META[tab].navLabel}</span>
+            <span className="bottom-nav__label">
+              <span className="bottom-nav__label-en">{TAB_META[tab].navLabelEn}</span>
+              {TAB_META[tab].navLabelZh ? <span className="bottom-nav__label-zh">{TAB_META[tab].navLabelZh}</span> : null}
+            </span>
           </button>
         ))}
       </nav>

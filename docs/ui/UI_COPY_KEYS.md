@@ -314,7 +314,7 @@ signal.stock.long_break.action_zh
 建議流程：
 
 1. 先改本文件中的 key 對照與 canonical wording。
-2. 再改 `UI_DESIGN.md` 的描述名詞。
+2. 再改 [`UI_DESIGN.md`](./UI_DESIGN.md) 的描述名詞。
 3. 最後才改 `src/App.tsx` 與 `src/ui/labelDisplay.ts` 實際展示文案。
 
 這樣可避免：

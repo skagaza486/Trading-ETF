@@ -370,8 +370,8 @@ Futu 的結構通常是：
 
 如果採用這個方向，後續要同步更新：
 
-- `UI_DESIGN.md`
-- `UI_COPY_KEYS.md`
+- [`UI_DESIGN.md`](./UI_DESIGN.md)
+- [`UI_COPY_KEYS.md`](./UI_COPY_KEYS.md)
 - `src/App.tsx`
 - help / onboarding 文案
 

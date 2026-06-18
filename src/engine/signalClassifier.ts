@@ -115,6 +115,7 @@ export function resolveStockLabel(
   // Structure: uptrend intact, above EMA200
   // Multi-bar: price was near EMA20 in last 5 days (recentPullbackNearEma20)
   // HYP-018 (multi-bar): pullback should be on low volume — healthy retracement, not distribution
+  // HYP-026: RS Line must be above its EMA50 — filters out relative-weakness dead-cat bounces
   // Trigger: close reclaimed EMA20 today with quality close
   const longBounce =
     regime === 'long_friendly' &&
@@ -126,7 +127,8 @@ export function resolveStockLabel(
     rsi14 >= 42 && rsi14 <= 58 &&
     clv > 0.6 &&
     relStrengthVsSpy > 0 &&
-    (indicators.pullbackRvolAvg === null || indicators.pullbackRvolAvg < 1.2)
+    (indicators.pullbackRvolAvg === null || indicators.pullbackRvolAvg < 1.2) &&
+    indicators.rsLineAboveEma !== false                                 // HYP-026: null-safe — exclude only confirmed RS weakness
 
   if (longBounce) {
     return 'LONG_BOUNCE'

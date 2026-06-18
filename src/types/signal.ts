@@ -95,4 +95,9 @@ export type StockIndicatorSnapshot = {
   udVolRatio50: number | null           // up-day vol / down-day vol over last 50 bars — net accumulation proxy
   nr7: boolean | null                   // today's high-low range is smallest of last 7 bars — volatility compression
   extendedFromPivot: boolean | null     // close >5% above 20d high — chasing risk flag
+  // RS Line fields (HYP-026 to HYP-027)
+  rsLine: number | null                 // close / SPY_close — IBD RS Line ratio series (latest value)
+  rsLineEma50: number | null            // EMA(50) of rsLine — RS trend baseline
+  rsLineAboveEma: boolean | null        // rsLine > rsLineEma50 — RS trend health flag (HYP-026 LONG_BOUNCE gate)
+  rsLineNewHigh120d: boolean | null     // rsLine >= max(rsLine, last 120 bars) — RS new high tag (HYP-027 research)
 }

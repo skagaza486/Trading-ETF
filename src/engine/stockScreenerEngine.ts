@@ -216,6 +216,54 @@ function buildIndicatorSnapshot(
     return latestClose > pivot * 1.05
   })()
 
+  // HYP-026/027: RS Line = close / SPY_close — IBD relative strength ratio series
+  // Aligns bars by position (same assumption as computeRelativeStrengthVsSpy).
+  // rsLineAboveEma: RS trend health flag used as LONG_BOUNCE排雷 condition
+  // rsLineNewHigh120d: research tag for Meta-Labeling feature accumulation (HYP-027)
+  const { rsLine, rsLineEma50, rsLineAboveEma, rsLineNewHigh120d } = (() => {
+    const spyBars = benchmarks.SPY?.bars
+    if (!spyBars || spyBars.length === 0) {
+      return { rsLine: null, rsLineEma50: null, rsLineAboveEma: null, rsLineNewHigh120d: null }
+    }
+
+    const len = Math.min(bars.length, spyBars.length)
+    const rsLineSeries: number[] = []
+    for (let i = bars.length - len; i < bars.length; i++) {
+      const spyIdx = spyBars.length - len + (i - (bars.length - len))
+      const spyClose = spyBars[spyIdx]?.close
+      if (spyClose && spyClose > 0) rsLineSeries.push(bars[i].close / spyClose)
+    }
+
+    if (rsLineSeries.length === 0) {
+      return { rsLine: null, rsLineEma50: null, rsLineAboveEma: null, rsLineNewHigh120d: null }
+    }
+
+    const latestRsLine = rsLineSeries.at(-1) ?? null
+
+    const ema50Series = computeEMA(
+      rsLineSeries.map((v, i) => ({ date: '', open: v, high: v, low: v, close: v, volume: i })),
+      50
+    )
+    const latestRsLineEma50 = ema50Series.at(-1) ?? null
+
+    const rsLineAboveEmaVal =
+      latestRsLine !== null && latestRsLineEma50 !== null
+        ? latestRsLine > latestRsLineEma50
+        : null
+
+    const rsLineNewHigh120dVal =
+      latestRsLine !== null && rsLineSeries.length >= 2
+        ? latestRsLine >= Math.max(...rsLineSeries.slice(-Math.min(120, rsLineSeries.length)))
+        : null
+
+    return {
+      rsLine: latestRsLine,
+      rsLineEma50: latestRsLineEma50,
+      rsLineAboveEma: rsLineAboveEmaVal,
+      rsLineNewHigh120d: rsLineNewHigh120dVal
+    }
+  })()
+
   return {
     close: latestClose,
     low: latestLow,
@@ -248,7 +296,11 @@ function buildIndicatorSnapshot(
     adx14,
     udVolRatio50,
     nr7,
-    extendedFromPivot
+    extendedFromPivot,
+    rsLine,
+    rsLineEma50,
+    rsLineAboveEma,
+    rsLineNewHigh120d
   }
 }
 
@@ -298,7 +350,11 @@ export function classifyStock(
         adx14: null,
         udVolRatio50: null,
         nr7: null,
-        extendedFromPivot: null
+        extendedFromPivot: null,
+        rsLine: null,
+        rsLineEma50: null,
+        rsLineAboveEma: null,
+        rsLineNewHigh120d: null
       },
       regime,
       earningsWithinWindow: false,

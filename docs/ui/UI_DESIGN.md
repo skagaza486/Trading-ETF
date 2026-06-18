@@ -15,7 +15,7 @@
 
 補充：
 
-- 本文已揉合 `FUTU_NAV_REFERENCE.md` 的 mobile-first 導航建議
+- 本文已揉合 [`FUTU_NAV_REFERENCE.md`](./FUTU_NAV_REFERENCE.md) 的 mobile-first 導航建議
 - `UI 1.0` 已鎖定為「收斂版」
 - 設計優先級改為：清晰度 > 氣氛 > 展示感
 

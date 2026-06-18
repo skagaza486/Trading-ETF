@@ -8,7 +8,7 @@
 
 | Layer | Technology |
 |---|---|
-| UI framework | React 18 + TypeScript (strict) |
+| UI framework | React 19 + TypeScript (strict) |
 | Build tool | Vite 8 |
 | Styling | Plain CSS (no framework), IBM Plex Sans + Space Grotesk fonts |
 | Runtime (prod) | Cloudflare Workers (edge) |
@@ -38,7 +38,7 @@
 │   │   ├── signalClassifier.ts        # Stock signal gate logic → StockSignalLabel
 │   │   ├── stockScreenerEngine.ts     # Per-ticker daily indicator compute → StockSignal
 │   │   ├── stockResearchEngine.ts     # Historical signals + forward-return records
-│   │   └── researchGate.ts            # Six-gate statistical validation
+│   │   └── researchGate.ts            # Seven-gate statistical validation
 │   ├── services/marketData/
 │   │   ├── yahooFinanceProvider.ts    # Fetch OHLCV bars via /api/yahoo proxy
 │   │   ├── earningsProvider.ts        # Fetch earnings dates via /api/finnhub
@@ -55,6 +55,11 @@
 │   └── styles/
 │       ├── global.css                 # Design tokens, reset, body
 │       └── dashboard.css              # All component styles + responsive breakpoints
+├── docs/
+│   ├── README.md                      # 補充文檔索引
+│   └── ui/                            # UI 1.0 設計、命名與 QA 流程
+├── tests/
+│   └── ui/                            # Playwright UI smoke tests
 ├── worker.ts                          # Cloudflare Worker entry point (API proxy + assets)
 ├── wrangler.toml                      # Cloudflare config
 ├── vite.config.ts                     # Dev-server proxy for Yahoo / Finnhub / FRED
@@ -87,7 +92,7 @@ Engine layer (pure functions, no async):
   stockScreenerEngine → StockSignal[] (one per watchlist stock)
        │
        ▼
-App.tsx setState → React renders 5 tabs
+App.tsx setState → React renders 4 main tabs
 ```
 
 ---
