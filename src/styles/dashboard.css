@@ -299,7 +299,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 0;
+  padding: 9px 0;
   border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 
@@ -404,8 +404,11 @@
 
 .rail-kpi strong {
   display: block;
-  margin: 10px 0 0;
-  font-size: 1.5rem;
+  margin: 8px 0 0;
+  font-size: 1.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rail-stack {
@@ -703,10 +706,10 @@ h2 {
 
 .summary-pill__value {
   display: block;
-  margin: 8px 0 4px;
+  margin: 6px 0 4px;
   color: var(--text-primary);
   font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
-  font-size: 1.7rem;
+  font-size: 3rem;
   line-height: 0.95;
   letter-spacing: -0.05em;
 }

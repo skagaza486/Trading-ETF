@@ -1414,7 +1414,6 @@ export default function App() {
               <span className={`label-pill label-pill--stock label-pill--stock-${uiGroup}`}>
                 {disp.zhText}
               </span>
-              <small>{disp.action}</small>
             </div>
             <div className="stock-terminal-row__metrics">
               <strong>{row.close === null ? 'n/a' : row.close.toFixed(2)}</strong>
@@ -1784,7 +1783,7 @@ export default function App() {
                   <div className="rail-kpi-grid">
                     <article className="rail-kpi">
                       <span>Regime</span>
-                      <strong>{weeklyState.regime === 'long_friendly' ? 'Bullish' : weeklyState.regime === 'short_friendly' ? 'Weak' : 'Neutral'}</strong>
+                      <strong>{weeklyState.regime === 'long_friendly' ? 'Bull' : weeklyState.regime === 'short_friendly' ? 'Bear' : 'Neut'}</strong>
                     </article>
                     <article className="rail-kpi">
                       <span>Strength</span>
@@ -2310,7 +2309,8 @@ export default function App() {
               </article>
               <article className={`panel ${summaryToneClass('info')}`}>
                 <h2>Dataset Window</h2>
-                <strong><AnimatedMetricValue value="250" /> bars</strong>
+                <strong><AnimatedMetricValue value="250" /></strong>
+                <span>bars per ticker</span>
                 <span>Per ticker, excluding the last 10 bars for forward returns</span>
               </article>
               <article className={`panel ${summaryToneClass('violet')}`}>
