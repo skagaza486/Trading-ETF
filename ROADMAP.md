@@ -11,57 +11,37 @@
 | Signal engine | 穩定。LONG_BOUNCE T1 avg5D +1.57%，LONG_BREAK avg5D +2.5% vs SPY +2.3% |
 | 雲端架構 | B1 + B2 上線。KV daily snapshot + D1 signals，cron 21:30 UTC Mon–Fri |
 | Watchlist | 299 stocks（T1=123 growth，T2=176 defensive） |
-| UI | UI 1.0 完成。UI 1.1 進行中 |
+| UI | UI 1.1 完成並部署。Git → Cloudflare Workers 自動 build + deploy |
 
 ---
 
-## 現在做：UI 1.1 + 雲端遷移
+## ✅ 完成：UI 1.1 + 雲端遷移（2026-06-19）
 
-### UI-A　Stocks 頁 → list-first screener　⬜ 待做
+### UI-A　Stocks 頁 → list-first screener　✅ 完成
 
-> 規格：`docs/ui/UI_1_1_300_STOCK_UX_ADDENDUM.md` §2
+### UI-B　Verify 頁 → overview-first workbench　✅ 完成
 
-- [ ] 預設視圖改 `List`，Cards 降為次要
-- [ ] 首屏：Top Stats → Filter Toolbar → Sort Bar → Segmented Blocks → Signal List
-- [ ] Filter：Market / Cap / Sector / Label / Earnings Risk
-- [ ] Sort：Signal Strength / RS Rank / Recent Change / Ticker（T1 優先於 T2）
-- [ ] 結果分段：Top Signals / Needs Review / All Results
-- [ ] 列表行：左（logo/ticker/tags）· 中（sparkline/badge）· 右（price/change/RSI/RVOL/RS%）
-- [ ] 點行展開 detail drawer，技術說明放 drawer
-
-### UI-B　Verify 頁 → overview-first workbench　⬜ 待做
-
-> 規格：`docs/ui/UI_1_1_300_STOCK_UX_ADDENDUM.md` §3
-
-- [ ] Signal Proof 首屏順序：Pass/Fail Overview → Top Problems → Gate Summary → Robustness → Records Explorer
-- [ ] Records Explorer 加入 gate：必須先選 label / ticker / regime 至少一個才顯示 records
-- [ ] ETF Check：replay analytics / favour-avoid 相對表現
-- [ ] Stock Check：ticker-level signal timeline
-
-### UI-C　其他（可延後）
-
-- [ ] Dashboard command center 強化
-- [ ] Logo / icon / ticker badge 全面接入（`assetRegistry.ts`）
-- [ ] ETF page polish
-
-**UI 1.1 完成定義：** Stocks 預設 list-first + filter/sort/sections；Verify 首屏 overview-first，Records Explorer 有 gate；`npm run build` 通過。
+### UI-C　其他　✅ 完成
 
 ---
 
-### B1+　Signal classification 移入 cron　⬜ 待做
+### B1+　Signal classification 移入 cron　✅ 完成
 
-目前 cron 寫 indicators，瀏覽器仍在 page load 時做 signal classification。
+cron 已寫 label 進 KV snapshot；瀏覽器直接讀取，不再做 client-side classification。
 
-- [ ] `cronSnapshot.ts` 加入 `signalClassifier` 呼叫，把 `label` 寫入 KV snapshot
-- [ ] `snapshotProvider.ts` 直接讀 label，不再 client-side 分類
-- [ ] `App.tsx` 移除 client-side classify fallback
-- **結果：** 瀏覽器變純 renderer，載入速度提升，所有 299 stocks 分類由 cron 統一處理
+- [x] `cronSnapshot.ts` 加入 `signalClassifier` 呼叫，把 `label` 寫入 KV snapshot
+- [x] `snapshotProvider.ts` 直接讀 label，不再 client-side 分類
+- [x] `App.tsx` 移除 client-side classify fallback（`buildStockRows` + `classifyStock` import 已刪）
+- **結果：** 瀏覽器變純 renderer，snapshot 不可用時顯示錯誤訊息
 
-### B2+　Gate Summary 自動寫 D1　⬜ 待做
+### B2+　Gate Summary 自動寫 D1　✅ 完成
 
-- [ ] cron 完成分類後，把各 label 的 n / avg5D / vs SPY / gate pass/fail 寫入 `gate_snapshots` 表
-- [ ] Verify Records Explorer 改為 `/api/d1/signals` 查詢，移除瀏覽器內 `buildHistoricalSignals` 重算
-- **結果：** Verify tab 有真實歷史數據，EXP 對比不再靠手動複製 MD 表格
+- [x] cron 完成分類後，把各 label 的 n / avg5D / vs SPY / gate pass/fail 寫入 `gate_snapshots` 表
+- [x] `signals` 表加入 forward-return 欄位（ret1d…mae10d, stop_loss_hit 等）；migration: `schema/d1-migrate-b2.sql`
+- [x] cron 執行 `writeHistoricalSignalsToD1`（250 bars replay）backfill forward returns
+- [x] `/api/d1/signals` 回傳 `ForwardReturnRecord[]`（days=365, limit 5000）
+- [x] `loadResearchData` 改為 fetch `/api/d1/signals`，移除 `buildHistoricalSignals` / `buildForwardReturnRecord` client-side 重算
+- **結果：** Verify tab 直接讀 D1，無需 client-side replay；EXP gate 數據由 cron 統一維護
 
 ---
 

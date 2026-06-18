@@ -162,6 +162,7 @@ export async function fetchYahooChart(ticker: string, options: YahooHistoryOptio
       const response = await fetch(url, { headers: YAHOO_HEADERS })
 
       if (!response.ok) {
+        await response.body?.cancel()
         throw new Error(`Yahoo Finance returned ${response.status} for ${ticker}`)
       }
 

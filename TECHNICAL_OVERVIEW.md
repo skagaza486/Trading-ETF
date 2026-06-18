@@ -12,10 +12,11 @@
 | Build tool | Vite 8 |
 | Styling | Plain CSS (no framework), IBM Plex Sans + Space Grotesk fonts |
 | Runtime (prod) | Cloudflare Workers (edge) |
-| Data — prices | Yahoo Finance (via proxy) |
+| Data — prices | Yahoo Finance (via cron; Worker fetches daily) |
 | Data — earnings | Finnhub API (optional) |
 | State | React `useState` / `useEffect` only — no external state library |
-| Persistence | None (all computed on load; no database) |
+| Persistence — KV | Cloudflare KV: daily snapshot (stocks + regime + RS rank) |
+| Persistence — D1 | Cloudflare D1 (SQLite): signals + forward returns (2yr history) |
 
 ---
 
@@ -28,41 +29,48 @@
 │   ├── main.tsx                       # React mount
 │   ├── data/
 │   │   ├── etfUniverse.ts             # ETF master list (~50 ETFs with metadata)
-│   │   └── watchlist.ts               # Stock watchlist (~100 tickers)
+│   │   └── watchlist.ts               # Stock watchlist (299 tickers, tier 1/2)
 │   ├── engine/                        # Pure computation — no React, no fetch
 │   │   ├── indicatorEngine.ts         # EMA, RSI, MACD, CMF, OBV, RVOL, CLV, ATR
-│   │   ├── marketRegime.ts            # SPY/QQQ/VIX → RegimeClass
+│   │   ├── marketRegime.ts            # SPY/QQQ/VIX/RSP → RegimeClass + proxyWeakBreadth
 │   │   ├── historyUtils.ts            # Bar aggregation, rolling mean, slope, etc.
 │   │   ├── etfWeeklyEngine.ts         # Weekly ETF classification → ETFRecommendation
 │   │   ├── etfReplayEngine.ts         # Rolling 26-week ETF replay
 │   │   ├── signalClassifier.ts        # Stock signal gate logic → StockSignalLabel
 │   │   ├── stockScreenerEngine.ts     # Per-ticker daily indicator compute → StockSignal
-│   │   ├── stockResearchEngine.ts     # Historical signals + forward-return records
+│   │   ├── stockResearchEngine.ts     # Forward-return record helpers (used by cron)
 │   │   └── researchGate.ts            # Seven-gate statistical validation
 │   ├── services/marketData/
 │   │   ├── yahooFinanceProvider.ts    # Fetch OHLCV bars via /api/yahoo proxy
+│   │   ├── snapshotProvider.ts        # Fetch KV snapshot from /api/snapshot/latest
 │   │   ├── earningsProvider.ts        # Fetch earnings dates via /api/finnhub
 │   │   ├── normalizeMarketData.ts     # Raw Yahoo JSON → TickerHistory
 │   │   └── marketDataCache.ts         # In-memory cache for current session
+│   ├── worker/
+│   │   └── cronSnapshot.ts            # Cron logic: fetch 299 stocks, classify, write KV+D1
 │   ├── types/
 │   │   ├── signal.ts                  # ETFLabel, StockSignalLabel, indicator snapshots
 │   │   ├── indicator.ts               # OHLCVBar, TickerHistory
 │   │   ├── market.ts                  # RegimeClass, RegimeInputs, MarketRegime
 │   │   ├── research.ts                # ForwardReturnRecord
+│   │   ├── snapshot.ts                # DailySnapshot, StockSnapshotEntry
 │   │   └── replay.ts                  # ETFReplayWeek
 │   ├── ui/
 │   │   └── labelDisplay.ts            # Label → Chinese text, emoji, plain reason
 │   └── styles/
 │       ├── global.css                 # Design tokens, reset, body
 │       └── dashboard.css              # All component styles + responsive breakpoints
+├── schema/
+│   ├── d1-init.sql                    # D1 table definitions (signals, gate_snapshots)
+│   └── d1-migrate-b2.sql              # Migration: add 15 forward-return columns to signals
 ├── docs/
 │   ├── README.md                      # 補充文檔索引
-│   └── ui/                            # UI 1.0 設計、命名與 QA 流程
+│   └── ui/                            # UI 1.1 設計、命名與 QA 流程
 ├── tests/
 │   └── ui/                            # Playwright UI smoke tests
-├── worker.ts                          # Cloudflare Worker entry point (API proxy + assets)
-├── wrangler.toml                      # Cloudflare config
-├── vite.config.ts                     # Dev-server proxy for Yahoo / Finnhub / FRED
+├── worker.ts                          # Cloudflare Worker entry (cron + API routes + assets)
+├── wrangler.toml                      # Cloudflare config (KV, D1, cron schedule)
+├── vite.config.ts                     # Dev-server proxy for Yahoo / Finnhub
 └── .env.local                         # FINNHUB_API_KEY (gitignored)
 ```
 
@@ -70,29 +78,39 @@
 
 ## 3. Data Flow
 
+### Stocks tab (pure renderer — reads KV snapshot)
+
 ```
-Browser loads SPA
-       │
-       ▼
-App.tsx useEffect → fetchYahooTickerHistory(ticker)
-       │                      │
-       │              GET /api/yahoo/v8/finance/chart/{ticker}
-       │                      │
-       │         ┌────────────┴────────────┐
-       │    [dev] Vite middleware        [prod] worker.ts
-       │    curl → query1.finance.yahoo  fetch → query1/query2.finance.yahoo
-       │
-       ▼
-normalizeMarketData → TickerHistory { ticker, bars: OHLCVBar[] }
-       │
-       ▼
-Engine layer (pure functions, no async):
-  marketRegime.ts   → RegimeClass ('long_friendly' | 'short_friendly' | 'neutral')
-  etfWeeklyEngine   → ETFRecommendation[] (one per ETF)
-  stockScreenerEngine → StockSignal[] (one per watchlist stock)
-       │
-       ▼
-App.tsx setState → React renders 4 main tabs
+Cron (Worker, 21:30 UTC Mon–Fri)
+  → fetch 299 stocks + benchmarks from Yahoo Finance
+  → stockScreenerEngine: compute indicators per stock
+  → marketRegime: compute RegimeClass + proxyWeakBreadth
+  → cross-sectional RS rank
+  → signalClassifier: compute label per stock
+  → write KV: snapshot:latest (36h TTL)
+  → write D1 signals table: label + indicators per ticker per date
+  → settleForwardReturns: update ret5d/ret10d/etc for signals from past 15 days
+  → writeGateSnapshotsToD1: gate aggregate rows
+
+Browser (Stocks tab)
+  → GET /api/snapshot/latest → read KV → StockSnapshotEntry[]
+  → buildStockRowsFromSnapshot → display (pure renderer, no re-classification)
+```
+
+### Verify/Quant Lab tab (reads D1)
+
+```text
+Browser (Verify tab)
+  → GET /api/d1/signals?days=365 → D1 query → ForwardReturnRecord[]
+  → gate evaluation + rolling robustness → display
+```
+
+### ETF tab (still live Yahoo in browser)
+
+```text
+Browser (ETF tab)
+  → GET /api/yahoo/v8/finance/chart/{ticker}
+  → etfWeeklyEngine → ETFRecommendation[] → display
 ```
 
 ---
@@ -227,12 +245,14 @@ Used in "ETF Replay" tab to compute FAVOUR win rate vs SPY and alpha.
 
 ## 9. Stock Research Engine (`stockResearchEngine.ts`)
 
-Builds a `ForwardReturnRecord[]` dataset:
-- Replays signals over the last 180 daily bars per ticker
-- For each signal date, records forward returns: 1D, 3D, 5D, 10D
-- Also records: 5D vs SPY excess return, MFE(5D), MAE(5D), earnings-in-window flag
+Provides helpers for building `ForwardReturnRecord[]`. In production (B2+), forward returns are **computed server-side by the cron** (`cronSnapshot.ts → settleForwardReturns`) and stored in D1. The browser reads them via `/api/d1/signals` — no client-side replay.
 
-Used in "Stock Replay" (per-ticker signal history) and "Stock Research" (gate evaluation).
+`stockResearchEngine.ts` is still used by the cron for helper utilities. Key functions:
+
+- `buildForwardReturnRecordsLite` — lightweight forward-return computation from price history
+- `settleForwardReturns` — queries D1 for signals with NULL ret5d (past 15 days), fills in actual forward prices
+
+D1 `signals` table forward-return columns: `ret1d`, `ret3d`, `ret5d`, `ret10d`, `ret5d_vs_spy`, `ret10d_vs_spy`, `mfe5d`, `mae5d`, `mfe10d`, `mae10d`, `earnings_in_window`, `suggested_stop_loss`, `stop_loss_hit`, `atr_at_signal`, `close_at_signal`.
 
 ---
 
@@ -305,15 +325,17 @@ Stock labels (11 total): WATCH, LONG_BASE, LONG_VCP, LONG_BOUNCE, LONG_BREAK, NE
 
 The app never calls external APIs directly from the browser (CORS). All market data goes through `/api/*` routes:
 
-| Route | Upstream | Purpose |
+| Route | Upstream / Source | Purpose |
 |---|---|---|
-| `/api/yahoo/*` | query1/query2.finance.yahoo.com | OHLCV price history |
+| `/api/yahoo/*` | query1/query2.finance.yahoo.com | OHLCV price history (ETF tab + cron) |
 | `/api/finnhub/*` | finnhub.io/api/v1 | Earnings calendar (current + historical) |
-| `/api/fred/*` | fred.stlouisfed.org | Macro data (dev only; not used in prod) |
+| `/api/snapshot/latest` | Cloudflare KV | Daily stock snapshot (Stocks tab) |
+| `/api/d1/signals` | Cloudflare D1 | Forward-return records (Verify tab) |
+| `/api/admin/backfill` | Cloudflare D1 | One-time historical backfill (30 stocks/call) |
 
-**Local dev:** `vite.config.ts` registers Vite middleware that calls `curl` for each route (avoids browser CORS, works with Yahoo's HTTP/1.1 requirements).
+**Local dev:** `vite.config.ts` registers Vite middleware that proxies `/api/yahoo` and `/api/finnhub` (avoids browser CORS). KV/D1 routes only work in production Worker.
 
-**Production:** `worker.ts` (Cloudflare Worker) handles the same routes, falls through to `env.ASSETS.fetch(request)` for static SPA files.
+**Production:** `worker.ts` handles all routes, falls through to `env.ASSETS.fetch(request)` for static SPA files.
 
 ---
 
@@ -328,32 +350,49 @@ main = "worker.ts"
 [assets]
 directory = "./dist"
 binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "SNAPSHOT_KV"
+
+[[d1_databases]]
+binding = "trading_etf_db"
+database_name = "trading-etf-db"
+
+[triggers]
+crons = ["30 21 * * 1-5"]   # 21:30 UTC Mon–Fri = ~90 min after US market close
 ```
 
-**Deploy steps:**
+**Deploy steps (always both together):**
 ```bash
-node node_modules/.bin/vite build   # produces ./dist
-# push to GitHub → Cloudflare auto-deploys via Git integration
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/vite build
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/wrangler deploy
 ```
 
-**Environment variable required in Cloudflare dashboard:**
+Never run `wrangler deploy` alone — `dist/` would be stale.
+
+**Environment variables required in Cloudflare dashboard:**
 - `FINNHUB_API_KEY` — enables earnings data (without it, earnings risk is silently disabled)
 
-**Live URL:** https://trading-etf.pages.dev (or custom Cloudflare subdomain)
+**Live URL:** <https://trading-etf.skagaza486.workers.dev>
+
+**Target worker name:** `trading-etf` (with hyphen). There is an older worker `tradingetf` (no hyphen) — do not deploy to it.
 
 ---
 
 ## 16. Local Development
 
 ```bash
-# Prerequisites: node at .tools/node-v22.22.3-darwin-arm64/bin/node
-cp .env.local.example .env.local   # add FINNHUB_API_KEY=...
-node node_modules/.bin/vite         # dev server at localhost:5173
-node node_modules/.bin/tsc --noEmit # type check
-node node_modules/.bin/vite build   # production build
+# node/npm are NOT on system PATH — always use the bundled binary:
+alias node='.tools/node-v22.22.3-darwin-arm64/bin/node'
+
+cp .env.local.example .env.local          # add FINNHUB_API_KEY=...
+node node_modules/.bin/vite               # dev server at localhost:5173
+node node_modules/.bin/tsc --noEmit       # type check (zero errors required)
+node node_modules/.bin/vite build         # production build → dist/
+node node_modules/.bin/wrangler deploy    # deploy (always after build)
 ```
 
-`.env.local` is gitignored (`*.local` in `.gitignore`).
+`.env.local` is gitignored. D1 and KV routes (`/api/snapshot/latest`, `/api/d1/signals`) only work in production; the dev server proxies only Yahoo and Finnhub.
 
 ---
 
@@ -392,8 +431,19 @@ type ForwardReturnRecord = {
   ticker: string; signalDate: string; label: StockSignalLabel
   regimeAtSignal: RegimeClass; closeAtSignal: number
   ret1d: number|null; ret3d: number|null; ret5d: number|null; ret10d: number|null
-  ret5dVsSpy: number|null; mfe5d: number|null; mae5d: number|null
-  earningsInWindow: boolean
+  ret5dVsSpy: number|null; ret10dVsSpy: number|null
+  mfe5d: number|null; mae5d: number|null; mfe10d: number|null; mae10d: number|null
+  earningsInWindow: boolean; rvolAtSignal: number|null; atrAtSignal: number|null
+  suggestedStopLoss: number|null; stopLossHit: boolean|null; researchFlags: string[]
+}
+
+// types/snapshot.ts
+type DailySnapshot = {
+  date: string; generatedAt: string; regime: RegimeClass; stocks: StockSnapshotEntry[]
+}
+type StockSnapshotEntry = {
+  ticker: string; tier: 1|2; label: StockSignalLabel
+  close: number; rvol: number|null; rsi: number|null; rsRank: number
 }
 ```
 
@@ -401,8 +451,11 @@ type ForwardReturnRecord = {
 
 ## 19. Known Constraints & Design Decisions
 
-- **No backend / no database.** All computation is client-side. Each browser session re-fetches everything from scratch (session-level in-memory cache only).
-- **Yahoo Finance is unofficial.** The proxy works with `curl` using a browser User-Agent. Rate limiting or format changes can break data fetch.
+- **Stocks tab is a pure renderer.** Labels are computed by the cron and stored in KV. The browser reads the snapshot directly — no re-classification. If the cron hasn't run, the tab shows an error.
+- **Verify tab reads D1 only.** `loadResearchData` fetches `/api/d1/signals` — no client-side replay. Records only appear after the cron has run and settled forward returns (5 trading days lag for ret5d).
+- **ETF tab still fetches Yahoo live.** Each browser session re-fetches ETF OHLCV bars from Yahoo via `/api/yahoo`. This is acceptable given the small ETF universe (~50 tickers).
+- **Forward returns require 5 trading days to settle.** Signals from the last 5 days will have `ret5d = NULL` and are excluded from the Verify tab query.
+- **Yahoo Finance is unofficial.** Rate limiting or format changes can break data fetch. The cron retries query1/query2 endpoints automatically.
 - **Finnhub earnings is optional.** Without `FINNHUB_API_KEY`, `REVIEW_EVENT` labels never fire; earnings risk filtering is silently disabled.
 - **HYP-009 rule:** LONG_BREAK and SHORT_BREAK require the prior bar to be in the same direction ladder, preventing single-bar impulse breakouts from mislabelling.
 - **Structure + Trigger design:** As of 2026-06-18, all entry signals require both a structural condition (trend alignment, above EMA200) and a trigger condition (breakout, bounce, compression). WATCH is a universe filter only and is not gate-evaluated.
@@ -413,60 +466,28 @@ type ForwardReturnRecord = {
 
 ---
 
-## 20. Architecture Evolution Plan
+## 20. Architecture Status
 
-Current architecture is **pure client-side**: all data fetched and computed in browser on each page load. Three capabilities require a backend:
-
-| Capability | Blocked by | Unlocked at |
+| Phase | Status | Summary |
 |---|---|---|
-| Cross-sectional RS ranking (HYP-025 Path A) | All stocks must be computed simultaneously | B1 |
-| S&P 500 universe (500 stocks) | Browser fetch latency | B1 |
-| Gate Summary history across sessions | No persistence | B2 |
-| Walk-forward via SQL (HYP-014) | No queryable store | B2 |
-| Meta-Labeling / LightGBM (Stage C) | Needs Python ML ecosystem | B3 |
+| B1 — KV + Cron | ✅ Complete (2026-06-19) | 299 stocks classified daily by cron; KV snapshot; browser is pure renderer |
+| B2 — D1 signals | ✅ Complete (2026-06-19) | Forward returns settled server-side; Verify tab reads D1; 2yr backfill done |
+| B3 — Python ML | Planned (unblock 2026-07-19) | LightGBM meta-labeling; requires D1 data ≥ 30 days and Python backend |
 
-**Trigger to start:** LONG_BREAK n ≥ 100 (G1 PASS) and LONG_BOUNCE stable full-PASS ≥ 2 months.
+### Next: B3 — Python Research Backend
 
-### B1 — Cloudflare KV + Cron Triggers
-
-Extends existing `worker.ts`. No new infrastructure required.
-
-```text
-worker.ts (Cron, daily 16:30 ET)
-  → fetch S&P 500 tickers + OHLCV
-  → compute cross-sectional RS ranking + indicators
-  → write to Cloudflare KV: "daily-snapshot:{date}" → JSON
-
-worker.ts (HTTP handler)
-  → read KV snapshot → return to SPA
-
-SPA (existing)
-  → receive pre-computed snapshot
-  → run signalClassifier locally (unchanged)
-```
-
-New files: `src/engine/snapshotBuilder.ts` (extracted from stockScreenerEngine), `worker-cron.ts` or extended `worker.ts`.
-
-### B2 — Cloudflare D1 (SQLite)
-
-KV stores latest snapshot (fast reads). D1 stores historical series (queryable).
-
-Key tables: `gate_snapshots` (per-EXP gate results), `signals` (per-ticker per-date signal + forward returns).
-
-New API routes in `worker.ts`: `GET /api/gate-history`, `POST /api/signals/batch`.
-
-### B3 — Python Research Backend
-
-Separate service (local dev or Railway free tier). Consumes D1 data via API, serves ML predictions.
+Separate service (local dev or Railway free tier). Consumes D1 signals via `/api/d1/signals`, trains LightGBM Meta-Labeling model.
 
 ```text
 FastAPI
-  /train  → reads signals from D1, trains LightGBM Meta-Labeling model
+  /train   → reads signals from D1, trains LightGBM Meta-Labeling model
   /predict → accepts indicator snapshot, returns take/skip probability
 ```
 
 SPA calls `/predict` after primary signal classification to apply secondary ML filter.
 
+**Unblock date:** 2026-07-19 (D1 live 30 days, sufficient sample for initial model).
+
 ---
 
-Last updated: 2026-06-18 (signal taxonomy redesign — structure+trigger two-layer; I7 tab restructure complete; HYP-026/027 RS Line implemented; backend architecture evolution plan added)
+Last updated: 2026-06-19 (B1+B2 complete; cloud architecture live; 299 stocks; cron 21:30 UTC Mon–Fri; D1 signals + forward returns + backfill)

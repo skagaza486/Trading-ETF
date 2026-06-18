@@ -6,7 +6,7 @@
 /* ── Shell & Workspace ───────────────────────────────────────────────── */
 .app-shell {
   min-height: 100vh;
-  padding: 14px 18px 104px;
+  padding: 14px 18px calc(104px + env(safe-area-inset-bottom, 0px));
   background:
     radial-gradient(ellipse 80% 42% at 14% 0%, rgba(52, 207, 255, 0.024) 0%, transparent 58%),
     radial-gradient(ellipse 68% 52% at 88% 14%, rgba(39, 227, 141, 0.024) 0%, transparent 54%),
@@ -207,7 +207,7 @@
 
 .home-desktop {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) 320px;
+  grid-template-columns: minmax(0, 1.66fr) 356px;
   gap: 16px;
 }
 
@@ -421,6 +421,144 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.rail-regime-panel {
+  padding: 18px 18px 16px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.02), transparent 30%),
+    radial-gradient(circle at top right, rgba(52, 207, 255, 0.045), transparent 34%),
+    rgba(6, 15, 14, 0.9);
+}
+
+.rail-regime-panel__hero {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.rail-regime-panel__eyebrow {
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.rail-regime-panel__summary {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.rail-regime-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rail-regime-card {
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 12px 12px 11px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.03), transparent 40%),
+    rgba(10, 21, 20, 0.88);
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.rail-regime-card span {
+  color: var(--text-muted);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rail-regime-card strong {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+  font-size: 2rem;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.rail-regime-card small {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.rail-regime-card__signal {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 1.2rem;
+  font-weight: 700;
+  background: radial-gradient(circle at 30% 30%, rgba(56, 241, 157, 0.18), transparent 72%), rgba(12, 31, 26, 0.9);
+  border: 1px solid rgba(56, 241, 157, 0.14);
+}
+
+.rail-regime-card--regime strong {
+  font-size: 1.55rem;
+}
+
+.rail-regime-card--strength strong {
+  font-size: 2.2rem;
+}
+
+.rail-regime-meter {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+}
+
+.rail-regime-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(56, 241, 157, 0.95), rgba(52, 207, 255, 0.78));
+}
+
+.rail-breadth-donut {
+  --breadth: 50%;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  margin-top: 2px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at center, rgba(7, 16, 15, 1) 0 57%, transparent 58% 100%),
+    conic-gradient(rgba(39, 227, 141, 0.92) 0 var(--breadth), rgba(255,255,255,0.11) var(--breadth) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.rail-breadth-donut strong {
+  margin: 0;
+  font-size: 0.96rem;
+  letter-spacing: -0.03em;
+}
+
+.rail-regime-panel__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
 }
 
 .rail-stack {
@@ -2143,6 +2281,50 @@ td select { min-width: 92px; }
   background: rgba(8, 18, 17, 0.52);
 }
 
+.stocks-filter-line__main {
+  display: grid;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.stocks-filter-line__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stocks-filter-line__copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.stocks-filter-line__copy strong {
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.stocks-filter-line__copy span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.stocks-filter-line__reset {
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
 .stocks-filter-line__lead {
   display: inline-flex;
   align-items: center;
@@ -2173,6 +2355,10 @@ td select { min-width: 92px; }
 .stocks-filter-toolbar label {
   display: grid;
   gap: 6px;
+}
+
+.stocks-filter-toolbar select {
+  min-height: 42px;
 }
 
 .stocks-filter-toolbar label span,
@@ -2526,9 +2712,24 @@ td select { min-width: 92px; }
   padding: 10px 12px;
 }
 
+.verify-workbench__card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.verify-workbench__card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(52, 207, 255, 0.18);
+}
+
 .verify-workbench__card.is-active {
   border-color: rgba(39, 227, 141, 0.18);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+  background:
+    linear-gradient(180deg, rgba(39, 227, 141, 0.07), transparent 55%),
+    rgba(8, 18, 17, 0.7);
 }
 
 .verify-workbench__card span,
@@ -2667,7 +2868,7 @@ td select { min-width: 92px; }
 /* ── ETF Cards ───────────────────────────────────────────────────────── */
 .etf-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
   gap: 12px;
   margin-top: 6px;
   padding: 12px;
@@ -2730,20 +2931,25 @@ td select { min-width: 92px; }
 }
 
 .etf-card__metrics {
-  display: flex;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
 }
 
 .etf-card__metric {
   font-size: 0.78rem;
   color: var(--text-secondary);
+  min-width: 0;
 }
 
 .etf-card__metric strong {
   color: var(--text-primary);
   font-weight: 600;
-  display: inline;
-  margin: 0;
+  display: block;
+  margin: 3px 0 0;
+  font-size: 1.08rem;
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2866,9 +3072,18 @@ td select { min-width: 92px; }
 .stocks-section__header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 6px;
   padding: 0 2px;
+}
+
+.stocks-section__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .stocks-section__label {
@@ -2906,7 +3121,17 @@ td select { min-width: 92px; }
 
 .stocks-section__count {
   font-size: 0.72rem;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: rgba(255,255,255,0.02);
+}
+
+.stocks-section__hint {
   color: var(--text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 
 .stocks-section__expand {
@@ -2941,7 +3166,7 @@ td select { min-width: 92px; }
   width: 100%;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
-  padding: 0;
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
   border: none;
   border-top: 1px solid rgba(255,255,255,0.08);
   border-radius: 0;
@@ -3133,7 +3358,7 @@ td select { min-width: 92px; }
 
 .help-panel {
   position: fixed;
-  bottom: 76px;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   right: 24px;
   z-index: 910;
   width: min(360px, calc(100vw - 48px));
@@ -3328,7 +3553,7 @@ td select { min-width: 92px; }
 }
 
 @media (max-width: 640px) {
-  .app-shell { padding: 12px 14px 72px; }
+  .app-shell { padding: 12px 14px calc(72px + env(safe-area-inset-bottom, 0px)); }
 
   .content-shell {
     min-width: 0;
@@ -3593,6 +3818,10 @@ td select { min-width: 92px; }
     display: grid;
   }
 
+  .stocks-filter-line__intro {
+    align-items: start;
+  }
+
   .stocks-filter-line__lead {
     display: none;
   }
@@ -3664,7 +3893,7 @@ td select { min-width: 92px; }
 }
 
 @media (max-width: 480px) {
-  .app-shell { padding: 10px 12px 72px; }
+  .app-shell { padding: 10px 12px calc(72px + env(safe-area-inset-bottom, 0px)); }
 
   h1 { font-size: 1.1rem; }
 
@@ -3767,6 +3996,28 @@ td select { min-width: 92px; }
     margin-top: 10px;
     padding: 12px;
     border-radius: 16px;
+  }
+
+  .stocks-filter-line__main {
+    gap: 10px;
+  }
+
+  .stocks-filter-line__intro {
+    gap: 8px;
+  }
+
+  .stocks-filter-line__copy strong {
+    font-size: 0.78rem;
+  }
+
+  .stocks-filter-line__copy span {
+    font-size: 0.68rem;
+  }
+
+  .stocks-filter-line__reset {
+    min-height: 28px;
+    padding: 3px 9px;
+    font-size: 0.64rem;
   }
 
   .stocks-filter-toolbar {
@@ -3890,13 +4141,63 @@ td select { min-width: 92px; }
 
   .stock-card { padding: 13px 13px 11px; min-height: 190px; }
 
-  .etf-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .etf-card-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 6px;
+  }
 
-  .etf-card { padding: 11px 11px 9px; }
+  .etf-card {
+    padding: 9px 10px 8px;
+    gap: 7px;
+  }
 
-  .etf-card__ticker { font-size: 1.05rem; }
+  .etf-card__top {
+    gap: 6px;
+  }
 
-  .etf-card__name { font-size: 0.72rem; }
+  .etf-card .label-pill {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+  }
+
+  .etf-card__ticker {
+    font-size: 0.96rem;
+  }
+
+  .etf-card__name {
+    font-size: 0.68rem;
+    line-height: 1.25;
+  }
+
+  .etf-card__metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px 8px;
+    align-items: start;
+  }
+
+  .etf-card__metric {
+    font-size: 0.64rem;
+  }
+
+  .etf-card__metric strong {
+    display: block;
+    margin-top: 1px;
+    font-size: 0.78rem;
+    line-height: 1.1;
+  }
+
+  .etf-card__sparkline {
+    height: 32px;
+    margin: 2px 0 0;
+  }
+
+  .etf-card__reason {
+    padding-top: 6px;
+    font-size: 0.7rem;
+    line-height: 1.3;
+  }
 
   /* Summary cards in 2-col: single-line label + number only, drop description */
   .summary-card h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -3936,49 +4237,149 @@ td select { min-width: 92px; }
 
   /* Verify workbench cards — compact */
   .verify-workbench__cards {
-    grid-template-columns: 1fr;
-    gap: 6px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    margin-top: 8px;
   }
 
   .verify-workbench__card {
-    padding: 7px 10px;
-    border-radius: 10px;
+    min-height: 54px;
+    padding: 5px 6px 4px;
+    border-radius: 9px;
   }
 
   .verify-workbench__card strong {
-    font-size: 0.78rem;
-    margin: 3px 0 2px;
+    font-size: 0.67rem;
+    margin: 1px 0 0;
+    line-height: 1.15;
   }
 
   .verify-workbench__card small {
-    font-size: 0.66rem;
+    display: none;
   }
 
   .verify-workbench__card span {
-    font-size: 0.62rem;
+    font-size: 0.52rem;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
   }
 
-  /* Verify top summary-strip — compact */
-  .summary-strip {
-    gap: 8px;
-    padding: 10px 12px 9px;
+  /* Verify top summary-strip — aggressively compact */
+  .summary-strip--verify {
+    gap: 4px;
+    padding: 6px 8px;
   }
 
-  .summary-strip__helper {
+  .summary-strip--verify .summary-strip__intro {
+    display: block;
+  }
+
+  .summary-strip--verify .summary-strip__helper {
+    font-size: 0.68rem;
+    line-height: 1.2;
+    margin-bottom: 2px;
+  }
+
+  .summary-strip--verify .summary-strip__subnote {
+    font-size: 0.52rem;
+    padding: 1px 5px;
+  }
+
+  .summary-strip--verify .summary-strip__status {
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .summary-strip--verify .status-chip {
+    min-height: 20px;
+    padding: 2px 6px;
+    font-size: 0.54rem;
+  }
+
+  .summary-strip--verify .status-chip strong {
+    font-size: 0.6rem;
+  }
+
+  .summary-strip--verify .summary-strip__metrics {
+    gap: 4px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .summary-strip--verify .summary-pill {
+    padding: 4px 5px;
+    min-height: 0;
+  }
+
+  .summary-strip--verify .summary-pill__label {
+    font-size: 0.48rem;
+    letter-spacing: 0.08em;
+  }
+
+  .summary-strip--verify .summary-pill__value {
     font-size: 0.82rem;
+    margin: 3px 0 0;
+    line-height: 0.95;
   }
 
-  .summary-strip__subnote {
-    font-size: 0.62rem;
-    padding: 3px 7px;
+  .summary-strip--verify .summary-pill__note,
+  .summary-strip--verify .summary-strip__disclaimer {
+    display: none;
   }
 
-  .summary-pill {
-    padding: 7px 9px 6px;
+  .verify-workbench {
+    padding: 8px 10px;
   }
 
-  .summary-pill__value {
-    font-size: 1.1rem;
+  .verify-workbench .section-header {
+    margin-bottom: 6px;
+  }
+
+  .verify-workbench .section-header .subtle {
+    font-size: 0.68rem;
+    line-height: 1.2;
+  }
+
+  .verify-workbench .status-row {
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .verify-workbench .status-chip {
+    min-height: 20px;
+    padding: 2px 6px;
+    font-size: 0.54rem;
+  }
+
+  .verify-workbench .status-chip strong {
+    font-size: 0.6rem;
+  }
+
+  .quant-summary-panel {
+    padding: 8px 10px;
+  }
+
+  .quant-summary-panel h2 {
+    margin-bottom: 4px;
+  }
+
+  .quant-summary-panel .subtle {
+    font-size: 0.7rem;
+    line-height: 1.22;
+  }
+
+  .quant-summary-panel .status-row {
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .quant-summary-panel .status-chip {
+    min-height: 20px;
+    padding: 2px 6px;
+    font-size: 0.54rem;
+  }
+
+  .quant-summary-panel .status-chip strong {
+    font-size: 0.6rem;
   }
 
   /* Home Market Snapshot — further compact at 480px */
@@ -4050,6 +4451,10 @@ td select { min-width: 92px; }
 
   /* ETF summary cards — 4 in one row, compact */
   .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-grid--etf-summary {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
@@ -4070,11 +4475,16 @@ td select { min-width: 92px; }
   }
 
   .summary-card strong {
-    font-size: 3.5rem;
+    font-size: 2.2rem;
   }
 
   .summary-card > span {
     font-size: 0.6rem;
+  }
+
+  .dashboard-grid--etf-summary .summary-card strong,
+  .dashboard-grid--etf-summary .summary-card--stat strong {
+    font-size: 3rem;
   }
 
   /* ETF weekly cards — compact */

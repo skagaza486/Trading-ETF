@@ -2,15 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { etfUniverse } from './data/etfUniverse'
 import { stockWatchlist } from './data/watchlist'
 import { replayETF } from './engine/etfReplayEngine'
+import type { ETFSignalRow } from './engine/etfReplayEngine'
 import { buildGateSummaryMarkdown } from './engine/gateSummaryMarkdown'
 import { percentChange } from './engine/historyUtils'
 import { classifyETF } from './engine/etfWeeklyEngine'
 import { classifyRegime, computeProxyWeakBreadth, deriveRegimeInputsFromHistories } from './engine/marketRegime'
-import { buildForwardReturnRecord, buildHistoricalSignals } from './engine/stockResearchEngine'
 import { evaluateAllGates, evaluateRollingWindowRobustness } from './engine/researchGate'
 import type { LabelGateResult, LabelRobustnessResult, RollingWindowSummary } from './engine/researchGate'
-import { classifyStock } from './engine/stockScreenerEngine'
-import { fetchEarningsCalendar, fetchHistoricalEarningsMap } from './services/marketData/earningsProvider'
 import { fetchDailySnapshot } from './services/marketData/snapshotProvider'
 import { fetchYahooTickerHistory } from './services/marketData/yahooFinanceProvider'
 import type { TickerHistory } from './types/indicator'
@@ -99,6 +97,11 @@ type ResearchState = {
   lastUpdated: string | null
 }
 
+type ETFReplayState = {
+  rows: ETFSignalRow[]
+  lastUpdated: string | null
+}
+
 type HeroMetric = {
   label: string
   value: string
@@ -184,7 +187,6 @@ const CATEGORY_NAMES: Record<ETFCategory, string> = {
   SECTOR:         '板塊 ETF',
   DIVIDEND:       '股息 ETF'
 }
-const STOCK_BENCHMARK_TICKERS = ['SPY', 'QQQ', 'IWM', '^VIX', 'GLD', '2800.HK']
 const REPLAY_WEEKS = 26
 
 function formatPercent(value: number | null): string {
@@ -535,85 +537,6 @@ function buildReplayAnalytics(rows: ReplayRow[], spyRows: ETFReplayWeek[]): Repl
   }
 }
 
-function buildStockRows(
-  histories: Record<string, TickerHistory>,
-  regime: RegimeClass,
-  earningsDates: Map<string, string | null>
-): StockRow[] {
-  const stockPriority = (label: StockSignalLabel): number => {
-    switch (label) {
-      case 'LONG_BREAK': return 0
-      case 'LONG_VCP': return 1
-      case 'LONG_BOUNCE': return 2
-      case 'LONG_BASE': return 3
-      case 'WATCH': return 4
-      case 'SHORT_BREAK': return 5
-      case 'SHORT_BASE': return 6
-      case 'SHORT_WATCH': return 7
-      case 'NEUTRAL': return 8
-      case 'AVOID_CHOP': return 9
-      case 'REVIEW_EVENT': return 10
-      case 'REVIEW_DATA': return 11
-    }
-  }
-
-  return stockWatchlist
-    .map(stock => {
-      const history = histories[stock.ticker]
-      const earningsDate = earningsDates.get(stock.ticker) ?? null
-
-      if (!history) {
-        return {
-          ticker: stock.ticker,
-          name: stock.name,
-          sector: stock.sector,
-          tier: stock.tier,
-          label: 'REVIEW_DATA' as const,
-          researchFlags: [],
-          regime,
-          earningsDate,
-          close: null,
-          dayChange: null,
-          rsi14: null,
-          rvol: null,
-          relStrengthVsSpy: null,
-          reason: 'History fetch failed.',
-          rsRank: null
-        }
-      }
-
-      const signal = classifyStock(history, histories, earningsDate, regime, stock.tier)
-      const latestClose = history.bars.at(-1)?.close ?? null
-      const previousClose = history.bars.at(-2)?.close ?? null
-
-      return {
-        ticker: stock.ticker,
-        name: stock.name,
-        sector: stock.sector,
-        tier: stock.tier,
-        label: signal.label,
-        researchFlags: signal.researchFlags,
-        regime: signal.regime,
-        earningsDate,
-        close: latestClose,
-        dayChange: latestClose !== null && previousClose !== null ? percentChange(latestClose, previousClose) : null,
-        rsi14: signal.indicators.rsi14,
-        rvol: signal.indicators.rvol,
-        relStrengthVsSpy: signal.indicators.relStrengthVsSpy,
-        reason: signal.reason,
-        rsRank: null
-      }
-    })
-    .sort((left, right) => {
-      const priorityDiff = stockPriority(left.label) - stockPriority(right.label)
-      if (priorityDiff !== 0) return priorityDiff
-      const tierDiff = left.tier - right.tier
-      if (tierDiff !== 0) return tierDiff
-      const rsDiff = (right.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY) - (left.relStrengthVsSpy ?? Number.NEGATIVE_INFINITY)
-      if (rsDiff !== 0) return rsDiff
-      return left.ticker.localeCompare(right.ticker)
-    })
-}
 
 function buildStockRowsFromSnapshot(entries: import('./types/snapshot').StockSnapshotEntry[]): StockRow[] {
   const stockPriority = (label: StockSignalLabel): number => {
@@ -1000,6 +923,12 @@ export default function App() {
   })
   const [isLoadingResearch, setIsLoadingResearch] = useState(false)
   const [researchError, setResearchError] = useState<string | null>(null)
+  const [etfReplayState, setEtfReplayState] = useState<ETFReplayState>({
+    rows: [],
+    lastUpdated: null
+  })
+  const [isLoadingETFReplay, setIsLoadingETFReplay] = useState(false)
+  const [etfReplayError, setEtfReplayError] = useState<string | null>(null)
   const [selectedStockReplayTicker, setSelectedStockReplayTicker] = useState<string>(stockWatchlist[0]?.ticker ?? '')
   const [showGateLegend, setShowGateLegend] = useState(false)
   const [gateSummaryCopyStatus, setGateSummaryCopyStatus] = useState<string | null>(null)
@@ -1085,35 +1014,12 @@ export default function App() {
     void loadWeeklyData()
   }, [])
 
-  async function fetchStockHistories(): Promise<{
-    histories: Record<string, TickerHistory>
-    failedTickers: string[]
-  }> {
-    const tickers = [...new Set([...stockWatchlist.map(stock => stock.ticker), ...STOCK_BENCHMARK_TICKERS])]
-    const results = await Promise.allSettled(tickers.map(ticker => fetchYahooTickerHistory(ticker)))
-    const histories: Record<string, TickerHistory> = {}
-    const failedTickers: string[] = []
-
-    results.forEach((result, index) => {
-      const ticker = tickers[index]
-
-      if (result.status === 'fulfilled') {
-        histories[ticker] = result.value
-        return
-      }
-
-      failedTickers.push(ticker)
-    })
-
-    return { histories, failedTickers }
-  }
 
   async function loadStockData() {
     setIsLoadingStocks(true)
     setStockError(null)
 
     try {
-      // B1: try pre-computed KV snapshot first — avoids per-session Yahoo fetch
       const snapshotResult = await fetchDailySnapshot()
 
       if (snapshotResult.status === 'ok' && !snapshotResult.stale) {
@@ -1130,46 +1036,13 @@ export default function App() {
           snapshotDate: snapshot.date
         })
         setStockError(null)
-        setIsLoadingStocks(false)
-        return
+      } else if (snapshotResult.status === 'ok' && snapshotResult.stale) {
+        setStockError('Snapshot is stale (> 25h old). Cron may not have run today.')
+      } else {
+        setStockError(snapshotResult.reason)
       }
-
-      // Fallback: live fetch from Yahoo
-      const { histories, failedTickers } = await fetchStockHistories()
-
-      const regime = classifyRegime(deriveRegimeInputsFromHistories(histories))
-      let earningsDates = new Map<string, string | null>()
-      let earningsConfigured = true
-      let nextStockError: string | null = null
-
-      try {
-        earningsDates = await fetchEarningsCalendar(stockWatchlist.map(stock => stock.ticker))
-      } catch (error) {
-        earningsConfigured = false
-        nextStockError = error instanceof Error ? error.message : 'Failed to load earnings calendar.'
-      }
-
-      const rows = buildStockRows(histories, regime, earningsDates)
-
-      setStockState({
-        histories,
-        rows,
-        failedTickers,
-        lastUpdated: new Date().toISOString(),
-        earningsConfigured,
-        regime,
-        snapshotDate: null
-      })
-
-      if (rows.length === 0) {
-        nextStockError = 'No stock histories were available.'
-      } else if (failedTickers.length > 0 && nextStockError === null) {
-        nextStockError = `Some stock tickers failed to load: ${failedTickers.slice(0, 6).join(', ')}`
-      }
-
-      setStockError(nextStockError)
     } catch (error) {
-      setStockError(error instanceof Error ? error.message : 'Failed to load stock histories.')
+      setStockError(error instanceof Error ? error.message : 'Failed to load snapshot.')
     } finally {
       setIsLoadingStocks(false)
     }
@@ -1186,33 +1059,16 @@ export default function App() {
     setResearchError(null)
 
     try {
-      const histories =
-        Object.keys(stockState.histories).length > 0 ? stockState.histories : (await fetchStockHistories()).histories
-      // A4: fetch historical earnings so replay signals respect earningsWithinWindow
-      const replayEndDate = new Date().toISOString().slice(0, 10)
-      const replayStartDate = new Date(Date.now() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      let historicalEarnings = new Map<string, string[]>()
-      try {
-        historicalEarnings = await fetchHistoricalEarningsMap(
-          stockWatchlist.map(stock => stock.ticker),
-          replayStartDate,
-          replayEndDate
-        )
-      } catch {
-        // earnings integration is optional — silently fall back to null earningsDate
+      const response = await fetch('/api/d1/signals?days=365')
+      if (!response.ok) {
+        throw new Error(`/api/d1/signals returned ${response.status}`)
       }
 
-      const signals = buildHistoricalSignals(
-        histories,
-        stockWatchlist.map(stock => stock.ticker),
-        250,
-        historicalEarnings
-      )
-      const records = buildForwardReturnRecord(signals, histories).sort((left, right) => {
+      const json = (await response.json()) as { records: import('./types/research').ForwardReturnRecord[] }
+      const records = json.records.sort((left, right) => {
         if (left.signalDate !== right.signalDate) {
           return right.signalDate.localeCompare(left.signalDate)
         }
-
         return stockResearchLabelPriority(left.label) - stockResearchLabelPriority(right.label)
       })
 
@@ -1222,10 +1078,10 @@ export default function App() {
       })
 
       if (records.length === 0) {
-        setResearchError('No research records were generated from the current watchlist histories.')
+        setResearchError('No research records in D1 yet — cron must run at least once to backfill forward returns.')
       }
     } catch (error) {
-      setResearchError(error instanceof Error ? error.message : 'Failed to build stock research dataset.')
+      setResearchError(error instanceof Error ? error.message : 'Failed to load research data from D1.')
     } finally {
       setIsLoadingResearch(false)
     }
@@ -1237,6 +1093,30 @@ export default function App() {
     }
   }, [activeTab, researchState.records.length, isLoadingResearch, stockState.histories])
 
+  async function loadETFReplayData() {
+    setIsLoadingETFReplay(true)
+    setEtfReplayError(null)
+    try {
+      const response = await fetch('/api/d1/etf-signals?weeks=52')
+      if (!response.ok) throw new Error(`/api/d1/etf-signals returned ${response.status}`)
+      const json = (await response.json()) as { rows: ETFSignalRow[] }
+      setEtfReplayState({ rows: json.rows, lastUpdated: new Date().toISOString() })
+      if (json.rows.length === 0) {
+        setEtfReplayError('No ETF signals in D1 yet — run /api/admin/etf-backfill to populate.')
+      }
+    } catch (error) {
+      setEtfReplayError(error instanceof Error ? error.message : 'Failed to load ETF replay data from D1.')
+    } finally {
+      setIsLoadingETFReplay(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'Quant Lab' && quantLabSubTab === 'ETF Replay' && etfReplayState.rows.length === 0 && !isLoadingETFReplay) {
+      void loadETFReplayData()
+    }
+  }, [activeTab, quantLabSubTab, etfReplayState.rows.length, isLoadingETFReplay])
+
   useEffect(() => {
     if (gateSummaryCopyStatus === null) return
 
@@ -1246,15 +1126,40 @@ export default function App() {
 
   const counts = labelCounts(weeklyState.rows)
   const replayTickerOptions = ['ALL', ...etfUniverse.map(etf => etf.ticker)]
+
+  // Build ReplayRow[] from D1 ETF signal rows
+  const d1ReplayRows: ReplayRow[] = useMemo(() => {
+    const etfNameMap = new Map(etfUniverse.map(e => [e.ticker, e.name]))
+    return etfReplayState.rows.map(row => ({
+      ticker: row.ticker,
+      name: etfNameMap.get(row.ticker) ?? row.ticker,
+      weekEndingDate: row.weekEndingDate,
+      label: row.label,
+      indicators: (() => {
+        try { return JSON.parse(row.indicatorsJson) } catch { return {} }
+      })(),
+      ret1w: row.ret1w,
+      ret4w: row.ret4w,
+    }))
+  }, [etfReplayState.rows])
+
   const filteredReplayRows =
     selectedReplayTicker === 'ALL'
-      ? weeklyState.replayRows
-      : weeklyState.replayRows.filter(row => row.ticker === selectedReplayTicker)
+      ? d1ReplayRows
+      : d1ReplayRows.filter(row => row.ticker === selectedReplayTicker)
   const replaySummary = buildReplaySummary(filteredReplayRows)
-  const spyReplayRows =
-    weeklyState.histories.SPY && selectedReplayTicker === 'ALL'
-      ? replayETF(weeklyState.histories.SPY, weeklyState.histories, REPLAY_WEEKS)
-      : []
+  // Use VOO as the SPY proxy for benchmark comparison (SPY is not in etfUniverse)
+  const spyReplayRows: ETFReplayWeek[] = useMemo(() => {
+    const benchmarkRows = etfReplayState.rows.filter(r => r.ticker === 'VOO')
+    return benchmarkRows.map(r => ({
+      ticker: r.ticker,
+      weekEndingDate: r.weekEndingDate,
+      label: r.label,
+      indicators: (() => { try { return JSON.parse(r.indicatorsJson) } catch { return {} } })(),
+      ret1w: r.ret1w,
+      ret4w: r.ret4w,
+    }))
+  }, [etfReplayState.rows])
   const replayAnalytics = buildReplayAnalytics(filteredReplayRows, spyReplayRows)
   const stockCounts = countStockGroups(stockState.rows)
   const stockSectorOptions = useMemo(
@@ -1326,6 +1231,11 @@ export default function App() {
     shortBias: sortedStockRows.filter(row => stockLabelGroup(row.label) === 'SHORT').length,
     review: sortedStockRows.filter(row => stockLabelGroup(row.label) === 'REVIEW').length
   }), [sortedStockRows])
+  const activeStockFilterCount =
+    (selectedStockTier !== 'ALL' ? 1 : 0) +
+    (selectedStockSector !== 'ALL' ? 1 : 0) +
+    (selectedStockLabelGroup !== 'ALL' ? 1 : 0) +
+    (selectedEarningsRisk !== 'ALL' ? 1 : 0)
   const stockDirectionalTotal = stockListStats.longBias + stockListStats.shortBias
   const stockLongBiasPercent = stockDirectionalTotal > 0 ? Math.round((stockListStats.longBias / stockDirectionalTotal) * 100) : 0
   const stockShortBiasPercent = stockDirectionalTotal > 0 ? Math.round((stockListStats.shortBias / stockDirectionalTotal) * 100) : 0
@@ -1546,6 +1456,26 @@ export default function App() {
       .sort((left, right) => (left.earningsDate ?? '').localeCompare(right.earningsDate ?? ''))
       .slice(0, 4)
   }, [stockState.rows])
+  const desktopRegimeHeadline =
+    weeklyState.regime === 'long_friendly'
+      ? 'Bullish'
+      : weeklyState.regime === 'short_friendly'
+      ? 'Defensive'
+      : 'Neutral'
+  const desktopRegimeSubline =
+    weeklyState.regime === 'long_friendly'
+      ? '偏多'
+      : weeklyState.regime === 'short_friendly'
+      ? '偏弱'
+      : '觀望'
+  const desktopBreadthNote =
+    breadthPercent >= 65
+      ? 'Above 50D MA'
+      : breadthPercent >= 50
+      ? 'Participation steady'
+      : 'Breadth below neutral'
+  const desktopStrengthNote = weeklyState.proxyWeakBreadth ? 'Narrow participation' : 'Trend participation healthy'
+  const desktopRiskNote = weeklyState.proxyWeakBreadth ? 'Moderate risk' : 'Risk contained'
 
   const heroMetrics = buildHeroMetrics({
     activeTab,
@@ -1631,7 +1561,7 @@ export default function App() {
           </header>
 
           {activeTab !== 'Dashboard' && activeTab !== 'Stocks' ? (
-            <section className="panel summary-strip">
+            <section className={activeTab === 'Quant Lab' ? 'panel summary-strip summary-strip--verify' : 'panel summary-strip'}>
               <div className="summary-strip__intro">
                 <div className="summary-strip__copy">
                   <p className="summary-strip__helper">{intro.helper}</p>
@@ -1774,25 +1704,42 @@ export default function App() {
               </div>
 
               <aside className="home-desktop__rail">
-                <section className="panel">
+                <section className="panel rail-regime-panel">
                   <div className="section-header">
                     <div>
                       <h2>Regime & Breadth / 市場狀態</h2>
                     </div>
                   </div>
-                  <div className="rail-kpi-grid">
-                    <article className="rail-kpi">
+                  <div className="rail-regime-panel__hero">
+                    <span className="rail-regime-panel__eyebrow">Desktop Overview</span>
+                    <p className="rail-regime-panel__summary">{desktopRegimeHeadline} market with {breadthPercent}% long-led breadth.</p>
+                  </div>
+                  <div className="rail-regime-grid">
+                    <article className="rail-regime-card rail-regime-card--regime">
                       <span>Regime</span>
-                      <strong>{weeklyState.regime === 'long_friendly' ? 'Bull' : weeklyState.regime === 'short_friendly' ? 'Bear' : 'Neut'}</strong>
+                      <div className="rail-regime-card__signal" aria-hidden="true">{weeklyState.regime === 'long_friendly' ? '↗' : weeklyState.regime === 'short_friendly' ? '↘' : '→'}</div>
+                      <strong>{desktopRegimeHeadline}</strong>
+                      <small>{desktopRegimeSubline}</small>
                     </article>
-                    <article className="rail-kpi">
-                      <span>Strength</span>
+                    <article className="rail-regime-card rail-regime-card--strength">
+                      <span>Regime Strength</span>
                       <strong>{marketStateScore}</strong>
+                      <div className="rail-regime-meter" aria-hidden="true">
+                        <span style={{ width: `${marketStateScore}%` }} />
+                      </div>
+                      <small>{desktopStrengthNote}</small>
                     </article>
-                    <article className="rail-kpi">
-                      <span>Breadth</span>
-                      <strong>{breadthPercent}%</strong>
+                    <article className="rail-regime-card rail-regime-card--breadth">
+                      <span>Market Breadth</span>
+                      <div className="rail-breadth-donut" style={{ ['--breadth' as '--breadth']: `${breadthPercent}%` }}>
+                        <strong>{breadthPercent}%</strong>
+                      </div>
+                      <small>{desktopBreadthNote}</small>
                     </article>
+                  </div>
+                  <div className="rail-regime-panel__footer">
+                    <span>Risk {desktopRiskNote}</span>
+                    <span>Market vs SPY {stockCounts.LONG > stockCounts.SHORT ? 'Outperform' : 'Mixed'}</span>
                   </div>
                 </section>
 
@@ -1833,7 +1780,7 @@ export default function App() {
 
         ) : activeTab === 'ETFs' ? (
           <>
-            <section className="dashboard-grid wide">
+            <section className="dashboard-grid dashboard-grid--etf-summary wide">
               <article className={`panel ${summaryToneClass('gain')} summary-card--stat`}>
                 <h2>🟢 Favour</h2>
                 <strong><AnimatedMetricValue value={String(counts.FAVOUR)} /></strong>
@@ -1989,21 +1936,33 @@ export default function App() {
                 </div>
               </div>
               <div className="verify-workbench__cards">
-                <article className={`verify-workbench__card${quantLabSubTab === 'Stock Research' ? ' is-active' : ''}`}>
+                <button
+                  type="button"
+                  className={`verify-workbench__card${quantLabSubTab === 'Stock Research' ? ' is-active' : ''}`}
+                  onClick={() => setQuantLabSubTab('Stock Research')}
+                >
                   <span>Signal Proof</span>
                   <strong>Overview First</strong>
                   <small>Gate summary, robustness, top problems, records explorer.</small>
-                </article>
-                <article className={`verify-workbench__card${quantLabSubTab === 'Stock Replay' ? ' is-active' : ''}`}>
+                </button>
+                <button
+                  type="button"
+                  className={`verify-workbench__card${quantLabSubTab === 'Stock Replay' ? ' is-active' : ''}`}
+                  onClick={() => setQuantLabSubTab('Stock Replay')}
+                >
                   <span>Stock Check</span>
                   <strong>Ticker Replay</strong>
                   <small>單一標的的歷史信號軌跡與 forward returns。</small>
-                </article>
-                <article className={`verify-workbench__card${quantLabSubTab === 'ETF Replay' ? ' is-active' : ''}`}>
+                </button>
+                <button
+                  type="button"
+                  className={`verify-workbench__card${quantLabSubTab === 'ETF Replay' ? ' is-active' : ''}`}
+                  onClick={() => setQuantLabSubTab('ETF Replay')}
+                >
                   <span>ETF Check</span>
                   <strong>Board Validation</strong>
                   <small>Favour / Avoid replay 與 broad regime 驗證。</small>
-                </article>
+                </button>
               </div>
             </section>
 
@@ -2085,11 +2044,17 @@ export default function App() {
                       ))}
                     </select>
                   </label>
-                  <button type="button" className="refresh-button" disabled={isLoadingWeekly} onClick={() => void loadWeeklyData()}>
-                    {isLoadingWeekly ? 'Refreshing...' : 'Refresh Live Data'}
+                  <button type="button" className="refresh-button" disabled={isLoadingETFReplay} onClick={() => void loadETFReplayData()}>
+                    {isLoadingETFReplay ? 'Loading...' : 'Refresh'}
                   </button>
                 </div>
               </div>
+
+              {etfReplayError ? (
+                <p className="subtle" style={{ color: 'var(--color-warn)' }}>{etfReplayError}</p>
+              ) : isLoadingETFReplay ? (
+                <p className="subtle">Loading ETF signals from D1…</p>
+              ) : null}
 
               {(() => {
                 const collapseLimit = Math.min(5, Math.max(1, filteredReplayRows.length))
@@ -2684,61 +2649,83 @@ export default function App() {
                 <div className="stocks-filter-line__lead">
                   <UiIcon name="icon-filter" className="stocks-filter-line__icon" />
                 </div>
-                <div className="stocks-filter-toolbar">
-                <label>
-                  <span>Tier</span>
-                  <select value={selectedStockTier} onChange={event => setSelectedStockTier(event.target.value as StockTierFilter)}>
-                    <option value="ALL">All Tiers</option>
-                    <option value="T1">Growth / Tier 1</option>
-                    <option value="T2">Defensive / Tier 2</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Sector</span>
-                  <select value={selectedStockSector} onChange={event => setSelectedStockSector(event.target.value)}>
-                    {stockSectorOptions.map(option => (
-                      <option key={option} value={option}>{option === 'ALL' ? 'All Sectors' : option}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Label</span>
-                  <select value={selectedStockLabelGroup} onChange={event => setSelectedStockLabelGroup(event.target.value as StockLabelGroupFilter)}>
-                    <option value="ALL">All Labels</option>
-                    <option value="LONG">Long Entry</option>
-                    <option value="WATCH">Watch / Base</option>
-                    <option value="SHORT">Short Risks</option>
-                    <option value="NEUTRAL">Neutral / Chop</option>
-                    <option value="REVIEW">Review / Data</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Earnings</span>
-                  <select value={selectedEarningsRisk} onChange={event => setSelectedEarningsRisk(event.target.value as EarningsRiskFilter)}>
-                    <option value="ALL">All Names</option>
-                    <option value="SAFE">No Near Earnings</option>
-                    <option value="RISK">Earnings Risk</option>
-                  </select>
-                </label>
-              </div>
-                <div className="stocks-sort-inline">
-                  <span>Sort</span>
-                  <div className="stocks-sortbar__options">
-                    {([
-                      ['signal_strength', 'Signal Strength'],
-                      ['rs_rank', 'RS Rank'],
-                      ['recent_change', 'Recent Change'],
-                      ['ticker', 'Ticker']
-                    ] as Array<[StockSortKey, string]>).map(([key, label]) => (
+                <div className="stocks-filter-line__main">
+                  <div className="stocks-filter-line__intro">
+                    <div className="stocks-filter-line__copy">
+                      <strong>Scan Controls</strong>
+                      <span>{activeStockFilterCount === 0 ? 'Universe-wide snapshot' : `${activeStockFilterCount} filters active`}</span>
+                    </div>
+                    {activeStockFilterCount > 0 ? (
                       <button
-                        key={key}
                         type="button"
-                        className={stockSortKey === key ? 'stocks-sortbar__btn is-active' : 'stocks-sortbar__btn'}
-                        onClick={() => setStockSortKey(key)}
+                        className="stocks-filter-line__reset"
+                        onClick={() => {
+                          setSelectedStockTier('ALL')
+                          setSelectedStockSector('ALL')
+                          setSelectedStockLabelGroup('ALL')
+                          setSelectedEarningsRisk('ALL')
+                        }}
                       >
-                        {label}
+                        Reset
                       </button>
-                    ))}
+                    ) : null}
+                  </div>
+                  <div className="stocks-filter-toolbar">
+                    <label>
+                      <span>Tier</span>
+                      <select value={selectedStockTier} onChange={event => setSelectedStockTier(event.target.value as StockTierFilter)}>
+                        <option value="ALL">All Tiers</option>
+                        <option value="T1">Growth / Tier 1</option>
+                        <option value="T2">Defensive / Tier 2</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Sector</span>
+                      <select value={selectedStockSector} onChange={event => setSelectedStockSector(event.target.value)}>
+                        {stockSectorOptions.map(option => (
+                          <option key={option} value={option}>{option === 'ALL' ? 'All Sectors' : option}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Label</span>
+                      <select value={selectedStockLabelGroup} onChange={event => setSelectedStockLabelGroup(event.target.value as StockLabelGroupFilter)}>
+                        <option value="ALL">All Labels</option>
+                        <option value="LONG">Long Entry</option>
+                        <option value="WATCH">Watch / Base</option>
+                        <option value="SHORT">Short Risks</option>
+                        <option value="NEUTRAL">Neutral / Chop</option>
+                        <option value="REVIEW">Review / Data</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Earnings</span>
+                      <select value={selectedEarningsRisk} onChange={event => setSelectedEarningsRisk(event.target.value as EarningsRiskFilter)}>
+                        <option value="ALL">All Names</option>
+                        <option value="SAFE">No Near Earnings</option>
+                        <option value="RISK">Earnings Risk</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="stocks-sort-inline">
+                    <span>Sort</span>
+                    <div className="stocks-sortbar__options">
+                      {([
+                        ['signal_strength', 'Signal Strength'],
+                        ['rs_rank', 'RS Rank'],
+                        ['recent_change', 'Recent Change'],
+                        ['ticker', 'Ticker']
+                      ] as Array<[StockSortKey, string]>).map(([key, label]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          className={stockSortKey === key ? 'stocks-sortbar__btn is-active' : 'stocks-sortbar__btn'}
+                          onClick={() => setStockSortKey(key)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2779,8 +2766,11 @@ export default function App() {
                   return (
                     <div className="stocks-section">
                       <div className="stocks-section__header">
-                        <span className={`stocks-section__label ${labelClass}`}>{label}</span>
-                        <span className="stocks-section__count">{rows.length}</span>
+                        <div className="stocks-section__heading">
+                          <span className={`stocks-section__label ${labelClass}`}>{label}</span>
+                          <span className="stocks-section__count">{rows.length} names</span>
+                        </div>
+                        {rows.length > cap ? <span className="stocks-section__hint">Top {cap} first</span> : null}
                       </div>
                       <div className="stocks-terminal">{renderStockTerminalRows(displayed, key as Parameters<typeof renderStockTerminalRows>[1])}</div>
                       {rows.length > cap && (

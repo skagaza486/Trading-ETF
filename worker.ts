@@ -1,5 +1,8 @@
-import { buildDailySnapshot, writeSignalsToD1 } from './src/worker/cronSnapshot'
+import { buildDailySnapshot, writeSignalsToD1, settleForwardReturns, writeGateSnapshotsToD1, runBackfillChunk, writeETFSignalsToD1, runETFBackfill } from './src/worker/cronSnapshot'
 import type { DailySnapshot } from './src/types/snapshot'
+import type { ForwardReturnRecord } from './src/types/research'
+import type { ETFSignalRow } from './src/engine/etfReplayEngine'
+
 
 const SNAPSHOT_KEY = 'snapshot:latest'
 
@@ -23,6 +26,18 @@ export default {
       return handleSignalsRead(env, url)
     }
 
+    if (url.pathname === '/api/admin/backfill') {
+      return handleBackfill(env, url)
+    }
+
+    if (url.pathname === '/api/admin/etf-backfill') {
+      return handleETFBackfill(env, url)
+    }
+
+    if (url.pathname === '/api/d1/etf-signals') {
+      return handleETFSignalsRead(env, url)
+    }
+
     return env.ASSETS.fetch(request)
   },
 
@@ -39,17 +54,29 @@ async function runCronSnapshot(env: Env): Promise<void> {
 
   try {
     console.log('Cron snapshot: starting...')
-    const snapshot = await buildDailySnapshot()
+    const { snapshot, stockHistories, benchmarks } = await buildDailySnapshot()
     await env.SNAPSHOT_KV.put(SNAPSHOT_KEY, JSON.stringify(snapshot), {
       expirationTtl: 60 * 60 * 36  // 36h TTL — survives weekends
     })
+    console.log(`Cron snapshot: done. ${snapshot.stocks.length} stocks, date=${snapshot.date}`)
 
     if (env.trading_etf_db) {
+      // 1. Write today's signals (label + indicators)
       await writeSignalsToD1(env.trading_etf_db, snapshot)
       console.log(`Cron D1: wrote ${snapshot.stocks.length} signals for ${snapshot.date}`)
-    }
 
-    console.log(`Cron snapshot: done. ${snapshot.stocks.length} stocks, date=${snapshot.date}`)
+      // 2. Settle forward returns for signals from the past 15 days (no re-classification)
+      const { count: recordCount, records } = await settleForwardReturns(env.trading_etf_db, stockHistories, benchmarks, snapshot.date)
+      console.log(`Cron D1: settled forward returns for ${recordCount} signals`)
+
+      // 3. Write gate snapshot aggregates (one row per label, per cron run)
+      await writeGateSnapshotsToD1(env.trading_etf_db, records, snapshot.date)
+      console.log(`Cron D1: wrote gate snapshot for ${snapshot.date}`)
+
+      // 4. Write current-week ETF signals + settle forward returns
+      const { written: etfWritten, settled: etfSettled } = await writeETFSignalsToD1(env.trading_etf_db, benchmarks, snapshot.date)
+      console.log(`Cron ETF: wrote ${etfWritten} ETF signals, settled ${etfSettled} forward returns`)
+    }
   } catch (error) {
     console.error('Cron snapshot failed:', error instanceof Error ? error.message : String(error))
   }
@@ -144,24 +171,136 @@ async function handleFinnhub(env: Env, url: URL): Promise<Response> {
   })
 }
 
+// Returns ForwardReturnRecord-shaped rows for the Verify/Quant Lab tab.
+// Query covers last `days` calendar days (default 365, max 730).
 async function handleSignalsRead(env: Env, url: URL): Promise<Response> {
   if (!env.trading_etf_db) {
     return jsonError('D1 not configured', 503)
   }
 
   const label = url.searchParams.get('label') ?? null
-  const days = Math.min(parseInt(url.searchParams.get('days') ?? '30', 10), 90)
+  const days = Math.min(parseInt(url.searchParams.get('days') ?? '365', 10), 730)
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  const query = label
-    ? 'SELECT ticker, signal_date, label, previous_label, regime, rs_rank, rsi14, rvol, rs_vs_spy, research_flags, reason FROM signals WHERE signal_date >= ? AND label = ? ORDER BY signal_date DESC, ticker LIMIT 500'
-    : 'SELECT ticker, signal_date, label, previous_label, regime, rs_rank, rsi14, rvol, rs_vs_spy, research_flags, reason FROM signals WHERE signal_date >= ? ORDER BY signal_date DESC, ticker LIMIT 500'
+  const cols = [
+    'ticker', 'signal_date', 'label', 'regime',
+    'research_flags', 'rvol',
+    'close_at_signal', 'ret1d', 'ret3d', 'ret5d', 'ret10d',
+    'ret5d_vs_spy', 'ret10d_vs_spy',
+    'mfe5d', 'mae5d', 'mfe10d', 'mae10d',
+    'earnings_in_window', 'suggested_stop_loss', 'stop_loss_hit', 'atr_at_signal'
+  ].join(', ')
 
+  const baseWhere = label
+    ? 'WHERE signal_date >= ? AND label = ? AND ret5d IS NOT NULL'
+    : 'WHERE signal_date >= ? AND ret5d IS NOT NULL'
+
+  const query = `SELECT ${cols} FROM signals ${baseWhere} ORDER BY signal_date DESC, ticker LIMIT 5000`
   const params = label ? [since, label] : [since]
   const { results } = await env.trading_etf_db.prepare(query).bind(...params).all()
 
-  return new Response(JSON.stringify({ since, label, count: results.length, signals: results }), {
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' }
+  // Shape rows into ForwardReturnRecord for client consumption
+  const records: ForwardReturnRecord[] = (results as Record<string, unknown>[]).map(row => ({
+    signalDate: row.signal_date as string,
+    ticker: row.ticker as string,
+    label: row.label as ForwardReturnRecord['label'],
+    closeAtSignal: (row.close_at_signal as number) ?? 0,
+    ret1d: row.ret1d as number | null,
+    ret3d: row.ret3d as number | null,
+    ret5d: row.ret5d as number | null,
+    ret10d: row.ret10d as number | null,
+    ret5dVsSpy: row.ret5d_vs_spy as number | null,
+    ret10dVsSpy: row.ret10d_vs_spy as number | null,
+    mfe5d: row.mfe5d as number | null,
+    mfe10d: row.mfe10d as number | null,
+    mae5d: row.mae5d as number | null,
+    mae10d: row.mae10d as number | null,
+    earningsInWindow: row.earnings_in_window === 1,
+    regimeAtSignal: (row.regime as ForwardReturnRecord['regimeAtSignal']) ?? 'neutral',
+    researchFlags: row.research_flags ? (row.research_flags as string).split(',').filter(Boolean) as ForwardReturnRecord['researchFlags'] : [],
+    rvolAtSignal: row.rvol as number | null,
+    atrAtSignal: row.atr_at_signal as number | null,
+    suggestedStopLoss: row.suggested_stop_loss as number | null,
+    stopLossHit: row.stop_loss_hit === null ? null : row.stop_loss_hit === 1,
+  }))
+
+  return new Response(JSON.stringify({ since, label, count: records.length, records }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=900'
+    }
+  })
+}
+
+async function handleBackfill(env: Env, url: URL): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+
+  const offset = Math.max(0, parseInt(url.searchParams.get('offset') ?? '0', 10))
+  const batchSize = Math.min(30, parseInt(url.searchParams.get('batch_size') ?? '30', 10))
+
+  try {
+    const result = await runBackfillChunk(env.trading_etf_db, offset, batchSize)
+    return new Response(JSON.stringify({ ok: true, ...result }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    })
+  } catch (error) {
+    return jsonError(error instanceof Error ? error.message : 'Backfill failed', 500)
+  }
+}
+
+async function handleETFBackfill(env: Env, url: URL): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+
+  const weeksBack = Math.min(104, Math.max(4, parseInt(url.searchParams.get('weeks') ?? '52', 10)))
+
+  try {
+    const result = await runETFBackfill(env.trading_etf_db, weeksBack)
+    return new Response(JSON.stringify({ ok: true, weeksBack, ...result }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    })
+  } catch (error) {
+    return jsonError(error instanceof Error ? error.message : 'ETF backfill failed', 500)
+  }
+}
+
+// Returns ETFSignalRow-shaped rows for the ETF Replay tab.
+async function handleETFSignalsRead(env: Env, url: URL): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+
+  const weeks = Math.min(104, Math.max(4, parseInt(url.searchParams.get('weeks') ?? '26', 10)))
+  const ticker = url.searchParams.get('ticker') ?? null
+  const since = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const baseWhere = ticker
+    ? 'WHERE week_ending_date >= ? AND ticker = ?'
+    : 'WHERE week_ending_date >= ?'
+  const params = ticker ? [since, ticker] : [since]
+
+  const query = `SELECT ticker, week_ending_date, label, indicators_json, regime, close_at_signal, ret1w, ret4w
+                 FROM etf_signals ${baseWhere}
+                 ORDER BY week_ending_date DESC, ticker
+                 LIMIT 5000`
+
+  const { results } = await env.trading_etf_db.prepare(query).bind(...params).all()
+
+  const rows: ETFSignalRow[] = (results as Record<string, unknown>[]).map(row => ({
+    ticker: row.ticker as string,
+    weekEndingDate: row.week_ending_date as string,
+    label: row.label as ETFSignalRow['label'],
+    indicatorsJson: (row.indicators_json as string) ?? '{}',
+    regime: (row.regime as string) ?? 'neutral',
+    closeAtSignal: row.close_at_signal as number | null,
+    ret1w: row.ret1w as number | null,
+    ret4w: row.ret4w as number | null,
+  }))
+
+  return new Response(JSON.stringify({ since, ticker, count: rows.length, rows }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=900'
+    }
   })
 }
 

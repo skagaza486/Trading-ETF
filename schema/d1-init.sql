@@ -2,22 +2,39 @@
 -- Run via: wrangler d1 execute trading-etf-db --file=schema/d1-init.sql
 
 -- Daily stock signals written by cron after each market close
+-- Forward-return columns (ret1d…mae10d) are backfilled by cron once outcome bars settle
 CREATE TABLE IF NOT EXISTS signals (
-  ticker          TEXT NOT NULL,
-  signal_date     TEXT NOT NULL,  -- YYYY-MM-DD
-  label           TEXT NOT NULL,
-  previous_label  TEXT,
-  regime          TEXT,
-  rs_rank         INTEGER,        -- percentile 0-100 vs universe
-  rsi14           REAL,
-  rvol            REAL,
-  rs_vs_spy       REAL,
-  clv             REAL,
-  ema50_slope     REAL,
-  indicators_json TEXT,           -- full StockIndicatorSnapshot as JSON blob
-  research_flags  TEXT,           -- comma-separated flags e.g. "BASE_BREAK"
-  reason          TEXT,
-  created_at      TEXT DEFAULT (datetime('now')),
+  ticker              TEXT NOT NULL,
+  signal_date         TEXT NOT NULL,  -- YYYY-MM-DD
+  label               TEXT NOT NULL,
+  previous_label      TEXT,
+  regime              TEXT,
+  rs_rank             INTEGER,        -- percentile 0-100 vs universe
+  rsi14               REAL,
+  rvol                REAL,
+  rs_vs_spy           REAL,
+  clv                 REAL,
+  ema50_slope         REAL,
+  indicators_json     TEXT,           -- full StockIndicatorSnapshot as JSON blob
+  research_flags      TEXT,           -- comma-separated flags e.g. "BASE_BREAK"
+  reason              TEXT,
+  -- forward returns (B2+) — NULL until outcome bars are available
+  close_at_signal     REAL,
+  ret1d               REAL,
+  ret3d               REAL,
+  ret5d               REAL,
+  ret10d              REAL,
+  ret5d_vs_spy        REAL,
+  ret10d_vs_spy       REAL,
+  mfe5d               REAL,
+  mae5d               REAL,
+  mfe10d              REAL,
+  mae10d              REAL,
+  earnings_in_window  INTEGER,        -- 0 | 1
+  suggested_stop_loss REAL,
+  stop_loss_hit       INTEGER,        -- 0 | 1 | NULL
+  atr_at_signal       REAL,
+  created_at          TEXT DEFAULT (datetime('now')),
   PRIMARY KEY (ticker, signal_date)
 );
 
