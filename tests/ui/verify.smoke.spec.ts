@@ -4,7 +4,7 @@ import { assertNoHorizontalOverflow, openApp, openPrimaryTab, openVerifySubTab }
 test.describe('verify workspace smoke', () => {
   test('covers all three verify sub-tabs', async ({ page }) => {
     await openApp(page)
-    await openPrimaryTab(page, 'Verify')
+    await openPrimaryTab(page, 'Verify / 驗證')
 
     await openVerifySubTab(page, 'ETF Check')
     await expect(page.getByText('ETF Replay')).toBeVisible()
