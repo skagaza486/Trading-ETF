@@ -28,6 +28,7 @@ type QuantLabSubTab = 'ETF Replay' | 'Stock Replay' | 'Stock Research'
 type StockSortKey = 'signal_strength' | 'rs_rank' | 'recent_change' | 'ticker'
 type StockTierFilter = 'ALL' | 'T1' | 'T2'
 type EarningsRiskFilter = 'ALL' | 'SAFE' | 'RISK'
+type StockLabelGroupFilter = 'ALL' | 'LONG' | 'WATCH' | 'SHORT' | 'NEUTRAL' | 'REVIEW'
 
 type WeeklyRow = {
   ticker: string
@@ -115,7 +116,7 @@ type ResearchFlagSummary = {
   avgMae5d: number | null
 }
 
-type StockSectionKey = 'top' | 'review' | 'all'
+type StockSectionKey = 'top' | 'review' | 'all' | 'entry' | 'setup' | 'neutral'
 
 const tabs: TabId[] = ['Dashboard', 'Stocks', 'ETFs', 'Quant Lab']
 const QUANT_SUBTAB_LABELS: Record<QuantLabSubTab, string> = {
@@ -668,14 +669,14 @@ function stockLabelGroup(label: StockSignalLabel): 'LONG' | 'SHORT' | 'NEUTRAL' 
   return 'NEUTRAL'
 }
 
-function stockUiGroup(label: StockSignalLabel): 'STRONG_LONG' | 'LONG' | 'SHORT' | 'WATCH' | 'REVIEW' {
+function stockUiGroup(label: StockSignalLabel): 'STRONG_LONG' | 'LONG' | 'BASE' | 'SHORT' | 'WATCH' | 'REVIEW' {
   switch (label) {
     case 'LONG_BREAK':
     case 'LONG_VCP':
-      return 'STRONG_LONG'
     case 'LONG_BOUNCE':
+      return 'STRONG_LONG'
     case 'LONG_BASE':
-      return 'LONG'
+      return 'BASE'          // universe filter — muted amber, not entry signal
     case 'SHORT_BREAK':
     case 'SHORT_BASE':
     case 'SHORT_WATCH':
@@ -1012,7 +1013,7 @@ export default function App() {
   const [stockSortKey, setStockSortKey] = useState<StockSortKey>('signal_strength')
   const [selectedStockTier, setSelectedStockTier] = useState<StockTierFilter>('ALL')
   const [selectedStockSector, setSelectedStockSector] = useState<string>('ALL')
-  const [selectedStockLabelGroup, setSelectedStockLabelGroup] = useState<'ALL' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'REVIEW'>('ALL')
+  const [selectedStockLabelGroup, setSelectedStockLabelGroup] = useState<StockLabelGroupFilter>('ALL')
   const [selectedEarningsRisk, setSelectedEarningsRisk] = useState<EarningsRiskFilter>('ALL')
   const [expandedStockTicker, setExpandedStockTicker] = useState<string | null>(null)
   const [etfViewMode, setEtfViewMode] = useState<'table' | 'cards'>('cards')
@@ -1267,7 +1268,11 @@ export default function App() {
     if (selectedStockTier === 'T1' && row.tier !== 1) return false
     if (selectedStockTier === 'T2' && row.tier !== 2) return false
     if (selectedStockSector !== 'ALL' && row.sector !== selectedStockSector) return false
-    if (selectedStockLabelGroup !== 'ALL' && stockLabelGroup(row.label) !== selectedStockLabelGroup) return false
+    if (selectedStockLabelGroup === 'LONG' && !(row.label.startsWith('LONG') && row.label !== 'LONG_BASE')) return false
+    if (selectedStockLabelGroup === 'WATCH' && row.label !== 'WATCH' && row.label !== 'LONG_BASE') return false
+    if (selectedStockLabelGroup === 'SHORT' && !row.label.startsWith('SHORT')) return false
+    if (selectedStockLabelGroup === 'NEUTRAL' && row.label !== 'NEUTRAL' && row.label !== 'AVOID_CHOP') return false
+    if (selectedStockLabelGroup === 'REVIEW' && row.label !== 'REVIEW_DATA' && row.label !== 'REVIEW_EVENT') return false
     if (selectedEarningsRisk === 'RISK' && !row.earningsDate) return false
     if (selectedEarningsRisk === 'SAFE' && row.earningsDate) return false
     return true
@@ -1409,7 +1414,7 @@ export default function App() {
               <StockSparkline history={stockState.histories[row.ticker]} group={group} />
             </div>
             <div className="stock-terminal-row__signal">
-              <span className={`label-pill label-pill--stock label-pill--stock-${group}`}>
+              <span className={`label-pill label-pill--stock label-pill--stock-${uiGroup}`}>
                 {disp.zhText}
               </span>
               <small>{disp.action}</small>
@@ -2707,11 +2712,12 @@ export default function App() {
                 </label>
                 <label>
                   <span>Label</span>
-                  <select value={selectedStockLabelGroup} onChange={event => setSelectedStockLabelGroup(event.target.value as 'ALL' | 'LONG' | 'SHORT' | 'NEUTRAL' | 'REVIEW')}>
+                  <select value={selectedStockLabelGroup} onChange={event => setSelectedStockLabelGroup(event.target.value as StockLabelGroupFilter)}>
                     <option value="ALL">All Labels</option>
-                    <option value="LONG">Long Setups</option>
+                    <option value="LONG">Long Entry</option>
+                    <option value="WATCH">Watch / Base</option>
                     <option value="SHORT">Short Risks</option>
-                    <option value="NEUTRAL">Neutral / Wait</option>
+                    <option value="NEUTRAL">Neutral / Chop</option>
                     <option value="REVIEW">Review / Data</option>
                   </select>
                 </label>
@@ -2761,9 +2767,54 @@ export default function App() {
 
               {stockError ? <div className="warning">{stockError}</div> : null}
 
-              <div className="stocks-terminal stocks-terminal--single">
-                {sortedStockRows.length > 0 ? renderStockTerminalRows(sortedStockRows, 'all') : <p className="subtle">No rows matched the current filters.</p>}
-              </div>
+              {sortedStockRows.length === 0 ? (
+                <p className="subtle">No rows matched the current filters.</p>
+              ) : (() => {
+                const entryRows = sortedStockRows.filter(r => r.label === 'LONG_BREAK' || r.label === 'LONG_VCP' || r.label === 'LONG_BOUNCE' || r.label === 'SHORT_BREAK')
+                const setupRows = sortedStockRows.filter(r => r.label === 'LONG_BASE' || r.label === 'WATCH' || r.label === 'SHORT_BASE' || r.label === 'SHORT_WATCH')
+                const neutralRows = sortedStockRows.filter(r => r.label === 'NEUTRAL' || r.label === 'AVOID_CHOP')
+                const reviewRows = sortedStockRows.filter(r => r.label === 'REVIEW_DATA' || r.label === 'REVIEW_EVENT')
+                return (
+                  <>
+                    {entryRows.length > 0 && (
+                      <div className="stocks-section">
+                        <div className="stocks-section__header">
+                          <span className="stocks-section__label stocks-section__label--entry">Entry Triggers 入場信號</span>
+                          <span className="stocks-section__count">{entryRows.length}</span>
+                        </div>
+                        <div className="stocks-terminal">{renderStockTerminalRows(entryRows, 'entry')}</div>
+                      </div>
+                    )}
+                    {setupRows.length > 0 && (
+                      <div className="stocks-section">
+                        <div className="stocks-section__header">
+                          <span className="stocks-section__label stocks-section__label--setup">Setups 候選觀察</span>
+                          <span className="stocks-section__count">{setupRows.length}</span>
+                        </div>
+                        <div className="stocks-terminal">{renderStockTerminalRows(setupRows, 'setup')}</div>
+                      </div>
+                    )}
+                    {neutralRows.length > 0 && (
+                      <div className="stocks-section">
+                        <div className="stocks-section__header">
+                          <span className="stocks-section__label stocks-section__label--neutral">Neutral / Chop 中性</span>
+                          <span className="stocks-section__count">{neutralRows.length}</span>
+                        </div>
+                        <div className="stocks-terminal">{renderStockTerminalRows(neutralRows, 'neutral')}</div>
+                      </div>
+                    )}
+                    {reviewRows.length > 0 && (
+                      <div className="stocks-section">
+                        <div className="stocks-section__header">
+                          <span className="stocks-section__label stocks-section__label--review">Review 待確認</span>
+                          <span className="stocks-section__count">{reviewRows.length}</span>
+                        </div>
+                        <div className="stocks-terminal">{renderStockTerminalRows(reviewRows, 'review')}</div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </section>
           </>
 

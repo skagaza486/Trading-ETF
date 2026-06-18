@@ -881,9 +881,10 @@ h2 {
 }
 
 .summary-card strong {
-  font-size: 2rem;
+  font-size: 5rem;
   font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
   letter-spacing: -0.04em;
+  line-height: 1;
 }
 
 .summary-card span {
@@ -1204,6 +1205,14 @@ label {
   color: var(--pill-avoid-fg);
   border: 1px solid rgba(248, 113, 113, 0.25);
   border-radius: 4px;
+}
+
+.label-pill--stock-base {
+  background: rgba(251, 191, 36, 0.07);
+  color: rgba(251, 191, 36, 0.6);
+  border: 1px solid rgba(251, 191, 36, 0.16);
+  border-radius: var(--r-sm);
+  font-style: italic;
 }
 
 .label-pill--stock-neutral {
@@ -2372,6 +2381,12 @@ td select { min-width: 92px; }
   background: rgba(255, 123, 123, 0.08);
 }
 
+.signal-chip--base {
+  color: rgba(251, 191, 36, 0.55);
+  border-color: rgba(251, 191, 36, 0.12);
+  font-style: italic;
+}
+
 .signal-chip--watch {
   color: var(--color-warn);
 }
@@ -2801,6 +2816,58 @@ td select { min-width: 92px; }
   font-size: 0.82rem;
 }
 
+/* ── Stock Sections ─────────────────────────────────────────────────── */
+
+.stocks-section {
+  margin-top: 20px;
+}
+
+.stocks-section__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+
+.stocks-section__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 6px;
+}
+
+.stocks-section__label--entry {
+  background: rgba(52, 211, 153, 0.12);
+  color: rgba(52, 211, 153, 0.9);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+}
+
+.stocks-section__label--setup {
+  background: rgba(251, 191, 36, 0.1);
+  color: rgba(251, 191, 36, 0.8);
+  border: 1px solid rgba(251, 191, 36, 0.18);
+}
+
+.stocks-section__label--neutral {
+  background: rgba(148, 163, 184, 0.08);
+  color: rgba(148, 163, 184, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.stocks-section__label--review {
+  background: rgba(167, 139, 250, 0.08);
+  color: rgba(167, 139, 250, 0.6);
+  border: 1px solid rgba(167, 139, 250, 0.14);
+}
+
+.stocks-section__count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
 /* ── Help FAB & Panel ────────────────────────────────────────────────── */
 .bottom-nav {
   position: fixed;
@@ -2809,7 +2876,6 @@ td select { min-width: 92px; }
   bottom: 12px;
   transform: translateX(-50%);
   width: min(620px, calc(100vw - 24px));
-  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   padding: 7px;
@@ -3671,7 +3737,7 @@ td select { min-width: 92px; }
   /* Summary cards: smaller padding and number to fit 2-col */
   .summary-card { padding: 10px 11px 8px; }
   .summary-card h2 { margin-bottom: 4px; }
-  .summary-card strong { font-size: 1.5rem; }
+  .summary-card strong { font-size: 2.8rem; }
 
   /* Hero metrics: compact */
   .hero-metric { min-height: 68px; padding: 9px 9px 7px; }
@@ -3700,6 +3766,58 @@ td select { min-width: 92px; }
   /* Summary cards in 2-col: single-line label + number only, drop description */
   .summary-card h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .summary-card > span { display: none; }
+
+  /* Fix 7: Homepage hero card — reduce size on mobile */
+  .hero-card {
+    padding: 14px 14px 12px;
+    gap: 8px;
+  }
+
+  .hero-card__title { font-size: 1.1rem; }
+  .hero-card__sub   { font-size: 0.82rem; }
+
+  /* Fix 7: home-state-panel (Market State card) — reduce ring + score size */
+  .home-state-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .home-state-panel__gauge {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .home-state-panel__ring {
+    width: 110px;
+    height: 110px;
+  }
+
+  .home-state-panel__score strong {
+    font-size: 2rem;
+  }
+
+  .home-state-panel__scorecopy p {
+    font-size: 1rem;
+  }
+
+  /* Fix 8: Verify workbench cards — reduce 75% */
+  .verify-workbench__cards {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .verify-workbench__card {
+    padding: 9px 11px;
+    border-radius: 10px;
+  }
+
+  .verify-workbench__card strong {
+    font-size: 0.85rem;
+    margin: 4px 0 2px;
+  }
+
+  .verify-workbench__card small {
+    font-size: 0.72rem;
+  }
 }
 
 /* ── Dashboard: Regime Hero ──────────────────────────────────────────────── */
