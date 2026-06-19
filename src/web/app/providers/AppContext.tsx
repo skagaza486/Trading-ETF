@@ -20,6 +20,7 @@ type AppContextValue = {
   mode: UiMode
   setMode: (m: UiMode) => void
   view: ViewId
+  prevView: ViewId
   setView: (v: ViewId) => void
   detailTarget: DetailTarget | null
   openDetail: (t: DetailTarget) => void
@@ -72,7 +73,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       scope, setScope, mode, setMode,
-      view, setView,
+      view, prevView, setView,
       detailTarget, openDetail, closeDetail,
       onboardingDone, completeOnboarding
     }}>

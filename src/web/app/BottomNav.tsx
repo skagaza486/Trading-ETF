@@ -11,7 +11,8 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 export function BottomNav() {
-  const { view, setView, mode } = useApp()
+  const { view, prevView, setView, mode } = useApp()
+  const activeId = view === 'detail' ? prevView : view
 
   const items = mode === 'pro'
     ? NAV_ITEMS
@@ -22,7 +23,7 @@ export function BottomNav() {
       {items.map(item => (
         <button
           key={item.id}
-          className={view === item.id ? styles.itemActive : styles.item}
+          className={activeId === item.id ? styles.itemActive : styles.item}
           onClick={() => setView(item.id)}
         >
           <span className={styles.icon}>{item.icon}</span>
