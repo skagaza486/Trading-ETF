@@ -58,6 +58,29 @@
   color: var(--text-muted);
 }
 
+/* Today's Changes tab */
+.changeRow {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  cursor: pointer; font-family: inherit; text-align: left;
+  transition: border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.changeRow:hover { border-color: var(--border-subtle); }
+
+.changeLeft { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.changeTicker { font-size: 14px; font-weight: 700; color: var(--accent); }
+.changeName   { font-size: 11px; color: var(--text-secondary); }
+.changeArrow  { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.changePrev   { opacity: 0.7; }
+.arrowUp      { color: var(--color-gain); font-weight: 700; }
+.arrowDown    { color: var(--color-loss); font-weight: 700; }
+.arrowFlat    { color: var(--text-muted); }
+
 .typeToggle {
   display: flex; gap: 4px;
   background: var(--bg-elevated);

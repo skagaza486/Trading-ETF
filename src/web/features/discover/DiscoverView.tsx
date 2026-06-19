@@ -4,8 +4,10 @@ import { useEtfSignals } from '../../shared/hooks/useEtfSignals'
 import { useApp } from '../../app/providers/AppContext'
 import { StockCard } from '../../shared/components/StockCard'
 import { EtfCard } from '../../shared/components/EtfCard'
+import { SignalBadge } from '../../shared/components/SignalBadge'
 import { LoadingScreen, ErrorScreen } from '../../shared/components/LoadingScreen'
 import { HkPlaceholder } from '../../shared/components/HkPlaceholder'
+import { getStockMeta } from '../../shared/i18n/stockNames'
 import { etfUniverse } from '../../../data/etfUniverse'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
@@ -27,8 +29,22 @@ const ETF_CATEGORY_ZH: Record<string, string> = {
 
 const etfCategoryMap = new Map(etfUniverse.map(e => [e.ticker, e.category]))
 
-type AssetType = 'stocks' | 'etf'
+type AssetType = 'stocks' | 'etf' | 'changes'
 type Filter = 'all' | 'bullish' | 'watchlist' | 'bearish'
+
+const BULL_SET = new Set<StockSignalLabel>(['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE','WATCH'])
+const BEAR_SET = new Set<StockSignalLabel>(['SHORT_BREAK','SHORT_BASE','SHORT_WATCH','AVOID_CHOP'])
+
+function getChangedStocks(stocks: StockSnapshotEntry[]) {
+  return stocks
+    .filter(s => s.previousLabel !== undefined && s.previousLabel !== s.label)
+    .sort((a, b) => {
+      const aUp = BULL_SET.has(a.label) && !BULL_SET.has(a.previousLabel!) ? -1 : 0
+      const bUp = BULL_SET.has(b.label) && !BULL_SET.has(b.previousLabel!) ? -1 : 0
+      if (aUp !== bUp) return aUp - bUp
+      return (b.rsRank ?? 0) - (a.rsRank ?? 0)
+    })
+}
 
 const BULLISH_STOCK: StockSignalLabel[] = ['LONG_BREAK','LONG_VCP','LONG_BOUNCE']
 const WATCHLIST_STOCK: StockSignalLabel[] = ['LONG_BASE','WATCH']
@@ -118,23 +134,35 @@ export function DiscoverView() {
     })
   }, [etfsForCategory, etfCategory, search])
 
-  const isLoading = assetType === 'stocks'
-    ? snap.status === 'loading'
-    : etfState.status === 'loading'
+  const changedStocks = useMemo(() => {
+    if (snap.status !== 'ok') return []
+    let stocks = getChangedStocks(snap.snapshot.stocks)
+    if (search) {
+      const q = search.toUpperCase()
+      stocks = stocks.filter(s => s.ticker.includes(q) || s.name.toUpperCase().includes(q))
+    }
+    return stocks
+  }, [snap, search])
 
-  const isError = assetType === 'stocks'
-    ? snap.status === 'error'
-    : etfState.status === 'error'
+  const isLoading = assetType === 'etf'
+    ? etfState.status === 'loading'
+    : snap.status === 'loading'
 
-  const errorMsg = assetType === 'stocks'
-    ? (snap.status === 'error' ? snap.message : '')
-    : (etfState.status === 'error' ? etfState.message : '')
+  const isError = assetType === 'etf'
+    ? etfState.status === 'error'
+    : snap.status === 'error'
+
+  const errorMsg = assetType === 'etf'
+    ? (etfState.status === 'error' ? etfState.message : '')
+    : (snap.status === 'error' ? snap.message : '')
 
   if (scope === 'HK') return <HkPlaceholder />
   if (isLoading) return <LoadingScreen message={assetType === 'stocks' ? '載入股票資料…' : '載入 ETF 資料…'} />
   if (isError)   return <ErrorScreen message={errorMsg} />
 
-  const count = assetType === 'stocks' ? displayedStocks.length : displayedEtfs.length
+  const count = assetType === 'stocks' ? displayedStocks.length
+    : assetType === 'etf' ? displayedEtfs.length
+    : changedStocks.length
 
   return (
     <div className={styles.view}>
@@ -165,19 +193,27 @@ export function DiscoverView() {
         >
           ETF
         </button>
+        <button
+          className={assetType === 'changes' ? styles.typeActive : styles.typeBtn}
+          onClick={() => { setAssetType('changes'); setFilter('all'); setEtfCategory(null) }}
+        >
+          今日動向
+        </button>
       </div>
 
-      <div className={styles.filters}>
-        {FILTER_LABELS.map(f => (
-          <button
-            key={f.id}
-            className={filter === f.id ? styles.filterActive : styles.filterBtn}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {assetType !== 'changes' && (
+        <div className={styles.filters}>
+          {FILTER_LABELS.map(f => (
+            <button
+              key={f.id}
+              className={filter === f.id ? styles.filterActive : styles.filterBtn}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {assetType === 'etf' && availableCategories.length > 1 && (
         <div className={styles.catRow}>
@@ -204,13 +240,49 @@ export function DiscoverView() {
       <div className={styles.list}>
         {count === 0 ? (
           <div className={styles.empty}>
-            {search ? `找不到「${search}」的結果` : '此篩選條件下沒有項目'}
+            {assetType === 'changes' ? '今日無信號變動記錄'
+              : search ? `找不到「${search}」的結果` : '此篩選條件下沒有項目'}
           </div>
         ) : assetType === 'stocks'
           ? displayedStocks.map(s => <StockCard key={s.ticker} stock={s} showMode={mode} />)
-          : displayedEtfs.map(e => <EtfCard key={e.ticker} etf={e} showMode={mode} />)
+          : assetType === 'etf'
+          ? displayedEtfs.map(e => <EtfCard key={e.ticker} etf={e} showMode={mode} />)
+          : changedStocks.map(s => <ChangeRow key={s.ticker} stock={s} />)
         }
       </div>
     </div>
+  )
+}
+
+const LABEL_SHORT: Record<string, string> = {
+  LONG_BREAK:'突破', LONG_VCP:'VCP', LONG_BOUNCE:'反彈', LONG_BASE:'整固',
+  WATCH:'觀察', NEUTRAL:'中性', AVOID_CHOP:'震盪',
+  SHORT_BREAK:'空頭突破', SHORT_BASE:'空頭整固', SHORT_WATCH:'空頭轉弱',
+}
+
+function ChangeRow({ stock }: { stock: StockSnapshotEntry }) {
+  const { openDetail } = useApp()
+  const meta = getStockMeta(stock.ticker, stock.name)
+  const isUpgrade = BULL_SET.has(stock.label) && !BULL_SET.has(stock.previousLabel ?? 'NEUTRAL')
+  const isDowngrade = BEAR_SET.has(stock.label)
+
+  return (
+    <button
+      className={styles.changeRow}
+      onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
+    >
+      <div className={styles.changeLeft}>
+        <div className={styles.changeTicker}>{stock.ticker}</div>
+        <div className={styles.changeName}>{meta.nameZh}</div>
+        <div className={styles.changeArrow}>
+          <span className={styles.changePrev}>{LABEL_SHORT[stock.previousLabel ?? ''] ?? stock.previousLabel}</span>
+          <span className={isUpgrade ? styles.arrowUp : isDowngrade ? styles.arrowDown : styles.arrowFlat}>
+            {isUpgrade ? '↑' : isDowngrade ? '↓' : '→'}
+          </span>
+          <span>{LABEL_SHORT[stock.label] ?? stock.label}</span>
+        </div>
+      </div>
+      <SignalBadge label={stock.label} />
+    </button>
   )
 }
