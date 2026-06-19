@@ -1,0 +1,20 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+}
+
+.legendGreen  { color: var(--color-gain); }
+.legendYellow { color: var(--color-warn); }

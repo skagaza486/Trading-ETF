@@ -42,6 +42,13 @@
 .dayBtn    { background: transparent; color: var(--text-muted); }
 .dayActive { background: var(--bg-card); color: var(--text-primary); box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 
+.chartCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-lg);
+  padding: 14px 12px;
+}
+
 .loading, .error {
   text-align: center;
   font-size: 13px;

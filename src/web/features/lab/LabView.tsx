@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useSignalStats } from '../../shared/hooks/useSignalStats'
+import { useSignalBreadth } from '../../shared/hooks/useSignalBreadth'
+import { BreadthChart } from './BreadthChart'
 import styles from './LabView.module.css'
 
 const LABEL_ZH: Record<string, string> = {
@@ -35,6 +37,7 @@ function pctColor(v: number | null): string | undefined {
 export function LabView() {
   const [days, setDays] = useState<DaysOpt>(90)
   const statsState = useSignalStats(days)
+  const breadthState = useSignalBreadth(30)
 
   const sortedStats = statsState.status === 'ok'
     ? [...statsState.stats].sort((a, b) => {
@@ -46,6 +49,16 @@ export function LabView() {
 
   return (
     <div className={styles.view}>
+      {/* Breadth timeline */}
+      {breadthState.status === 'ok' && breadthState.rows.length > 1 && (
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>信號趨勢（近 30 日）</h2>
+          <div className={styles.chartCard}>
+            <BreadthChart rows={breadthState.rows} height={90} />
+          </div>
+        </section>
+      )}
+
       {/* Signal stats */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>

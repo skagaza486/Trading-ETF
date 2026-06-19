@@ -42,6 +42,10 @@ export default {
       return handleSignalStats(env, url)
     }
 
+    if (url.pathname === '/api/d1/signal-breadth') {
+      return handleSignalBreadth(env, url)
+    }
+
     // Serve legacy app for /legacy and /legacy/* paths
     if (url.pathname === '/legacy' || url.pathname.startsWith('/legacy/')) {
       const legacyUrl = new URL(request.url)
@@ -267,6 +271,34 @@ async function handleSignalStats(env: Env, url: URL): Promise<Response> {
   `).bind(since).all()
 
   return new Response(JSON.stringify({ since, days, stats: results }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=900'
+    }
+  })
+}
+
+async function handleSignalBreadth(env: Env, url: URL): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+
+  const days = Math.min(90, Math.max(14, parseInt(url.searchParams.get('days') ?? '30', 10)))
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const { results } = await env.trading_etf_db.prepare(`
+    SELECT
+      signal_date AS date,
+      SUM(CASE WHEN label IN ('LONG_BREAK','LONG_VCP','LONG_BOUNCE') THEN 1 ELSE 0 END) AS strong_bull,
+      SUM(CASE WHEN label = 'LONG_BASE' THEN 1 ELSE 0 END) AS base,
+      SUM(CASE WHEN label IN ('SHORT_BREAK','SHORT_BASE','SHORT_WATCH','AVOID_CHOP') THEN 1 ELSE 0 END) AS bear,
+      COUNT(*) AS total
+    FROM signals
+    WHERE signal_date >= ?
+    GROUP BY signal_date
+    ORDER BY signal_date ASC
+  `).bind(since).all()
+
+  return new Response(JSON.stringify({ since, days, rows: results }), {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
