@@ -76,7 +76,12 @@ export function MarketView() {
 
       <div className={styles.dateRow}>
         <span className={styles.dateLabel}>信號日期</span>
-        <span className={styles.date}>{snapshot.date}</span>
+        <span className={styles.date}>
+          {snapshot.date}
+          <span className={styles.dateWeekday}>
+            {['日','一','二','三','四','五','六'][new Date(snapshot.date + 'T12:00:00').getDay()]}
+          </span>
+        </span>
       </div>
 
       {sigCounts && (

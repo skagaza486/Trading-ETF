@@ -9,8 +9,9 @@
 .dateRow {
   display: flex; align-items: center; gap: 8px;
 }
-.dateLabel { font-size: 11px; color: var(--text-muted); }
-.date      { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.dateLabel    { font-size: 11px; color: var(--text-muted); }
+.date         { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 4px; }
+.dateWeekday  { font-size: 11px; color: var(--text-muted); }
 
 .signalSummary {
   display: flex; flex-wrap: wrap; gap: 6px;
