@@ -1,0 +1,31 @@
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-lg);
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+.icon  { font-size: 20px; margin-bottom: 2px; }
+.title { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.hint  { font-size: 10px; opacity: 0.6; cursor: help; }
+.value { font-size: 22px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1; }
+.sub   { font-size: 10px; color: var(--text-muted); }
+
+.barTrack {
+  height: 4px; border-radius: 2px;
+  background: var(--border-faint);
+  margin-top: 4px; overflow: hidden;
+}
+.barFill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.proDetail {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--text-muted);
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-faint);
+}

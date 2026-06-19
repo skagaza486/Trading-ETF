@@ -1,0 +1,6 @@
+.chart {
+  width: 100%;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: transparent;
+}

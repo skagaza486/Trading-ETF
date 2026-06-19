@@ -38,6 +38,13 @@ export default {
       return handleETFSignalsRead(env, url)
     }
 
+    // Serve legacy app for /legacy and /legacy/* paths
+    if (url.pathname === '/legacy' || url.pathname.startsWith('/legacy/')) {
+      const legacyUrl = new URL(request.url)
+      legacyUrl.pathname = '/legacy.html'
+      return env.ASSETS.fetch(new Request(legacyUrl.toString(), request))
+    }
+
     return env.ASSETS.fetch(request)
   },
 

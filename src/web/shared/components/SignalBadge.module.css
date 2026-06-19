@@ -1,0 +1,17 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.green  { background: var(--pill-green-bg);  color: var(--pill-green-fg); }
+.yellow { background: var(--pill-yellow-bg); color: var(--pill-yellow-fg); }
+.grey   { background: var(--pill-grey-bg);   color: var(--pill-grey-fg); }
+.red    { background: var(--pill-red-bg);    color: var(--pill-red-fg); }
+
+.code { opacity: 0.65; font-weight: 400; }

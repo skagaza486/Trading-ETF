@@ -1,0 +1,21 @@
+.card {
+  border-radius: var(--r-lg);
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-card);
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.bull    { border-color: rgba(56,241,157,0.35);  background: rgba(56,241,157,0.06); }
+.bear    { border-color: rgba(255,123,123,0.35); background: rgba(255,123,123,0.06); }
+.neutral { border-color: rgba(255,191,60,0.3);   background: rgba(255,191,60,0.06); }
+
+.top  { display: flex; align-items: center; gap: 14px; }
+.emoji { font-size: 36px; line-height: 1; }
+
+.titleRow { display: flex; align-items: center; gap: 8px; }
+.label    { font-size: 11px; color: var(--text-muted); }
+
+.title  { font-size: 28px; font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+.desc   { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.disclaimer { font-size: 10px; color: var(--text-muted); }

@@ -1,0 +1,21 @@
+.section { display: flex; flex-direction: column; gap: 10px; }
+
+.heading { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+
+.list { display: flex; flex-direction: column; gap: 6px; }
+
+.row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-md);
+  cursor: pointer; font-family: inherit; text-align: left;
+  transition: border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.row:hover { border-color: var(--border-subtle); }
+
+.left   { display: flex; align-items: baseline; gap: 8px; }
+.ticker { font-size: 14px; font-weight: 700; color: var(--accent); }
+.name   { font-size: 12px; color: var(--text-secondary); }

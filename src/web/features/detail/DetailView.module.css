@@ -1,0 +1,97 @@
+.view { display: flex; flex-direction: column; gap: 14px; }
+
+.header { display: flex; align-items: flex-start; gap: 12px; }
+
+.back {
+  padding: 6px 10px; font-size: 13px;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-sm);
+  background: transparent; color: var(--text-secondary);
+  cursor: pointer; font-family: inherit;
+  flex-shrink: 0; margin-top: 2px;
+}
+
+.logoWrap { flex-shrink: 0; }
+.logo {
+  width: 44px; height: 44px; border-radius: 10px;
+  object-fit: contain;
+  background: rgba(255,255,255,0.08);
+}
+.logoFallback {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: var(--accent-dim); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+}
+
+.nameRow { display: flex; align-items: baseline; gap: 8px; }
+.nameZh  { font-size: 16px; font-weight: 700; }
+.ticker  { font-size: 12px; color: var(--text-muted); }
+.desc    { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-top: 3px; }
+
+.priceBlock { display: flex; align-items: center; gap: 12px; }
+.price      { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.tfRow { display: flex; gap: 6px; }
+.tfBtn, .tfActive {
+  padding: 6px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border-faint);
+  cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.tfBtn    { background: var(--bg-elevated); color: var(--text-secondary); }
+.tfActive { background: var(--accent); color: var(--bg-base); border-color: var(--accent); font-weight: 700; }
+
+.chartWrap {
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-faint);
+  background: var(--bg-card);
+  overflow: hidden;
+  min-height: 60px;
+}
+.chartPlaceholder,
+.chartError {
+  padding: 24px; font-size: 13px; color: var(--text-muted); text-align: center;
+}
+
+.explainCard, .metricsCard, .proCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.explainTitle, .metricsTitle { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+
+.explainText { font-size: 13px; color: var(--text-primary); line-height: 1.55; }
+
+.disclaimer { font-size: 10px; color: var(--text-muted); }
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.metric {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--bg-elevated);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+}
+.metricLabel { font-size: 10px; color: var(--text-muted); }
+.metricValue { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.proRow {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  font-size: 12px; padding: 4px 0;
+  border-bottom: 1px solid var(--border-faint);
+  color: var(--text-secondary);
+  gap: 8px;
+}
+.proRow:last-child { border-bottom: none; }
+.proRow span:last-child { color: var(--text-primary); text-align: right; }
+
+.reason { font-size: 11px; line-height: 1.4; }

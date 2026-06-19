@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
+
+/* ── Design Tokens ───────────────────────────────────────────────── */
+:root {
+  --bg-base:      #020706;
+  --bg-surface:   rgba(8, 18, 17, 0.88);
+  --bg-elevated:  rgba(12, 26, 23, 0.92);
+  --bg-overlay:   rgba(15, 30, 28, 0.96);
+  --bg-card:      rgba(10, 22, 20, 0.94);
+
+  --border-faint:  rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(39, 227, 141, 0.14);
+  --border-medium: rgba(39, 227, 141, 0.28);
+
+  --text-primary:   #edf6f1;
+  --text-secondary: #96b4a7;
+  --text-muted:     #537166;
+  --text-label:     #59d7a1;
+
+  --accent:      #27e38d;
+  --accent-2:    #34cfff;
+  --accent-dim:  rgba(39, 227, 141, 0.16);
+
+  --color-gain:   #38f19d;
+  --color-loss:   #ff7b7b;
+  --color-warn:   #ffbf3c;
+  --color-neutral: #96b4a7;
+
+  --pill-green-bg: rgba(56, 241, 157, 0.12);
+  --pill-green-fg: #51ffab;
+  --pill-yellow-bg: rgba(255, 191, 60, 0.12);
+  --pill-yellow-fg: #ffca5f;
+  --pill-grey-bg:  rgba(83, 113, 102, 0.24);
+  --pill-grey-fg:  #9ab8ab;
+  --pill-red-bg:   rgba(255, 123, 123, 0.12);
+  --pill-red-fg:   #ff8f8f;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+
+  --nav-h: 64px;
+  --topbar-h: 52px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'IBM Plex Sans', 'Noto Sans TC', system-ui, sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(39,227,141,0.2); border-radius: 2px; }
+
+/* ── Utility ─────────────────────────────────────────────────────── */
+.gain  { color: var(--color-gain); }
+.loss  { color: var(--color-loss); }
+.muted { color: var(--text-muted); }
+.secondary { color: var(--text-secondary); }

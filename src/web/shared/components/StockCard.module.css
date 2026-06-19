@@ -1,0 +1,53 @@
+.card {
+  width: 100%;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-lg);
+  cursor: pointer; font-family: inherit; text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.card:hover { border-color: var(--border-subtle); background: var(--bg-elevated); }
+
+.top { display: flex; gap: 12px; align-items: flex-start; }
+
+.logoWrap { flex-shrink: 0; }
+.logo {
+  width: 40px; height: 40px; border-radius: 8px;
+  object-fit: contain;
+  background: rgba(255,255,255,0.08);
+}
+.logoFallback {
+  width: 40px; height: 40px; border-radius: 8px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+
+.info { flex: 1; min-width: 0; }
+
+.nameRow { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.nameZh  { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.ticker  { font-size: 11px; color: var(--text-muted); }
+
+.desc {
+  font-size: 11px; color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.priceRow { display: flex; align-items: baseline; gap: 8px; }
+.price    { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gain     { font-size: 11px; color: var(--color-gain); }
+.loss     { font-size: 11px; color: var(--color-loss); }
+
+.badgeRow { display: flex; align-items: center; gap: 6px; }
+.rs       { font-size: 10px; color: var(--text-muted); }

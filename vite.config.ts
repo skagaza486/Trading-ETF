@@ -156,6 +156,14 @@ export default defineConfig(({ mode }) => {
           attachLocalProxyMiddlewares(server, finnhubApiKey)
         }
       }
-    ]
+    ],
+    build: {
+      rollupOptions: {
+        input: {
+          main: 'index.html',
+          legacy: 'legacy.html'
+        }
+      }
+    }
   }
 })
