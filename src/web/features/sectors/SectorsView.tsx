@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { useApp } from '../../app/providers/AppContext'
 import { LoadingScreen, ErrorScreen } from '../../shared/components/LoadingScreen'
+import { HkPlaceholder } from '../../shared/components/HkPlaceholder'
 import { getStockMeta } from '../../shared/i18n/stockNames'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
@@ -48,7 +49,7 @@ function buildSectors(stocks: StockSnapshotEntry[]): SectorSummary[] {
 }
 
 export function SectorsView() {
-  const { mode, openDetail } = useApp()
+  const { mode, openDetail, scope } = useApp()
   const snap = useSnapshot()
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -57,6 +58,7 @@ export function SectorsView() {
     return buildSectors(snap.snapshot.stocks)
   }, [snap])
 
+  if (scope === 'HK') return <HkPlaceholder />
   if (snap.status === 'loading') return <LoadingScreen message="載入板塊資料…" />
   if (snap.status === 'error')   return <ErrorScreen message={snap.message} />
 

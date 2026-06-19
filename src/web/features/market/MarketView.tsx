@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { useApp } from '../../app/providers/AppContext'
 import { LoadingScreen, ErrorScreen } from '../../shared/components/LoadingScreen'
+import { HkPlaceholder } from '../../shared/components/HkPlaceholder'
 import { WeatherCard } from './WeatherCard'
 import { BreadthCard } from './BreadthCard'
 import { VixCard } from './VixCard'
@@ -33,7 +34,7 @@ function computeBreadth(stocks: StockSnapshotEntry[]) {
 }
 
 export function MarketView() {
-  const { mode } = useApp()
+  const { mode, scope } = useApp()
   const snap = useSnapshot()
 
   const breadth = useMemo(() => {
@@ -41,6 +42,7 @@ export function MarketView() {
     return computeBreadth(snap.snapshot.stocks)
   }, [snap])
 
+  if (scope === 'HK') return <HkPlaceholder />
   if (snap.status === 'loading') return <LoadingScreen message="載入大市資料…" />
   if (snap.status === 'error')   return <ErrorScreen message={snap.message} />
 

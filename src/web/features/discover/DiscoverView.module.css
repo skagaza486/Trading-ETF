@@ -37,3 +37,20 @@
 .count { font-size: 11px; color: var(--text-muted); }
 
 .list { display: flex; flex-direction: column; gap: 8px; }
+
+.typeToggle {
+  display: flex; gap: 4px;
+  background: var(--bg-elevated);
+  border-radius: 20px;
+  padding: 3px;
+  align-self: flex-start;
+}
+.typeBtn, .typeActive {
+  padding: 5px 14px;
+  border-radius: 17px;
+  font-size: 12px; font-weight: 600;
+  border: none; cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.typeBtn    { background: transparent; color: var(--text-secondary); }
+.typeActive { background: var(--bg-card); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
