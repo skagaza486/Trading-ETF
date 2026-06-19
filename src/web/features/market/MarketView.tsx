@@ -12,6 +12,19 @@ import { MarketTopPicks } from './MarketTopPicks'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import styles from './MarketView.module.css'
 
+const SIGNAL_CHIPS = [
+  { label: 'LONG_BREAK', zh: '突破' },
+  { label: 'LONG_VCP',   zh: 'VCP' },
+  { label: 'LONG_BOUNCE', zh: '反彈' },
+  { label: 'LONG_BASE',  zh: '整固' },
+] as const
+
+function computeSignalCounts(stocks: StockSnapshotEntry[]) {
+  const counts: Record<string, number> = {}
+  for (const s of stocks) { counts[s.label] = (counts[s.label] ?? 0) + 1 }
+  return counts
+}
+
 function computeBreadth(stocks: StockSnapshotEntry[]) {
   const total = stocks.length
   if (!total) return { pctAboveEma50: 0, pctAboveEma200: 0, advancers: 0, decliners: 0 }
@@ -43,6 +56,11 @@ export function MarketView() {
     return computeBreadth(snap.snapshot.stocks)
   }, [snap])
 
+  const sigCounts = useMemo(() => {
+    if (snap.status !== 'ok') return null
+    return computeSignalCounts(snap.snapshot.stocks)
+  }, [snap])
+
   if (scope === 'HK') return <HkPlaceholder />
   if (snap.status === 'loading') return <LoadingScreen message="載入大市資料…" />
   if (snap.status === 'error')   return <ErrorScreen message={snap.message} />
@@ -60,6 +78,20 @@ export function MarketView() {
         <span className={styles.dateLabel}>信號日期</span>
         <span className={styles.date}>{snapshot.date}</span>
       </div>
+
+      {sigCounts && (
+        <div className={styles.signalSummary}>
+          {SIGNAL_CHIPS.map(({ label, zh }) => {
+            const n = sigCounts[label] ?? 0
+            return (
+              <span key={label} className={styles.sigChip}>
+                {n}
+                <span className={styles.sigLabel}>{zh}</span>
+              </span>
+            )
+          })}
+        </div>
+      )}
 
       {/* Weather card — hero section */}
       <WeatherCard regime={snapshot.regime} proxyWeakBreadth={snapshot.proxyWeakBreadth} breadth={breadth} />
