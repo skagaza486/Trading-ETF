@@ -141,6 +141,9 @@ export function DiscoverView() {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+        {search && (
+          <button className={styles.clearBtn} onClick={() => setSearch('')}>✕</button>
+        )}
       </div>
 
       <div className={styles.typeToggle}>

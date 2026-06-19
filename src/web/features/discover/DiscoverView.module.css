@@ -5,6 +5,7 @@
   z-index: 10;
   background: var(--bg-base);
   padding: 6px 0;
+  position: relative;
 }
 
 .search {
@@ -18,6 +19,15 @@
   outline: none;
 }
 .search:focus { border-color: var(--border-subtle); }
+.search { padding-right: 36px; }
+
+.clearBtn {
+  position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 13px; padding: 4px;
+  line-height: 1;
+}
 
 .filters {
   display: flex; gap: 6px; flex-wrap: wrap;

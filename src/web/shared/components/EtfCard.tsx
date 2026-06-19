@@ -67,6 +67,11 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
             ? <span className={styles.price}>${price.toFixed(2)}</span>
             : <span className={styles.price}>—</span>
           }
+          {showMode === 'pro' && etf.indicators.return13w !== null && (
+            <span className={etf.indicators.return13w >= 0 ? styles.gain : styles.loss}>
+              13w {etf.indicators.return13w >= 0 ? '+' : ''}{(etf.indicators.return13w * 100).toFixed(1)}%
+            </span>
+          )}
         </div>
 
         <div className={styles.badgeRow}>
