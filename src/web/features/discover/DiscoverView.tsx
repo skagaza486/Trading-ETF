@@ -6,10 +6,26 @@ import { StockCard } from '../../shared/components/StockCard'
 import { EtfCard } from '../../shared/components/EtfCard'
 import { LoadingScreen, ErrorScreen } from '../../shared/components/LoadingScreen'
 import { HkPlaceholder } from '../../shared/components/HkPlaceholder'
+import { etfUniverse } from '../../../data/etfUniverse'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import type { EtfSignalEntry, EtfSignalLabel } from '../../shared/hooks/useEtfSignals'
 import styles from './DiscoverView.module.css'
+
+const ETF_CATEGORY_ZH: Record<string, string> = {
+  US_TREASURY:    '美國國債',
+  HY_BOND:        '高收益債',
+  US_EQUITY_CORE: '美股寬基',
+  SECTOR:         '行業板塊',
+  INTL_EQUITY:    '環球股票',
+  HK_CHINA:       '港股/中國',
+  REIT:           '房地產',
+  COMMODITY:      '大宗商品',
+  GOLD:           '黃金',
+  DIVIDEND:       '股息收益',
+}
+
+const etfCategoryMap = new Map(etfUniverse.map(e => [e.ticker, e.category]))
 
 type AssetType = 'stocks' | 'etf'
 type Filter = 'all' | 'bullish' | 'watchlist' | 'bearish'
@@ -53,6 +69,7 @@ export function DiscoverView() {
   const etfState = useEtfSignals()
   const [assetType, setAssetType] = useState<AssetType>('stocks')
   const [filter, setFilter] = useState<Filter>('all')
+  const [etfCategory, setEtfCategory] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
   const displayedStocks = useMemo(() => {
@@ -72,16 +89,30 @@ export function DiscoverView() {
     })
   }, [snap, filter, search])
 
-  const displayedEtfs = useMemo(() => {
+  const etfsForCategory = useMemo(() => {
     if (etfState.status !== 'ok') return []
-    let etfs = filterEtfs(etfState.entries, filter)
+    return filterEtfs(etfState.entries, filter)
+  }, [etfState, filter])
+
+  const availableCategories = useMemo(() => {
+    const seen = new Set<string>()
+    for (const e of etfsForCategory) {
+      const cat = etfCategoryMap.get(e.ticker)
+      if (cat) seen.add(cat)
+    }
+    return Array.from(seen)
+  }, [etfsForCategory])
+
+  const displayedEtfs = useMemo(() => {
+    let etfs = etfsForCategory
+    if (etfCategory) etfs = etfs.filter(e => etfCategoryMap.get(e.ticker) === etfCategory)
     if (search) {
       const q = search.toUpperCase()
       etfs = etfs.filter(e => e.ticker.includes(q))
     }
     const order: Record<EtfSignalLabel, number> = { FAVOUR: 3, WATCH: 2, WAIT: 1, AVOID: 0 }
     return [...etfs].sort((a, b) => (order[b.label] ?? 0) - (order[a.label] ?? 0))
-  }, [etfState, filter, search])
+  }, [etfsForCategory, etfCategory, search])
 
   const isLoading = assetType === 'stocks'
     ? snap.status === 'loading'
@@ -115,13 +146,13 @@ export function DiscoverView() {
       <div className={styles.typeToggle}>
         <button
           className={assetType === 'stocks' ? styles.typeActive : styles.typeBtn}
-          onClick={() => { setAssetType('stocks'); setFilter('all') }}
+          onClick={() => { setAssetType('stocks'); setFilter('all'); setEtfCategory(null) }}
         >
           股票
         </button>
         <button
           className={assetType === 'etf' ? styles.typeActive : styles.typeBtn}
-          onClick={() => { setAssetType('etf'); setFilter('all') }}
+          onClick={() => { setAssetType('etf'); setFilter('all'); setEtfCategory(null) }}
         >
           ETF
         </button>
@@ -138,6 +169,26 @@ export function DiscoverView() {
           </button>
         ))}
       </div>
+
+      {assetType === 'etf' && availableCategories.length > 1 && (
+        <div className={styles.catRow}>
+          <button
+            className={etfCategory === null ? styles.catActive : styles.catBtn}
+            onClick={() => setEtfCategory(null)}
+          >
+            全類別
+          </button>
+          {availableCategories.map(cat => (
+            <button
+              key={cat}
+              className={etfCategory === cat ? styles.catActive : styles.catBtn}
+              onClick={() => setEtfCategory(cat === etfCategory ? null : cat)}
+            >
+              {ETF_CATEGORY_ZH[cat] ?? cat}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className={styles.count}>{count} 項</div>
 

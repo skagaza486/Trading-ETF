@@ -1,6 +1,5 @@
 import { useApp } from '../../app/providers/AppContext'
 import { SignalBadge } from './SignalBadge'
-import { Sparkline } from './Sparkline'
 import { getStockMeta } from '../i18n/stockNames'
 import { getStockLogoAsset } from '../../../ui/assetRegistry'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
