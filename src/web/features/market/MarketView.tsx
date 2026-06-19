@@ -7,6 +7,7 @@ import { WeatherCard } from './WeatherCard'
 import { BreadthCard } from './BreadthCard'
 import { VixCard } from './VixCard'
 import { IndexChart } from './IndexChart'
+import { SectorHeatMap } from './SectorHeatMap'
 import { MarketTopPicks } from './MarketTopPicks'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import styles from './MarketView.module.css'
@@ -71,6 +72,9 @@ export function MarketView() {
 
       {/* Index comparison */}
       <IndexChart />
+
+      {/* Sector heat map */}
+      <SectorHeatMap stocks={snapshot.stocks} />
 
       {/* Top picks today */}
       <MarketTopPicks stocks={snapshot.stocks} />
