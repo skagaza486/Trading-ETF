@@ -35,7 +35,7 @@ const WATCHLIST_STOCK: StockSignalLabel[] = ['LONG_BASE','WATCH']
 const BEARISH_STOCK: StockSignalLabel[] = ['SHORT_BREAK','SHORT_BASE','SHORT_WATCH','AVOID_CHOP']
 
 const BULLISH_ETF: EtfSignalLabel[] = ['FAVOUR']
-const WATCHLIST_ETF: EtfSignalLabel[] = ['WATCH']
+const WATCHLIST_ETF: EtfSignalLabel[] = ['WATCH', 'WAIT']
 const BEARISH_ETF: EtfSignalLabel[] = ['AVOID']
 
 const FILTER_LABELS: { id: Filter; label: string }[] = [
@@ -193,7 +193,11 @@ export function DiscoverView() {
       <div className={styles.count}>{count} 項</div>
 
       <div className={styles.list}>
-        {assetType === 'stocks'
+        {count === 0 ? (
+          <div className={styles.empty}>
+            {search ? `找不到「${search}」的結果` : '此篩選條件下沒有項目'}
+          </div>
+        ) : assetType === 'stocks'
           ? displayedStocks.map(s => <StockCard key={s.ticker} stock={s} showMode={mode} />)
           : displayedEtfs.map(e => <EtfCard key={e.ticker} etf={e} showMode={mode} />)
         }

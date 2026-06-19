@@ -38,6 +38,13 @@
 
 .list { display: flex; flex-direction: column; gap: 8px; }
 
+.empty {
+  text-align: center;
+  padding: 40px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .typeToggle {
   display: flex; gap: 4px;
   background: var(--bg-elevated);

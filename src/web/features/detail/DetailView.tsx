@@ -103,6 +103,13 @@ export function DetailView() {
         </div>
       )}
 
+      {/* Earnings warning */}
+      {!isEtf && stock?.earningsWithinWindow && (
+        <div className={styles.earningsWarn}>
+          ⚡ 財報日在窗口內，信號風險較高，倉位宜輕
+        </div>
+      )}
+
       {/* Time frame selector */}
       <div className={styles.tfRow}>
         {TIMEFRAMES.map(t => (
