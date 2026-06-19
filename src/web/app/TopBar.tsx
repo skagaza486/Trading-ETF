@@ -1,13 +1,27 @@
 import { useApp, type MarketScope, type UiMode } from './providers/AppContext'
+import { useSnapshot } from '../shared/hooks/useSnapshot'
 import styles from './TopBar.module.css'
 
 export function TopBar() {
   const { scope, setScope, mode, setMode } = useApp()
+  const snap = useSnapshot()
+  const regime = snap.status === 'ok' ? snap.snapshot.regime : null
 
   return (
     <header className={styles.bar}>
       <div className={styles.left}>
         <span className={styles.logo}>市場羅盤</span>
+        {regime && (
+          <span
+            className={styles.regimeDot}
+            style={{
+              background: regime === 'long_friendly' ? 'var(--color-gain)'
+                : regime === 'short_friendly' ? 'var(--color-loss)'
+                : 'var(--color-warn)'
+            }}
+            title={regime === 'long_friendly' ? '偏多環境' : regime === 'short_friendly' ? '偏空環境' : '震盪環境'}
+          />
+        )}
       </div>
 
       <div className={styles.controls}>
