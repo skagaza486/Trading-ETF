@@ -38,6 +38,10 @@ export default {
       return handleETFSignalsRead(env, url)
     }
 
+    if (url.pathname === '/api/d1/signal-stats') {
+      return handleSignalStats(env, url)
+    }
+
     // Serve legacy app for /legacy and /legacy/* paths
     if (url.pathname === '/legacy' || url.pathname.startsWith('/legacy/')) {
       const legacyUrl = new URL(request.url)
@@ -232,6 +236,37 @@ async function handleSignalsRead(env: Env, url: URL): Promise<Response> {
   }))
 
   return new Response(JSON.stringify({ since, label, count: records.length, records }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=900'
+    }
+  })
+}
+
+async function handleSignalStats(env: Env, url: URL): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+
+  const days = Math.min(365, Math.max(30, parseInt(url.searchParams.get('days') ?? '90', 10)))
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const { results } = await env.trading_etf_db.prepare(`
+    SELECT
+      label,
+      COUNT(*) AS n,
+      ROUND(AVG(ret5d) * 100, 2) AS avg_ret5d,
+      ROUND(AVG(ret10d) * 100, 2) AS avg_ret10d,
+      ROUND(AVG(ret5d_vs_spy) * 100, 2) AS avg_vs_spy,
+      ROUND(SUM(CASE WHEN ret5d > 0 THEN 1.0 ELSE 0.0 END) * 100.0 / COUNT(*), 1) AS win_rate,
+      ROUND(AVG(mfe5d) * 100, 2) AS avg_mfe5d,
+      ROUND(AVG(mae5d) * 100, 2) AS avg_mae5d
+    FROM signals
+    WHERE signal_date >= ? AND ret5d IS NOT NULL
+    GROUP BY label
+    ORDER BY avg_ret5d DESC
+  `).bind(since).all()
+
+  return new Response(JSON.stringify({ since, days, stats: results }), {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
