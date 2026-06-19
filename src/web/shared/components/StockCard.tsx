@@ -55,7 +55,7 @@ export function StockCard({ stock, showMode = 'simple' }: Props) {
             <span className={styles.earnings} title="財報日在信號窗口內">財報⚡</span>
           )}
           <SignalBadge label={stock.label} showCode={showMode === 'pro'} />
-          {stock.rsRank !== null && showMode === 'pro' && (
+          {stock.rsRank !== null && (
             <span className={styles.rs}>RS {stock.rsRank}</span>
           )}
         </div>
