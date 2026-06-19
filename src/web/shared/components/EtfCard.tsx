@@ -34,7 +34,14 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
   return (
     <button
       className={styles.card}
-      onClick={() => openDetail({ ticker: etf.ticker, name: nameDisplay })}
+      onClick={() => openDetail({
+        ticker: etf.ticker,
+        name: nameDisplay,
+        etfLabel: etf.label,
+        etfCategory: categoryZh,
+        etfDescription: desc || undefined,
+        etfPrice: etf.closeAtSignal,
+      })}
     >
       <div className={styles.top}>
         <div className={styles.logoWrap}>

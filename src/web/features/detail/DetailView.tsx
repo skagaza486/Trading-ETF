@@ -4,6 +4,7 @@ import { useIntraday, type TimeFrame } from '../../shared/hooks/useIntraday'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { PriceChart } from '../../shared/components/PriceChart'
 import { SignalBadge } from '../../shared/components/SignalBadge'
+import { EtfSignalBadge } from '../../shared/components/EtfSignalBadge'
 import { getStockMeta } from '../../shared/i18n/stockNames'
 import { getStockLogoAsset } from '../../../ui/assetRegistry'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
@@ -35,6 +36,8 @@ export function DetailView() {
 
   if (!detailTarget) return null
 
+  const isEtf = !!detailTarget.etfLabel
+
   const stock: StockSnapshotEntry | undefined =
     snap.status === 'ok'
       ? snap.snapshot.stocks.find(s => s.ticker === detailTarget.ticker)
@@ -43,6 +46,14 @@ export function DetailView() {
   const meta = getStockMeta(detailTarget.ticker, stock?.name)
   const logo = getStockLogoAsset(detailTarget.ticker)
   const explanation = stock ? (SIGNAL_EXPLANATION[stock.label] ?? '') : ''
+
+  const displayName = isEtf ? detailTarget.ticker : meta.nameZh
+  const displayDesc = isEtf
+    ? (detailTarget.etfDescription ?? '')
+    : (meta.descriptionZh ?? '')
+  const displayPrice = isEtf
+    ? (detailTarget.etfPrice ?? null)
+    : (stock?.indicators.close ?? null)
 
   return (
     <div className={styles.view}>
@@ -57,18 +68,23 @@ export function DetailView() {
         </div>
         <div>
           <div className={styles.nameRow}>
-            <span className={styles.nameZh}>{meta.nameZh}</span>
-            <span className={styles.ticker}>{detailTarget.ticker}</span>
+            <span className={styles.nameZh}>{displayName}</span>
+            <span className={styles.ticker}>
+              {isEtf ? detailTarget.etfCategory : detailTarget.ticker}
+            </span>
           </div>
-          {meta.descriptionZh && <p className={styles.desc}>{meta.descriptionZh}</p>}
+          {displayDesc && <p className={styles.desc}>{displayDesc}</p>}
         </div>
       </div>
 
-      {/* Price */}
-      {stock && (
+      {/* Price + signal */}
+      {displayPrice !== null && (
         <div className={styles.priceBlock}>
-          <span className={styles.price}>${stock.indicators.close.toFixed(2)}</span>
-          <SignalBadge label={stock.label} showCode={mode === 'pro'} />
+          <span className={styles.price}>${displayPrice.toFixed(2)}</span>
+          {isEtf && detailTarget.etfLabel
+            ? <EtfSignalBadge label={detailTarget.etfLabel} showCode={mode === 'pro'} />
+            : stock && <SignalBadge label={stock.label} showCode={mode === 'pro'} />
+          }
         </div>
       )}
 
@@ -98,8 +114,19 @@ export function DetailView() {
         )}
       </div>
 
-      {/* Signal explanation */}
-      {stock && explanation && (
+      {/* ETF notice */}
+      {isEtf && (
+        <div className={styles.explainCard}>
+          <div className={styles.explainTitle}>ETF 週度信號</div>
+          <p className={styles.explainText}>
+            信號基於 13 週回報、40 週均線、相對強弱等因素每週更新。FAVOUR 代表當前動量有利於持有，AVOID 代表動量轉弱建議迴避。
+          </p>
+          <p className={styles.disclaimer}>研究參考，非買入建議。過去表現不代表將來回報。</p>
+        </div>
+      )}
+
+      {/* Signal explanation (stocks only) */}
+      {!isEtf && stock && explanation && (
         <div className={styles.explainCard}>
           <div className={styles.explainTitle}>為什麼值得留意？</div>
           <p className={styles.explainText}>{explanation}</p>
@@ -107,8 +134,8 @@ export function DetailView() {
         </div>
       )}
 
-      {/* Key metrics */}
-      {stock && (
+      {/* Key metrics (stocks only) */}
+      {!isEtf && stock && (
         <div className={styles.metricsCard}>
           <div className={styles.metricsTitle}>關鍵數據</div>
           <div className={styles.metricsGrid}>
@@ -128,8 +155,8 @@ export function DetailView() {
         </div>
       )}
 
-      {/* Pro: regime & flags */}
-      {mode === 'pro' && stock && (
+      {/* Pro: regime & flags (stocks only) */}
+      {!isEtf && mode === 'pro' && stock && (
         <div className={styles.proCard}>
           <div className={styles.metricsTitle}>進階資訊</div>
           <div className={styles.proRow}><span>市場環境</span><span>{stock.regime}</span></div>

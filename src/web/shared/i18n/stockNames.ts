@@ -127,7 +127,6 @@ export const STOCK_META: Record<string, StockMeta> = {
   AZO:   { nameZh: 'AutoZone',          descriptionZh: '美國最大汽車零件零售商，DIY+商業雙渠道',              sectorZh: '消費' },
   COST:  { nameZh: '好市多',            descriptionZh: '美國倉儲會員制超市龍頭，高庫存周轉護城河',            sectorZh: '消費' },
   WMT:   { nameZh: '沃爾瑪',            descriptionZh: '全球最大零售商，電商+廣告+金融服務加速',              sectorZh: '消費' },
-  MELI:  { nameZh: 'MercadoLibre',      descriptionZh: '拉丁美洲電商 + 金融科技龍頭，Mercado Pago 賦能',     sectorZh: '消費' },
   SHOP:  { nameZh: 'Shopify',           descriptionZh: '電商建站 SaaS 龍頭，中小商家及品牌出海首選',          sectorZh: '消費' },
 
   // ── Consumer Staples ──────────────────────────────────────────────

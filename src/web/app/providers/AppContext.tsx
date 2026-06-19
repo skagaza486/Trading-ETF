@@ -4,7 +4,14 @@ export type MarketScope = 'US' | 'HK'
 export type UiMode = 'simple' | 'pro'
 export type ViewId = 'market' | 'sectors' | 'discover' | 'detail' | 'lab'
 
-export type DetailTarget = { ticker: string; name: string }
+export type DetailTarget = {
+  ticker: string
+  name: string
+  etfLabel?: import('../../shared/hooks/useEtfSignals').EtfSignalLabel
+  etfCategory?: string
+  etfDescription?: string
+  etfPrice?: number | null
+}
 
 type AppContextValue = {
   scope: MarketScope
