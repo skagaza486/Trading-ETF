@@ -47,6 +47,7 @@ export function SectorHeatMap({ stocks }: { stocks: StockSnapshotEntry[] }) {
             <div key={b.sectorZh} className={`${styles.pill} ${cls}`}>
               <span className={styles.name}>{b.sectorZh}</span>
               <span className={styles.pct}>{b.bullPct}%</span>
+              <span className={styles.cnt}>({Math.round(b.bullPct * b.count / 100)}/{b.count})</span>
             </div>
           )
         })}

@@ -18,6 +18,12 @@ const TIMEFRAMES: { id: TimeFrame; label: string }[] = [
   { id: '1Y', label: '1年' },
 ]
 
+const LABEL_SHORT_ZH: Record<string, string> = {
+  LONG_BREAK:  '突破', LONG_VCP: 'VCP突破', LONG_BOUNCE: 'EMA反彈', LONG_BASE: '整固',
+  WATCH: '觀察', NEUTRAL: '中性', AVOID_CHOP: '震盪',
+  SHORT_BREAK: '空頭突破', SHORT_BASE: '空頭整固', SHORT_WATCH: '空頭觀察',
+}
+
 const SIGNAL_EXPLANATION: Partial<Record<string, string>> = {
   LONG_BREAK:  '股價剛突破近 20 日高位，成交量放大確認，過去類似形態平均 5 日回報 +1.2%。',
   LONG_VCP:    '量縮整理後放量突破，VCP 形態（Volatility Contraction Pattern），過去類似形態平均 5 日回報 +1.1%。',
@@ -85,6 +91,15 @@ export function DetailView() {
             ? <EtfSignalBadge label={detailTarget.etfLabel} showCode={mode === 'pro'} />
             : stock && <SignalBadge label={stock.label} showCode={mode === 'pro'} />
           }
+        </div>
+      )}
+
+      {/* Signal change indicator (stocks only) */}
+      {!isEtf && stock?.previousLabel && stock.previousLabel !== stock.label && (
+        <div className={styles.signalChange}>
+          信號更新：{LABEL_SHORT_ZH[stock.previousLabel] ?? stock.previousLabel}
+          {' → '}
+          {LABEL_SHORT_ZH[stock.label] ?? stock.label}
         </div>
       )}
 

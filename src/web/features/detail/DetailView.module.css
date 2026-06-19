@@ -32,6 +32,16 @@
 .priceBlock { display: flex; align-items: center; gap: 12px; }
 .price      { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+.signalChange {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-sm);
+  padding: 3px 10px;
+  align-self: flex-start;
+}
+
 .tfRow { display: flex; gap: 6px; }
 .tfBtn, .tfActive {
   padding: 6px 12px; border-radius: 20px;
