@@ -205,6 +205,15 @@ export function DetailView() {
           <div className={styles.proRow}><span>分析原因</span><span className={styles.reason}>{stock.reason}</span></div>
         </div>
       )}
+
+      {/* Same sector picks (stocks only) */}
+      {!isEtf && stock && snap.status === 'ok' && (
+        <SameSectorPicks
+          currentTicker={stock.ticker}
+          sectorZh={meta.sectorZh}
+          allStocks={snap.snapshot.stocks}
+        />
+      )}
     </div>
   )
 }
@@ -233,6 +242,55 @@ function EtfMetric({ label, value, fmt }: { label: string; value: number | null;
     <div className={styles.metric}>
       <span className={styles.metricLabel}>{label}</span>
       <span className={styles.metricValue} style={{ color }}>{display}</span>
+    </div>
+  )
+}
+
+const BULL_LABELS_SET = new Set(['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE'])
+
+function SameSectorPicks({
+  currentTicker,
+  sectorZh,
+  allStocks,
+}: {
+  currentTicker: string
+  sectorZh: string
+  allStocks: StockSnapshotEntry[]
+}) {
+  const { openDetail } = useApp()
+
+  const peers = allStocks
+    .filter(s => {
+      const m = getStockMeta(s.ticker, s.name)
+      return s.ticker !== currentTicker && m.sectorZh === sectorZh && BULL_LABELS_SET.has(s.label)
+    })
+    .sort((a, b) => (b.rsRank ?? 0) - (a.rsRank ?? 0))
+    .slice(0, 3)
+
+  if (!peers.length) return null
+
+  return (
+    <div className={styles.proCard}>
+      <div className={styles.metricsTitle}>同板塊看漲股（{sectorZh}）</div>
+      {peers.map(s => {
+        const m = getStockMeta(s.ticker, s.name)
+        return (
+          <button
+            key={s.ticker}
+            className={styles.peerRow}
+            onClick={() => openDetail({ ticker: s.ticker, name: m.nameZh })}
+          >
+            <div className={styles.peerLeft}>
+              <span className={styles.peerTicker}>{s.ticker}</span>
+              <span className={styles.peerName}>{m.nameZh}</span>
+            </div>
+            <div className={styles.peerRight}>
+              {s.rsRank !== null && <span className={styles.rs}>RS {s.rsRank}</span>}
+              <SignalBadge label={s.label} />
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
 }
