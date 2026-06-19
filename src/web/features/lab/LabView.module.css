@@ -108,6 +108,50 @@
   line-height: 1.5;
 }
 
+/* Ticker history */
+.tickerSearchRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tickerInput {
+  flex: 1;
+  height: 38px;
+  padding: 0 36px 0 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-md);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.tickerInput:focus { border-color: var(--accent); }
+.tickerInput::placeholder { color: var(--text-muted); }
+
+.tickerClear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+  line-height: 1;
+}
+
+.tdDate {
+  padding: 9px 10px;
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* Legacy section */
 .legacySection {
   display: flex;

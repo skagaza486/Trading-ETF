@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useSignalStats } from '../../shared/hooks/useSignalStats'
 import { useSignalBreadth } from '../../shared/hooks/useSignalBreadth'
+import { useTickerHistory } from '../../shared/hooks/useTickerHistory'
 import { BreadthChart } from './BreadthChart'
 import styles from './LabView.module.css'
 
@@ -34,6 +35,94 @@ function pctColor(v: number | null): string | undefined {
   return v > 0 ? 'var(--color-gain)' : v < 0 ? 'var(--color-loss)' : undefined
 }
 
+const LABEL_COLOR: Record<string, string> = {
+  LONG_BREAK:  'var(--color-gain)',
+  LONG_VCP:    'var(--color-gain)',
+  LONG_BOUNCE: '#4ec9b0',
+  LONG_BASE:   '#a3e0c5',
+  WATCH:       'var(--text-muted)',
+  NEUTRAL:     'var(--text-muted)',
+  AVOID_CHOP:  'var(--color-warn)',
+  SHORT_WATCH: 'var(--color-loss)',
+  SHORT_BASE:  'var(--color-loss)',
+  SHORT_BREAK: 'var(--color-loss)',
+}
+
+function TickerHistorySection() {
+  const [inputVal, setInputVal] = useState('')
+  const [query, setQuery] = useState('')
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const state = useTickerHistory(query)
+
+  function handleChange(v: string) {
+    setInputVal(v)
+    if (timerRef.current) clearTimeout(timerRef.current)
+    const upper = v.trim().toUpperCase()
+    if (!upper) { setQuery(''); return }
+    timerRef.current = setTimeout(() => setQuery(upper), 420)
+  }
+
+  return (
+    <section className={styles.section}>
+      <h2 className={styles.sectionTitle}>個股信號歷程</h2>
+      <div className={styles.tickerSearchRow}>
+        <input
+          className={styles.tickerInput}
+          type="text"
+          value={inputVal}
+          onChange={e => handleChange(e.target.value)}
+          placeholder="輸入代碼，例如 AAPL"
+          spellCheck={false}
+          autoCapitalize="characters"
+        />
+        {inputVal && (
+          <button className={styles.tickerClear} onClick={() => { setInputVal(''); setQuery('') }}>✕</button>
+        )}
+      </div>
+
+      {state.status === 'loading' && <div className={styles.loading}>載入中…</div>}
+      {state.status === 'error'   && <div className={styles.error}>找不到 {query} 的歷史信號</div>}
+      {state.status === 'ok' && state.rows.length === 0 && (
+        <div className={styles.loading}>近 90 日無信號記錄：{state.ticker}</div>
+      )}
+      {state.status === 'ok' && state.rows.length > 0 && (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={styles.thLabel}>日期</th>
+                <th className={styles.thLabel}>信號</th>
+                <th className={styles.th}>收市價</th>
+                <th className={styles.th}>5日回報</th>
+                <th className={styles.th}>vs SPY</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.rows.map(row => (
+                <tr key={row.signalDate} className={styles.row}>
+                  <td className={styles.tdDate}>{row.signalDate}</td>
+                  <td className={styles.tdLabel} style={{ color: LABEL_COLOR[row.label] ?? 'var(--text-secondary)' }}>
+                    {LABEL_ZH[row.label] ?? row.label}
+                  </td>
+                  <td className={styles.td}>
+                    {row.closeAtSignal !== null ? `$${row.closeAtSignal.toFixed(2)}` : '—'}
+                  </td>
+                  <td className={styles.td} style={{ color: row.ret5d !== null ? (row.ret5d >= 0 ? 'var(--color-gain)' : 'var(--color-loss)') : undefined }}>
+                    {pct(row.ret5d)}
+                  </td>
+                  <td className={styles.td} style={{ color: row.ret5dVsSpy !== null ? (row.ret5dVsSpy >= 0 ? 'var(--color-gain)' : 'var(--color-loss)') : undefined }}>
+                    {pct(row.ret5dVsSpy)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function LabView() {
   const [days, setDays] = useState<DaysOpt>(90)
   const statsState = useSignalStats(days)
@@ -58,6 +147,9 @@ export function LabView() {
           </div>
         </section>
       )}
+
+      {/* Ticker history lookup */}
+      <TickerHistorySection />
 
       {/* Signal stats */}
       <section className={styles.section}>
