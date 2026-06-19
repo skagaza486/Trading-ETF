@@ -6,6 +6,7 @@ import { HkPlaceholder } from '../../shared/components/HkPlaceholder'
 import { WeatherCard } from './WeatherCard'
 import { BreadthCard } from './BreadthCard'
 import { VixCard } from './VixCard'
+import { RvolCard } from './RvolCard'
 import { IndexChart } from './IndexChart'
 import { SectorHeatMap } from './SectorHeatMap'
 import { MarketTopPicks } from './MarketTopPicks'
@@ -105,6 +106,7 @@ export function MarketView() {
       <div className={styles.metricGrid}>
         <BreadthCard breadth={breadth} mode={mode} />
         <VixCard />
+        <RvolCard stocks={snapshot.stocks} />
       </div>
 
       {/* Index comparison */}
