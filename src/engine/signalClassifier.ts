@@ -137,18 +137,20 @@ export function resolveStockLabel(
   // LONG_BASE: universe filter — structure intact + compression forming, waiting for a trigger
   // Higher-quality than WATCH: requires EMA200 above, RS positive, sustained compression
   // Not an entry signal — identifies candidates likely to produce LONG_BREAK or LONG_BOUNCE soon
-  // HYP-016 (multi-bar): lowRvolDaysInWindow tracks compression persistence (not used as hard gate here)
+  // HYP-010: ATR squeeze — both long-term slope (atrSlope50 < 0) AND short-term compression
+  //   (atrCompressing: today's ATR < ATR 5 bars ago) required together — OR was too loose (n=1016)
+  // Tightened 2026-06-19: RS > 0.02 (was > 0), nearHigh52w required, AND compression (was OR)
   const longBase =
     indicators.aboveEma200 !== false &&
     ema20 > ema50 &&
     indicators.ema50Slope !== null && indicators.ema50Slope > 0 &&
     ema20Slope > 0 &&
-    relStrengthVsSpy > 0 &&
+    relStrengthVsSpy > 0.02 &&                                           // tightened: need real RS edge
     rsi14 >= 45 && rsi14 <= 65 &&
-    (
-      (indicators.atrSlope50 !== null && indicators.atrSlope50 < 0) ||
-      (indicators.rvolRecentAvg10 !== null && indicators.rvolRecentAvg10 < 0.8)
-    ) &&
+    indicators.atrSlope50 !== null && indicators.atrSlope50 < 0 &&       // HYP-010: long-term squeeze
+    indicators.atrCompressing !== false &&                                // HYP-010: still compressing today
+    indicators.rvolRecentAvg10 !== null && indicators.rvolRecentAvg10 < 0.85 &&  // volume dry-up
+    indicators.nearHigh52w !== false &&                                   // within 25% of 52w high
     regime !== 'short_friendly'
 
   if (longBase) {
