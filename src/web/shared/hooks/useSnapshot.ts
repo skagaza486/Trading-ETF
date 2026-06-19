@@ -14,8 +14,8 @@ export function useSnapshot() {
     let cancelled = false
     fetchDailySnapshot().then(result => {
       if (cancelled) return
-      if (result.status === 'error') {
-        setState({ status: 'error', message: result.message })
+      if (result.status === 'unavailable') {
+        setState({ status: 'error', message: result.reason })
       } else {
         setState({ status: 'ok', snapshot: result.snapshot, stale: result.stale })
       }

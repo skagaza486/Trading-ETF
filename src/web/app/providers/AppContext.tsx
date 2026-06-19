@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 
 export type MarketScope = 'US' | 'HK'
 export type UiMode = 'simple' | 'pro'
@@ -58,14 +58,6 @@ export function AppProviders({ children }: { children: ReactNode }) {
     setOnboardingDone(true)
     save('web:onboarded', true)
   }
-
-  // Redirect lab to legacy for Pro users
-  useEffect(() => {
-    if (view === 'lab') {
-      window.open('/legacy', '_blank')
-      setViewState('market')
-    }
-  }, [view])
 
   return (
     <AppContext.Provider value={{

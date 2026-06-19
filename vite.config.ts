@@ -157,6 +157,12 @@ export default defineConfig(({ mode }) => {
         }
       }
     ],
+    server: {
+      proxy: {
+        '/api/snapshot': 'https://trading-etf.skagaza486.workers.dev',
+        '/api/d1':       'https://trading-etf.skagaza486.workers.dev',
+      }
+    },
     build: {
       rollupOptions: {
         input: {

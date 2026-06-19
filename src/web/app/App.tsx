@@ -6,6 +6,7 @@ import { MarketView } from '../features/market/MarketView'
 import { SectorsView } from '../features/sectors/SectorsView'
 import { DiscoverView } from '../features/discover/DiscoverView'
 import { DetailView } from '../features/detail/DetailView'
+import { LabView } from '../features/lab/LabView'
 import styles from './App.module.css'
 
 export function App() {
@@ -21,6 +22,7 @@ export function App() {
         {view === 'sectors'  && <SectorsView />}
         {view === 'discover' && <DiscoverView />}
         {view === 'detail'   && <DetailView />}
+        {view === 'lab'      && <LabView />}
       </main>
       <BottomNav />
     </div>
