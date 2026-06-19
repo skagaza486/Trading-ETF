@@ -11,6 +11,7 @@ export type DetailTarget = {
   etfCategory?: string
   etfDescription?: string
   etfPrice?: number | null
+  etfIndicators?: import('../../shared/hooks/useEtfSignals').EtfIndicators
 }
 
 type AppContextValue = {

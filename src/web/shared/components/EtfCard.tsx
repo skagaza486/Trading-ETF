@@ -41,6 +41,7 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
         etfCategory: categoryZh,
         etfDescription: desc || undefined,
         etfPrice: etf.closeAtSignal,
+        etfIndicators: etf.indicators,
       })}
     >
       <div className={styles.top}>

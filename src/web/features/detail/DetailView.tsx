@@ -114,15 +114,28 @@ export function DetailView() {
         )}
       </div>
 
-      {/* ETF notice */}
+      {/* ETF metrics + notice */}
       {isEtf && (
-        <div className={styles.explainCard}>
-          <div className={styles.explainTitle}>ETF 週度信號</div>
-          <p className={styles.explainText}>
-            信號基於 13 週回報、40 週均線、相對強弱等因素每週更新。FAVOUR 代表當前動量有利於持有，AVOID 代表動量轉弱建議迴避。
-          </p>
-          <p className={styles.disclaimer}>研究參考，非買入建議。過去表現不代表將來回報。</p>
-        </div>
+        <>
+          {detailTarget.etfIndicators && (
+            <div className={styles.metricsCard}>
+              <div className={styles.metricsTitle}>ETF 動量指標</div>
+              <div className={styles.metricsGrid}>
+                <EtfMetric label="13週回報" value={detailTarget.etfIndicators.return13w} fmt="pct" />
+                <EtfMetric label="26週回報" value={detailTarget.etfIndicators.return26w} fmt="pct" />
+                <EtfMetric label="相對SPY強弱" value={detailTarget.etfIndicators.relStrengthVsSpy} fmt="pct" />
+                <EtfMetric label="距40週均線" value={detailTarget.etfIndicators.priceVs40wMa !== null ? detailTarget.etfIndicators.priceVs40wMa - 1 : null} fmt="pct" />
+              </div>
+            </div>
+          )}
+          <div className={styles.explainCard}>
+            <div className={styles.explainTitle}>ETF 週度信號</div>
+            <p className={styles.explainText}>
+              信號基於 13 週回報、40 週均線、相對強弱等因素每週更新。FAVOUR 代表當前動量有利於持有，AVOID 代表動量轉弱建議迴避。
+            </p>
+            <p className={styles.disclaimer}>研究參考，非買入建議。過去表現不代表將來回報。</p>
+          </div>
+        </>
       )}
 
       {/* Signal explanation (stocks only) */}
@@ -179,6 +192,25 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className={styles.metric}>
       <span className={styles.metricLabel}>{label}</span>
       <span className={styles.metricValue}>{value}</span>
+    </div>
+  )
+}
+
+function EtfMetric({ label, value, fmt }: { label: string; value: number | null; fmt: 'pct' }) {
+  if (value === null) {
+    return (
+      <div className={styles.metric}>
+        <span className={styles.metricLabel}>{label}</span>
+        <span className={styles.metricValue}>—</span>
+      </div>
+    )
+  }
+  const display = fmt === 'pct' ? `${value >= 0 ? '+' : ''}${(value * 100).toFixed(1)}%` : String(value)
+  const color = value > 0 ? 'var(--color-gain)' : value < 0 ? 'var(--color-loss)' : undefined
+  return (
+    <div className={styles.metric}>
+      <span className={styles.metricLabel}>{label}</span>
+      <span className={styles.metricValue} style={{ color }}>{display}</span>
     </div>
   )
 }
