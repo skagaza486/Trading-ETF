@@ -45,6 +45,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [scope, setScopeState] = useState<MarketScope>(() => load('web:scope', 'US'))
   const [mode, setModeState] = useState<UiMode>(() => load('web:mode', 'simple'))
   const [view, setViewState] = useState<ViewId>('market')
+  const [prevView, setPrevView] = useState<ViewId>('discover')
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null)
   const [onboardingDone, setOnboardingDone] = useState<boolean>(() => load('web:onboarded', false))
 
@@ -53,12 +54,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const setView  = (v: ViewId)      => { setViewState(v); setDetailTarget(null) }
 
   const openDetail = (t: DetailTarget) => {
+    setPrevView(view === 'detail' ? prevView : view)
     setDetailTarget(t)
     setViewState('detail')
   }
   const closeDetail = () => {
     setDetailTarget(null)
-    setViewState('discover')
+    setViewState(prevView)
   }
 
   const completeOnboarding = (s: MarketScope, m: UiMode) => {
