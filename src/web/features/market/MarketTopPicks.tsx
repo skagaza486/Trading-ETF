@@ -60,6 +60,7 @@ export function MarketTopPicks({ stocks }: { stocks: StockSnapshotEntry[] }) {
                 <span className={styles.name}>{meta.nameZh}</span>
               </div>
               <div className={styles.right}>
+                {s.earningsWithinWindow && <span className={styles.earnings}>財報</span>}
                 {s.rsRank !== null && <span className={styles.rs}>RS {s.rsRank}</span>}
                 <SignalBadge label={s.label} />
               </div>
