@@ -135,15 +135,17 @@ export function DiscoverView() {
   return (
     <div className={styles.view}>
       <div className={styles.searchWrap}>
-        <input
-          className={styles.search}
-          placeholder={assetType === 'stocks' ? '搜尋 ticker 或名稱…' : '搜尋 ETF ticker…'}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        {search && (
-          <button className={styles.clearBtn} onClick={() => setSearch('')}>✕</button>
-        )}
+        <div className={styles.searchInner}>
+          <input
+            className={styles.search}
+            placeholder={assetType === 'stocks' ? '搜尋 ticker 或名稱…' : '搜尋 ETF ticker…'}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className={styles.clearBtn} onClick={() => setSearch('')}>✕</button>
+          )}
+        </div>
       </div>
 
       <div className={styles.typeToggle}>
