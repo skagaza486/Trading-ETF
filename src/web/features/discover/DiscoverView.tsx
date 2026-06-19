@@ -111,7 +111,11 @@ export function DiscoverView() {
       etfs = etfs.filter(e => e.ticker.includes(q))
     }
     const order: Record<EtfSignalLabel, number> = { FAVOUR: 3, WATCH: 2, WAIT: 1, AVOID: 0 }
-    return [...etfs].sort((a, b) => (order[b.label] ?? 0) - (order[a.label] ?? 0))
+    return [...etfs].sort((a, b) => {
+      const labelDiff = (order[b.label] ?? 0) - (order[a.label] ?? 0)
+      if (labelDiff !== 0) return labelDiff
+      return (b.indicators.rankScore ?? 0) - (a.indicators.rankScore ?? 0)
+    })
   }, [etfsForCategory, etfCategory, search])
 
   const isLoading = assetType === 'stocks'

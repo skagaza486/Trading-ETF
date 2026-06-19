@@ -8,6 +8,7 @@ export type EtfIndicators = {
   priceVs40wMa: number | null
   relStrengthVsSpy: number | null
   rsSlope: number | null
+  rankScore: number | null
 }
 
 export type EtfSignalEntry = {
@@ -65,6 +66,7 @@ export function useEtfSignals(): State {
                 priceVs40wMa:    parsed.priceVs40wMa    ?? null,
                 relStrengthVsSpy: parsed.relStrengthVsSpy ?? null,
                 rsSlope:          parsed.rsSlope          ?? null,
+                rankScore:        parsed.rankScore        ?? null,
               },
             })
           }
