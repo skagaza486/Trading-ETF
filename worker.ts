@@ -46,6 +46,10 @@ export default {
       return handleSignalBreadth(env, url)
     }
 
+    if (url.pathname === '/api/d1/ticker-history') {
+      return handleTickerHistory(env, url)
+    }
+
     // Serve legacy app for /legacy and /legacy/* paths
     if (url.pathname === '/legacy' || url.pathname.startsWith('/legacy/')) {
       const legacyUrl = new URL(request.url)
@@ -275,6 +279,32 @@ async function handleSignalStats(env: Env, url: URL): Promise<Response> {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'public, max-age=900'
+    }
+  })
+}
+
+async function handleTickerHistory(env: Env, url: URL): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+
+  const ticker = (url.searchParams.get('ticker') ?? '').toUpperCase().replace(/[^A-Z0-9.^-]/g, '')
+  if (!ticker) return jsonError('ticker param required', 400)
+
+  const days = Math.min(365, Math.max(14, parseInt(url.searchParams.get('days') ?? '90', 10)))
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const { results } = await env.trading_etf_db.prepare(`
+    SELECT signal_date, label, ret5d, ret5d_vs_spy, close_at_signal
+    FROM signals
+    WHERE ticker = ? AND signal_date >= ?
+    ORDER BY signal_date DESC
+    LIMIT 60
+  `).bind(ticker, since).all()
+
+  return new Response(JSON.stringify({ ticker, since, rows: results }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=300'
     }
   })
 }
