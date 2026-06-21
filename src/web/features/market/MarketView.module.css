@@ -1,38 +1,441 @@
-.view { display: flex; flex-direction: column; gap: 14px; }
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
 .stale {
-  padding: 8px 12px; border-radius: var(--r-sm);
-  background: rgba(245,181,68,0.1); color: var(--color-warn);
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(245, 181, 68, 0.1);
+  color: var(--color-warn);
   font-size: 12px;
+  border: 1px solid rgba(245, 181, 68, 0.18);
 }
 
 .dateRow {
-  display: flex; align-items: center; gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.dateLabel    { font-size: 11px; color: var(--text-muted); }
-.date         { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 4px; }
-.dateWeekday  { font-size: 11px; color: var(--text-muted); }
+
+.dateLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.date {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dateWeekday {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.heroCard {
+  border-radius: 22px;
+  border: 1px solid var(--border-subtle);
+  padding: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(120, 239, 193, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(13, 29, 31, 0.96), rgba(10, 23, 27, 0.96));
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.heroTop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.heroEyebrow {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.heroTitle {
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  margin-top: 10px;
+}
+
+.heroAction {
+  margin-top: 8px;
+  font-size: clamp(18px, 2vw, 24px);
+  color: var(--text-primary);
+}
+
+.heroConfidenceCard {
+  border: 1px solid var(--border-faint);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.heroConfidenceHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.heroConfidenceHead strong {
+  color: var(--text-primary);
+  font-family: var(--font-num);
+}
+
+.heroProgress {
+  margin: 12px 0 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.heroProgress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3fd396 0%, #8ef4c8 68%, #efbe62 100%);
+}
+
+.heroScale {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.heroBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.heroSummary {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
 
 .signalSummary {
-  display: flex; flex-wrap: wrap; gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
 }
+
 .sigChip {
-  display: flex; align-items: center; gap: 3px;
-  font-size: 11px; font-weight: 600;
-  padding: 3px 8px; border-radius: 12px;
-  background: rgba(47,209,131,0.1);
-  border: 1px solid rgba(47,209,131,0.2);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(68, 215, 154, 0.1);
+  border: 1px solid rgba(68, 215, 154, 0.18);
+  color: var(--accent-2);
+}
+
+.sigLabel {
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.storyGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.storyCard,
+.focusCard,
+.railCard {
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  background: var(--bg-card);
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sectionHeader h2 {
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.sectionHeader span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.storyList,
+.changeList,
+.discoveryList,
+.focusNotes,
+.sideRail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.storyRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-faint);
+}
+
+.storyList .storyRow:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.storyCopy h3 {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.storyCopy p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.storyStat {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-faint);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.storyPositive h3 {
+  color: var(--accent-2);
+}
+
+.storyNeutral h3 {
+  color: var(--text-primary);
+}
+
+.storyRisk h3 {
+  color: var(--color-warn);
+}
+
+.focusAction {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 239, 193, 0.18);
+  background: rgba(120, 239, 193, 0.08);
+  color: var(--accent-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.focusHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.focusTicker {
+  font-size: 13px;
+  color: var(--accent);
+  font-family: var(--font-num);
+}
+
+.focusHeader h3 {
+  font-size: 30px;
+  line-height: 1.04;
+  margin-top: 4px;
+}
+
+.focusNote {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border-faint);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.focusNote h4 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.focusNote p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.focusNoteRisk h4 {
+  color: var(--color-warn);
+}
+
+.changeRow,
+.discoveryRow {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-faint);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.changeList .changeRow:first-child,
+.discoveryList .discoveryRow:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.changeCopy,
+.discoveryRow {
+  min-width: 0;
+}
+
+.changeTickerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.changeTickerRow strong,
+.discoveryRow strong {
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.changeTickerRow span {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.changeCopy p,
+.discoveryRow p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.statusPill {
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.statusPositive {
   color: var(--color-gain);
 }
-.sigLabel { font-weight: 400; color: var(--text-muted); margin-left: 2px; }
+
+.statusNeutral {
+  color: var(--text-secondary);
+}
+
+.statusRisk {
+  color: var(--color-warn);
+}
 
 .metricGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 @media (min-width: 600px) {
-  .metricGrid { grid-template-columns: 1fr 1fr 1fr; }
+  .heroTop {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .metricGrid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+@media (min-width: 960px) {
+  .storyGrid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 320px;
+    align-items: start;
+  }
+
+  .sideRail {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+}
+
+@media (min-width: 1200px) {
+  .storyGrid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.95fr) 340px;
+  }
+}
+
+@media (max-width: 599px) {
+  .metricGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 719px) {
+  .heroCard,
+  .storyCard,
+  .focusCard,
+  .railCard {
+    padding: 14px;
+  }
+
+  .heroTitle {
+    font-size: 40px;
+  }
+
+  .heroAction {
+    font-size: 18px;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

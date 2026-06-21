@@ -1,58 +1,50 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
 
 /* ════════════════════════════════════════════════════════════════════
-   DESIGN SYSTEM — "Calm Fintech"
-   方向 A：中性深炭灰底色，紅綠嚴格保留給漲跌與信號，藍色作互動主色。
+   DESIGN SYSTEM — "Market Compass"
+   深青綠基底 + 薄荷綠主色，保留高對比和金融產品可信感。
    詳見 DESIGN_SYSTEM.md。
    ════════════════════════════════════════════════════════════════════ */
 :root {
-  /* ── Base surfaces (neutral deep charcoal, faint cool cast) ── */
-  --bg-base:      #0A0C10;
-  --bg-surface:   #11141A;
-  --bg-elevated:  #161A21;
-  --bg-overlay:   #1B2027;
-  --bg-card:      #12151B;
+  --bg-base:      #071115;
+  --bg-surface:   #0a171b;
+  --bg-elevated:  #102026;
+  --bg-overlay:   #13272c;
+  --bg-card:      #0d1a1f;
 
-  /* ── Borders (neutral white-alpha — no green cast) ── */
-  --border-faint:  rgba(255, 255, 255, 0.06);
-  --border-subtle: rgba(255, 255, 255, 0.10);
-  --border-medium: rgba(255, 255, 255, 0.16);
+  --border-faint:  rgba(204, 239, 225, 0.08);
+  --border-subtle: rgba(204, 239, 225, 0.14);
+  --border-medium: rgba(204, 239, 225, 0.22);
 
-  /* ── Text (neutral greys) ── */
-  --text-primary:   #F3F5F8;
-  --text-secondary: #9BA6B4;
-  --text-muted:     #616B79;
-  --text-label:     #7C8AA0;
+  --text-primary:   #eef8f3;
+  --text-secondary: #a8c0b7;
+  --text-muted:     #6f877f;
+  --text-label:     #86a097;
 
-  /* ── Accent: calm blue for interactivity (deliberately NOT gain-green) ── */
-  --accent:      #4C9DF7;
-  --accent-2:    #6FB4FF;
-  --accent-dim:  rgba(76, 157, 247, 0.14);
+  --accent:      #78efc1;
+  --accent-2:    #a7f6da;
+  --accent-dim:  rgba(120, 239, 193, 0.14);
 
-  /* ── Semantic — reserved strictly for gain / loss / warn / signal ── */
-  --color-gain:    #2FD183;
-  --color-loss:    #F2606A;
-  --color-warn:    #F5B544;
-  --color-neutral: #9BA6B4;
+  --color-gain:    #44d79a;
+  --color-loss:    #ed746f;
+  --color-warn:    #efbe62;
+  --color-neutral: #a8c0b7;
 
-  /* ── Signal pills ── */
-  --pill-green-bg:  rgba(47, 209, 131, 0.14);
-  --pill-green-fg:  #43e09a;
-  --pill-yellow-bg: rgba(245, 181, 68, 0.14);
-  --pill-yellow-fg: #f7c061;
-  --pill-grey-bg:   rgba(155, 166, 180, 0.14);
-  --pill-grey-fg:   #aeb8c6;
-  --pill-red-bg:    rgba(242, 96, 106, 0.14);
-  --pill-red-fg:    #f5848c;
+  --pill-green-bg:  rgba(68, 215, 154, 0.14);
+  --pill-green-fg:  #83efbf;
+  --pill-yellow-bg: rgba(239, 190, 98, 0.14);
+  --pill-yellow-fg: #f5cb7e;
+  --pill-grey-bg:   rgba(168, 192, 183, 0.14);
+  --pill-grey-fg:   #c4d8d1;
+  --pill-red-bg:    rgba(237, 116, 111, 0.14);
+  --pill-red-fg:    #f4a09c;
 
-  /* ── Radius ── */
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 16px;
   --r-xl: 22px;
 
-  /* ── Type scale ── */
-  --fs-display: 30px;   /* hero / 大價格 */
+  --fs-display: 30px;
   --fs-h1:      22px;
   --fs-h2:      17px;
   --fs-body:    14px;
@@ -60,18 +52,15 @@
   --fs-xs:      10px;
   --font-num:   'Space Grotesk', 'IBM Plex Sans', sans-serif;
 
-  /* ── Spacing ── */
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
 
-  /* ── Motion ── */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --dur-fast: 0.12s;
   --dur:      0.2s;
   --dur-slow: 0.4s;
 
-  /* ── Elevation ── */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.30);
-  --shadow-pop:  0 8px 28px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-pop:  0 14px 38px rgba(0, 0, 0, 0.38);
 
   --nav-h: 64px;
   --topbar-h: 52px;
@@ -88,29 +77,37 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Scrollbar (neutral) ─────────────────────────────────────────── */
+body {
+  background:
+    radial-gradient(circle at top left, rgba(120, 239, 193, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(79, 155, 132, 0.08), transparent 26%),
+    linear-gradient(180deg, #071115 0%, #081318 100%);
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 2px; }
 
-/* ── Motion primitives ───────────────────────────────────────────── */
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1;   transform: scale(1); }
-  50%      { opacity: 0.35; transform: scale(0.78); }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.78); }
 }
+
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .live-pulse { animation: pulse-dot 2.2s var(--ease) infinite; }
-.fade-up    { animation: fade-up var(--dur-slow) var(--ease) both; }
+.fade-up { animation: fade-up var(--dur-slow) var(--ease) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
-/* ── Utility ─────────────────────────────────────────────────────── */
 .gain  { color: var(--color-gain); }
 .loss  { color: var(--color-loss); }
 .muted { color: var(--text-muted); }
