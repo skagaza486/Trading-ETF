@@ -45,7 +45,7 @@ export function StockCard({ stock, showMode = 'simple' }: Props) {
           <span className={styles.price}>${close.toFixed(2)}</span>
           {pctFromEma50 !== null && (
             <span className={pctFromEma50 >= 0 ? styles.gain : styles.loss}>
-              EMA50 {pctFromEma50 >= 0 ? '+' : ''}{pctFromEma50.toFixed(1)}%
+              EMA50 {pctFromEma50 >= 0 ? '▲' : '▼'}{Math.abs(pctFromEma50).toFixed(1)}%
             </span>
           )}
         </div>

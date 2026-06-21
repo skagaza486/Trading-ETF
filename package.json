@@ -12,7 +12,8 @@
     "ui:qa:headed": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -b && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/vite/bin/vite.js build && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/@playwright/test/cli.js test --headed",
     "research:sync-exp009": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -p tsconfig.research-sync.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./scripts/patchResearchSyncImports.mjs && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./.cache/research-sync/scripts/syncSignalImprovement.js",
     "research:agent": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -p tsconfig.research-sync.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./scripts/patchResearchSyncImports.mjs && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./.cache/research-sync/scripts/researchAgent.js",
-    "deploy": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -b && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/vite/bin/vite.js build && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/wrangler/bin/wrangler.js deploy"
+    "deploy": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -b && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/vite/bin/vite.js build && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/wrangler/bin/wrangler.js deploy",
+    "snapshot:build": "./.tools/node-v22.22.3-darwin-arm64/bin/node --import tsx scripts/build-snapshot.ts"
   },
   "dependencies": {
     "lightweight-charts": "^4.2.3",
@@ -25,6 +26,7 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^6.0.2",
+    "tsx": "^4.20.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "wrangler": "^4.101.0"

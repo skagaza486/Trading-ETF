@@ -1,0 +1,34 @@
+name: Daily snapshot
+
+# Builds the EOD snapshot off-Worker (full Node, no subrequest/CPU limits) and
+# POSTs it to the Worker's ingest endpoint. Runs at the same off-peak time the
+# Worker cron used (best Yahoo-success window). The Worker cron remains as a
+# fallback. See REDESIGN_BLUEPRINT §15 / DESIGN_SYSTEM is unrelated.
+on:
+  schedule:
+    - cron: '30 21 * * 1-5'   # 21:30 UTC Mon–Fri (90 min after US close)
+  workflow_dispatch: {}        # allow manual runs from the Actions tab
+
+concurrency:
+  group: daily-snapshot
+  cancel-in-progress: false
+
+jobs:
+  build-and-ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build snapshot and ingest
+        env:
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          INGEST_URL: ${{ secrets.INGEST_URL }}   # optional; defaults to prod worker URL
+        run: node --import tsx scripts/build-snapshot.ts

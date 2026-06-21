@@ -2,7 +2,7 @@
 
 .stale {
   padding: 8px 12px; border-radius: var(--r-sm);
-  background: rgba(255,191,60,0.1); color: var(--color-warn);
+  background: rgba(245,181,68,0.1); color: var(--color-warn);
   font-size: 12px;
 }
 
@@ -21,8 +21,8 @@
   display: flex; align-items: center; gap: 3px;
   font-size: 11px; font-weight: 600;
   padding: 3px 8px; border-radius: 12px;
-  background: rgba(39,227,141,0.1);
-  border: 1px solid rgba(39,227,141,0.2);
+  background: rgba(47,209,131,0.1);
+  border: 1px solid rgba(47,209,131,0.2);
   color: var(--color-gain);
 }
 .sigLabel { font-weight: 400; color: var(--text-muted); margin-left: 2px; }

@@ -61,3 +61,4 @@ Always use `--remote` to target production D1. Omit it for local dev.
 - **Verify/Quant Lab tab**: reads from D1 (`/api/d1/signals?days=365`) — no client-side replay
 - **Cron** (`worker.ts` → `cronSnapshot.ts`): writes KV snapshot + D1 signals + settles forward returns daily
 - **Backfill endpoint**: `GET /api/admin/backfill?offset=0` — processes 30 stocks at a time for historical data population
+- **Manual snapshot trigger**: `POST /api/admin/run-snapshot` — runs the cron snapshot job on demand (cron only fires Mon–Fri 21:30 UTC). ⚠️ A single Worker invocation caps at ~43 stocks due to the subrequest limit; `buildDailySnapshot` fetches the full ~130-stock universe at once, so the manual trigger returns a partial snapshot. For the full universe, rely on the nightly cron or chunk the builder like `runBackfillChunk`.

@@ -1,0 +1,33 @@
+.wrap { position: relative; display: inline-flex; }
+
+.dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 9px; font-weight: 700; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; padding: 0;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.dot:hover { color: var(--text-secondary); border-color: var(--text-muted); }
+
+.pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: max-content;
+  max-width: 220px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  font-size: 11px; font-weight: 400; line-height: 1.45;
+  color: var(--text-secondary);
+  text-align: left; white-space: normal;
+}

@@ -534,3 +534,93 @@ Phase 0–3 全部美股完成後 ─► Phase 4（港股 = 套用同結構）
 ---
 
 *來源調查：StockBrokers.com（行動交易）、富途牛牛產品拆解（人人都是產品經理）、Liberated Stock Trader（heatmaps）、Eleken / CleverTap（2026 fintech onboarding 漸進揭露）。*
+
+---
+
+## 14. Trust-First 重定向（多輪 AI 評估後的優先序修正）
+
+> **背景**：在 §1–§13 的「功能擴張」藍圖之上，經過四輪獨立評估（Sonnet / Opus 兩輪自評 + 兩個外部 AI）收斂出一個更上游的結論——
+>
+> **最大風險不是畫面不好，而是畫面呈現出的「成熟與確定感」高於數據驗證與功能完整度。** 精確回報數字、港股入口、自選承諾與市寬語意，正在傷害新用戶最重要的資產：**信任**。
+>
+> 因此在繼續鋪 §3–§13 的新頁面之前，**先做一輪「止血信任」（trust-first）**，把畫面的確定感拉回到數據實際能支撐的程度。
+
+### 14.1 核心定位（取代「告訴新手買什麼」）
+
+> **每天用三分鐘，知道市場環境、值得研究的變化，以及應該等待什麼確認。**
+
+此定位既貼合 EOD signal 引擎（§11），也最適合新手與年長用戶；產品是「市場羅盤」，不是「明牌機」。
+
+### 14.2 四輪評估的關鍵發現（已驗證屬實）
+
+| 發現 | 性質 | 出處 |
+|---|---|---|
+| 港股 onboarding 可選，選後只見「即將推出」placeholder → 第一個承諾即跳票 | 信任 | GPT |
+| `DetailView` 寫死「平均 5 日回報 +1.2%/+1.1%/+0.9%」，無樣本數/期間/gate → 新手誤當預期回報 | 信任 / liability | GPT |
+| 市寬「升跌家數」由 signal label 推算，非當日實際升跌 → 名實不符 | 正確性 | GPT |
+| 卡片 ❓ 是純裝飾字元、無 handler → UI 承諾「點我有解釋」卻落空 | 體驗 | 外部 AI + 自評 |
+| 無真正自選/收藏；`DiscoverView` 的 `watchlist` filter 其實只是 LONG_BASE/WATCH 分類 | 留存 | 全部 |
+| snapshot 是 signal-first payload：無 `prevClose`、無 `close[]` → 卡片無法顯示日漲跌% / sparkline | 結構限制 | Opus |
+| 「今日動向」機制（previousLabel→ChangeRow）已存在，但埋在 Discover、未上大市首頁 | 留存 | Opus |
+
+### 14.3 修正後的優先序（取代 §13 的純階段推進）
+
+**P0 — 止血信任（純前端，零資料層/部署風險）✅ 本輪已落實**
+- ✅ 港股鎖定：onboarding 禁選 HK + 「即將推出」標示（`Onboarding.tsx`）
+- ✅ 回報數字摘要化：移除 `DetailView` 寫死回報；改用真實已結算樣本（`/api/d1/signal-stats`，經 `useSignalStats`）動態顯示 n / 5日均報 / 勝率 / 相對大盤 / MAE / MFE；**樣本 < 20 時刻意不顯示回報數字**（`SignalStatsCard`）
+- ✅ 市寬改名：「升跌家數」→「偏強/偏弱訊號數」（`BreadthCard.tsx`）
+- ✅ ❓ 變可點：新增 `InfoDot` 元件（手機友好），接入市寬 / VIX / RVOL 三卡
+
+**P1 — 建立新手決策流程**（待辦）
+- ⬜ 首頁「值得留意」由排名榜 → 行動板：每張主選加「機會 / 主要風險 / 失效條件」三行
+- ⬜ 詳情頁加「現在處於哪一步」：觀察 / 等確認 / 已觸發 / 失效
+- ⬜ 顯示資料與研究最後更新時間
+- ⬜ snapshot 補 `prevClose` + 短 `close[]`（**需動 cron**）→ 解鎖卡片日漲跌% + sparkline
+
+**P2 — 建立回訪閉環（留存核心）**（待辦）
+- ⬜ 真正的 ⭐ 自選（localStorage 先上，之後帳戶同步）
+- ⬜ 把「今日動向」上提到大市首頁（複用現成 `ChangeRow`）
+- ⬜ 自選標的每日變動摘要 + 信號變化提醒（複用 server 端 change detection）
+- ⬜ 「下一步任務」面板（加 N 檔到自選 / 觀察一週）掛在自選之上
+
+**P3 — 加深度**（信任與閉環完成後才做）
+- ⬜ 新聞、財報摘要、板塊 treemap、港股資料、完整研究統計（即 §3–§13 餘下項目）
+
+> **執行原則**：先 P0 止血、再 P2 通閉環、最後 P3 加深度。否則資訊愈多，只會令產品更像另一個行情 dashboard。
+
+---
+
+## 15. 資料管線重置（Cloudflare vs AWS 決議）
+
+> **背景**：手動觸發 snapshot 只攞到 43/130 隻，且重跑確定性一樣。診斷後確認：**唔係** Worker subrequest 上限（帳號係 paid，限額 1000），而係 **Yahoo 對 Worker egress IP 限流**——`buildDailySnapshot` 喺 Worker 內要趕住喺 CPU/時間預算內 concurrency=8 爆抓，被大量拒絕。實測當下 Yahoo（429）同 Stooq（JS 反爬挑戰）**都封緊**，證明問題喺資料源頭，唔係雲供應商。
+
+### 15.1 決議：唔搬 AWS，只把「批次管線」搬離 Worker
+
+- 用戶保留來源 = 「serverless 老是撞限制」。但換 AWS 解決唔到 Yahoo 限流，serving 層搬去 Lambda+APIGW 仲更貴更受限。
+- **服務層**（派 `dist/` + 讀 KV/D1 API）留喺 Cloudflare——佢最叻、最平。
+- **批次管線**（抓 130 隻 + 算信號）搬去 **GitHub Actions**（full Node、可跑 10+ 分鐘、可耐心重試），喺 off-peak 21:30 UTC 跑。
+
+### 15.2 架構（POST-to-ingest，重用 binding 寫入）
+
+```
+GitHub Actions (Node, 無 Worker 限制)
+  └─ scripts/build-snapshot.ts
+       buildDailySnapshot({ stockConcurrency:3, tuning:{retries:4, backoff, batchDelay} })
+       └─ POST 完整 snapshot ──► Worker  POST /api/admin/ingest-snapshot  (Bearer INGEST_TOKEN)
+                                          └─ KV put + writeSignalsToD1（現有 binding 寫入路徑）
+Worker cron（保留做 fallback + settle/gate/ETF）
+```
+
+- **點解 POST-to-ingest 而唔係 CI 跑 wrangler 寫 SQL**：Action 只需 1 個 secret（`INGEST_TOKEN`）+ Worker URL，唔使 wrangler-in-CI、唔使 D1 API token、唔使生 SQL、零 schema drift；寫入重用已驗證嘅 `writeSignalsToD1` + KV binding。
+- **安全閥**：`scripts/build-snapshot.ts` 有 `MIN_STOCKS`（預設 100）守門，抓唔夠就 abort，唔會用 thin snapshot 覆蓋好快照。
+- **`buildDailySnapshot` 已參數化** retry/concurrency/delay；Worker cron 用預設值（行為零改變），Node runner 用耐心參數。
+
+### 15.3 已落實 / 待用戶設定
+
+- ✅ `buildDailySnapshot` + `fetchBatch` 加 `FetchTuning`（retry/backoff/batchDelay）
+- ✅ Worker `POST /api/admin/ingest-snapshot`（token 保護，已部署，已實測 auth + KV + D1 寫入）
+- ✅ `scripts/build-snapshot.ts`（tsx 跑）+ `.github/workflows/snapshot.yml`（cron 21:30 UTC + manual dispatch）
+- ⬜ **用戶要做**：GitHub repo Settings → Secrets 加 `INGEST_TOKEN`（值已生成、見對話）；首次喺 Actions tab 手動 dispatch 驗證 off-peak Yahoo 抓滿 130
+- ⬜ **後續**：Yahoo 若 off-peak 都唔穩，加第二源（Tiingo / Twelve Data；Stooq 已加 JS 反爬、唔再係簡單 fallback）
+- ⬜ 驗證綠燈後，可移除 Worker cron 嘅 snapshot 部分（留 settle/gate/ETF）
+

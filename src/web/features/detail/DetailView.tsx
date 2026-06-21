@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../../app/providers/AppContext'
 import { useIntraday, type TimeFrame } from '../../shared/hooks/useIntraday'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
+import { useSignalStats } from '../../shared/hooks/useSignalStats'
 import { PriceChart } from '../../shared/components/PriceChart'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import { EtfSignalBadge } from '../../shared/components/EtfSignalBadge'
@@ -24,14 +25,15 @@ const LABEL_SHORT_ZH: Record<string, string> = {
   SHORT_BREAK: '空頭突破', SHORT_BASE: '空頭整固', SHORT_WATCH: '空頭觀察',
 }
 
+// 純形態描述（白話），不含任何回報數字。實際統計由 SignalStatsCard 以真實樣本動態顯示。
 const SIGNAL_EXPLANATION: Partial<Record<string, string>> = {
-  LONG_BREAK:  '股價剛突破近 20 日高位，成交量放大確認，過去類似形態平均 5 日回報 +1.2%。',
-  LONG_VCP:    '量縮整理後放量突破，VCP 形態（Volatility Contraction Pattern），過去類似形態平均 5 日回報 +1.1%。',
-  LONG_BOUNCE: '升勢完好，回調至 EMA20 附近後今日反彈確認，過去類似形態平均 5 日回報 +0.9%。',
-  LONG_BASE:   '趨勢結構完整，量縮整理中，等待突破或反彈觸發信號，過去 5 日平均持平。',
-  WATCH:       '方向初現，動量轉正，列入觀察名單，未到入場條件。',
+  LONG_BREAK:  '股價剛突破近 20 日高位，成交量放大確認突破有效。屬強勢形態，惟突破後常見回抽測試。',
+  LONG_VCP:    '經量縮整理（VCP 波動收縮）後放量突破，代表賣壓減退、買方重新主導。',
+  LONG_BOUNCE: '升勢結構完好，股價回調至 EMA20 附近後今日反彈，屬順勢回檔後的再啟動。',
+  LONG_BASE:   '趨勢結構完整、量縮整理中，尚未出現突破或反彈觸發，屬等待階段。',
+  WATCH:       '方向初現、動量轉正，列入觀察名單，但未到入場條件。',
   NEUTRAL:     '目前無明顯方向，建議觀望。',
-  AVOID_CHOP:  '價格上下震盪，無方向，避免操作。',
+  AVOID_CHOP:  '價格上下震盪、無清晰方向，宜避免操作。',
 }
 
 export function DetailView() {
@@ -169,6 +171,9 @@ export function DetailView() {
         </div>
       )}
 
+      {/* Historical stats — real settled samples, sample-gated (stocks only) */}
+      {!isEtf && stock && <SignalStatsCard label={stock.label} />}
+
       {/* Key metrics (stocks only) */}
       {!isEtf && stock && (
         <div className={styles.metricsCard}>
@@ -223,6 +228,46 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className={styles.metric}>
       <span className={styles.metricLabel}>{label}</span>
       <span className={styles.metricValue}>{value}</span>
+    </div>
+  )
+}
+
+// 形態歷史統計：用真實已結算樣本（/api/d1/signal-stats）。樣本不足時刻意「不顯示回報數字」。
+const MIN_SAMPLE = 20
+
+function fmtStatPct(v: number | null): string {
+  if (v === null) return '—'
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
+}
+
+function SignalStatsCard({ label }: { label: string }) {
+  const stats = useSignalStats(90)
+  if (stats.status !== 'ok') return null
+
+  const stat = stats.stats.find(s => s.label === label)
+  const insufficient = !stat || stat.n < MIN_SAMPLE
+
+  return (
+    <div className={styles.metricsCard}>
+      <div className={styles.metricsTitle}>歷史統計 · 過去 {stats.days} 日（已結算樣本）</div>
+      {insufficient ? (
+        <p className={styles.explainText} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          {stat ? `此形態僅 ${stat.n} 個已結算樣本` : '此形態暫無已結算樣本'}，數量不足以提供可靠統計，
+          因此暫不顯示回報數字。
+        </p>
+      ) : (
+        <div className={styles.metricsGrid}>
+          <Metric label="樣本數 (n)"     value={`${stat!.n}`} />
+          <Metric label="5日平均回報"    value={fmtStatPct(stat!.avgRet5d)} />
+          <Metric label="勝率"           value={stat!.winRate !== null ? `${stat!.winRate.toFixed(0)}%` : '—'} />
+          <Metric label="相對大盤(5日)"  value={fmtStatPct(stat!.avgVsSpy)} />
+          <Metric label="平均最大回撤"   value={fmtStatPct(stat!.avgMae5d)} />
+          <Metric label="平均最大升幅"   value={fmtStatPct(stat!.avgMfe5d)} />
+        </div>
+      )}
+      <p className={styles.disclaimer}>
+        以上為過去已結算樣本的歷史平均，屬研究統計、非未來預測；樣本不足或市況改變時參考價值有限。
+      </p>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import type { StockSnapshotEntry } from '../../../types/snapshot'
+import { InfoDot } from '../../shared/components/InfoDot'
 import styles from './MetricCard.module.css'
 
 function medianRvol(stocks: StockSnapshotEntry[]): number | null {
@@ -30,7 +31,7 @@ export function RvolCard({ stocks }: { stocks: StockSnapshotEntry[] }) {
   return (
     <div className={styles.card}>
       <div className={styles.icon}>📊</div>
-      <div className={styles.title}>市場量能 RVOL</div>
+      <div className={styles.title}>市場量能 RVOL <InfoDot text="相對成交量（今日成交量 ÷ 近 20 日平均量）的全市場中位數。>1 代表成交比平時活躍，量能配合走勢通常更可靠。" /></div>
       <div className={styles.value} style={{ color }}>{level}</div>
       <div className={styles.sub}>{label}</div>
       <div className={styles.proDetail}>

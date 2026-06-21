@@ -7,7 +7,7 @@ import type { ETFSignalRow } from './src/engine/etfReplayEngine'
 const SNAPSHOT_KEY = 'snapshot:latest'
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
 
     if (url.pathname.startsWith('/api/yahoo')) {
@@ -32,6 +32,18 @@ export default {
 
     if (url.pathname === '/api/admin/etf-backfill') {
       return handleETFBackfill(env, url)
+    }
+
+    // Manually trigger the same job the cron runs (cron only fires Mon–Fri 21:30 UTC).
+    if (url.pathname === '/api/admin/run-snapshot') {
+      return handleRunSnapshot(env, ctx)
+    }
+
+    // Ingest a pre-built snapshot (computed by an external batch runner, e.g. GitHub
+    // Actions) and persist it via the binding write path. Lets the heavy Yahoo fetch
+    // happen off-Worker where there are no subrequest/CPU limits.
+    if (url.pathname === '/api/admin/ingest-snapshot') {
+      return handleIngestSnapshot(request, env)
     }
 
     if (url.pathname === '/api/d1/etf-signals') {
@@ -99,6 +111,49 @@ async function runCronSnapshot(env: Env): Promise<void> {
   } catch (error) {
     console.error('Cron snapshot failed:', error instanceof Error ? error.message : String(error))
   }
+}
+
+async function handleRunSnapshot(env: Env, ctx: ExecutionContext): Promise<Response> {
+  if (!env.SNAPSHOT_KV) return jsonError('SNAPSHOT_KV not configured', 503)
+  // Run in the background with cron-like allowances; poll /api/snapshot/latest for completion.
+  ctx.waitUntil(runCronSnapshot(env))
+  return new Response(
+    JSON.stringify({ status: 'started', note: 'Snapshot generation started; poll /api/snapshot/latest in ~30–90s' }),
+    { status: 202, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+  )
+}
+
+async function handleIngestSnapshot(request: Request, env: Env): Promise<Response> {
+  if (request.method !== 'POST') return jsonError('POST required', 405)
+  if (!env.INGEST_TOKEN) return jsonError('INGEST_TOKEN not configured on Worker', 503)
+  if (!env.SNAPSHOT_KV) return jsonError('SNAPSHOT_KV not configured', 503)
+
+  const auth = request.headers.get('Authorization') ?? ''
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : request.headers.get('X-Ingest-Token') ?? ''
+  if (token !== env.INGEST_TOKEN) return jsonError('Unauthorized', 401)
+
+  let snapshot: DailySnapshot
+  try {
+    snapshot = await request.json() as DailySnapshot
+  } catch {
+    return jsonError('Invalid JSON body', 400)
+  }
+  if (!snapshot || !Array.isArray(snapshot.stocks) || !snapshot.date) {
+    return jsonError('Body must be a DailySnapshot with { date, stocks[] }', 422)
+  }
+
+  // Persist via the same binding write path the cron uses.
+  await env.SNAPSHOT_KV.put(SNAPSHOT_KEY, JSON.stringify(snapshot), { expirationTtl: 60 * 60 * 36 })
+  let d1Written = 0
+  if (env.trading_etf_db) {
+    await writeSignalsToD1(env.trading_etf_db, snapshot)
+    d1Written = snapshot.stocks.length
+  }
+
+  return new Response(
+    JSON.stringify({ status: 'ok', date: snapshot.date, stocks: snapshot.stocks.length, d1Written }),
+    { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+  )
 }
 
 async function handleSnapshotRead(env: Env): Promise<Response> {
@@ -420,4 +475,5 @@ interface Env {
   SNAPSHOT_KV: KVNamespace
   trading_etf_db: D1Database
   ASSETS: Fetcher
+  INGEST_TOKEN?: string   // shared secret for POST /api/admin/ingest-snapshot
 }

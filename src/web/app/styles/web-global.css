@@ -1,44 +1,77 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
 
-/* ── Design Tokens ───────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════
+   DESIGN SYSTEM — "Calm Fintech"
+   方向 A：中性深炭灰底色，紅綠嚴格保留給漲跌與信號，藍色作互動主色。
+   詳見 DESIGN_SYSTEM.md。
+   ════════════════════════════════════════════════════════════════════ */
 :root {
-  --bg-base:      #020706;
-  --bg-surface:   rgba(8, 18, 17, 0.88);
-  --bg-elevated:  rgba(12, 26, 23, 0.92);
-  --bg-overlay:   rgba(15, 30, 28, 0.96);
-  --bg-card:      rgba(10, 22, 20, 0.94);
+  /* ── Base surfaces (neutral deep charcoal, faint cool cast) ── */
+  --bg-base:      #0A0C10;
+  --bg-surface:   #11141A;
+  --bg-elevated:  #161A21;
+  --bg-overlay:   #1B2027;
+  --bg-card:      #12151B;
 
+  /* ── Borders (neutral white-alpha — no green cast) ── */
   --border-faint:  rgba(255, 255, 255, 0.06);
-  --border-subtle: rgba(39, 227, 141, 0.14);
-  --border-medium: rgba(39, 227, 141, 0.28);
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-medium: rgba(255, 255, 255, 0.16);
 
-  --text-primary:   #edf6f1;
-  --text-secondary: #96b4a7;
-  --text-muted:     #537166;
-  --text-label:     #59d7a1;
+  /* ── Text (neutral greys) ── */
+  --text-primary:   #F3F5F8;
+  --text-secondary: #9BA6B4;
+  --text-muted:     #616B79;
+  --text-label:     #7C8AA0;
 
-  --accent:      #27e38d;
-  --accent-2:    #34cfff;
-  --accent-dim:  rgba(39, 227, 141, 0.16);
+  /* ── Accent: calm blue for interactivity (deliberately NOT gain-green) ── */
+  --accent:      #4C9DF7;
+  --accent-2:    #6FB4FF;
+  --accent-dim:  rgba(76, 157, 247, 0.14);
 
-  --color-gain:   #38f19d;
-  --color-loss:   #ff7b7b;
-  --color-warn:   #ffbf3c;
-  --color-neutral: #96b4a7;
+  /* ── Semantic — reserved strictly for gain / loss / warn / signal ── */
+  --color-gain:    #2FD183;
+  --color-loss:    #F2606A;
+  --color-warn:    #F5B544;
+  --color-neutral: #9BA6B4;
 
-  --pill-green-bg: rgba(56, 241, 157, 0.12);
-  --pill-green-fg: #51ffab;
-  --pill-yellow-bg: rgba(255, 191, 60, 0.12);
-  --pill-yellow-fg: #ffca5f;
-  --pill-grey-bg:  rgba(83, 113, 102, 0.24);
-  --pill-grey-fg:  #9ab8ab;
-  --pill-red-bg:   rgba(255, 123, 123, 0.12);
-  --pill-red-fg:   #ff8f8f;
+  /* ── Signal pills ── */
+  --pill-green-bg:  rgba(47, 209, 131, 0.14);
+  --pill-green-fg:  #43e09a;
+  --pill-yellow-bg: rgba(245, 181, 68, 0.14);
+  --pill-yellow-fg: #f7c061;
+  --pill-grey-bg:   rgba(155, 166, 180, 0.14);
+  --pill-grey-fg:   #aeb8c6;
+  --pill-red-bg:    rgba(242, 96, 106, 0.14);
+  --pill-red-fg:    #f5848c;
 
+  /* ── Radius ── */
   --r-sm: 6px;
   --r-md: 10px;
   --r-lg: 16px;
-  --r-xl: 20px;
+  --r-xl: 22px;
+
+  /* ── Type scale ── */
+  --fs-display: 30px;   /* hero / 大價格 */
+  --fs-h1:      22px;
+  --fs-h2:      17px;
+  --fs-body:    14px;
+  --fs-sm:      12px;
+  --fs-xs:      10px;
+  --font-num:   'Space Grotesk', 'IBM Plex Sans', sans-serif;
+
+  /* ── Spacing ── */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+
+  /* ── Motion ── */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 0.12s;
+  --dur:      0.2s;
+  --dur-slow: 0.4s;
+
+  /* ── Elevation ── */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-pop:  0 8px 28px rgba(0, 0, 0, 0.45);
 
   --nav-h: 64px;
   --topbar-h: 52px;
@@ -55,13 +88,31 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Scrollbar ───────────────────────────────────────────────────── */
+/* ── Scrollbar (neutral) ─────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(39,227,141,0.2); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 2px; }
+
+/* ── Motion primitives ───────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.35; transform: scale(0.78); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.live-pulse { animation: pulse-dot 2.2s var(--ease) infinite; }
+.fade-up    { animation: fade-up var(--dur-slow) var(--ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
 
 /* ── Utility ─────────────────────────────────────────────────────── */
 .gain  { color: var(--color-gain); }
 .loss  { color: var(--color-loss); }
 .muted { color: var(--text-muted); }
 .secondary { color: var(--text-secondary); }
+.num   { font-family: var(--font-num); font-variant-numeric: tabular-nums; }

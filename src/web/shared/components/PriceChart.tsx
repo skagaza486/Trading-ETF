@@ -24,7 +24,7 @@ export function PriceChart({ bars, height = 280, showVolume = true }: Props) {
       height,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#96b4a7',
+        textColor: '#9BA6B4',
         fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
         fontSize: 11,
       },
@@ -33,8 +33,8 @@ export function PriceChart({ bars, height = 280, showVolume = true }: Props) {
         horzLines: { color: 'rgba(255,255,255,0.04)' },
       },
       crosshair: {
-        vertLine: { color: 'rgba(39,227,141,0.3)', labelBackgroundColor: '#27e38d' },
-        horzLine: { color: 'rgba(39,227,141,0.3)', labelBackgroundColor: '#27e38d' },
+        vertLine: { color: 'rgba(255,255,255,0.2)', labelBackgroundColor: '#4C9DF7' },
+        horzLine: { color: 'rgba(255,255,255,0.2)', labelBackgroundColor: '#4C9DF7' },
       },
       rightPriceScale: {
         borderColor: 'rgba(255,255,255,0.06)',
@@ -46,18 +46,18 @@ export function PriceChart({ bars, height = 280, showVolume = true }: Props) {
     })
 
     const candle = chart.addCandlestickSeries({
-      upColor:   '#38f19d',
-      downColor: '#ff7b7b',
-      borderUpColor:   '#38f19d',
-      borderDownColor: '#ff7b7b',
-      wickUpColor:   '#38f19d',
-      wickDownColor: '#ff7b7b',
+      upColor:   '#2FD183',
+      downColor: '#F2606A',
+      borderUpColor:   '#2FD183',
+      borderDownColor: '#F2606A',
+      wickUpColor:   '#2FD183',
+      wickDownColor: '#F2606A',
     })
 
     let vol: ISeriesApi<'Histogram'> | null = null
     if (showVolume) {
       vol = chart.addHistogramSeries({
-        color: 'rgba(39,227,141,0.25)',
+        color: 'rgba(155,166,180,0.25)',
         priceFormat: { type: 'volume' },
         priceScaleId: 'vol',
       })
@@ -100,7 +100,7 @@ export function PriceChart({ bars, height = 280, showVolume = true }: Props) {
       const volData: HistogramData<Time>[] = bars.map(b => ({
         time: b.date as Time,
         value: b.volume,
-        color: b.close >= b.open ? 'rgba(56,241,157,0.3)' : 'rgba(255,123,123,0.3)',
+        color: b.close >= b.open ? 'rgba(47,209,131,0.3)' : 'rgba(242,96,106,0.3)',
       }))
       volRef.current.setData(volData)
     }

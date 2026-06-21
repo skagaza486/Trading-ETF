@@ -31,19 +31,47 @@ const BENCHMARK_TICKERS = ['SPY', 'QQQ', 'IWM', 'RSP', '^VIX', 'GLD', '2800.HK']
 // Direct Yahoo base — bypasses the /api/yahoo proxy (which only works in browser)
 const YAHOO_DIRECT = 'https://query1.finance.yahoo.com'
 
+const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
+
+// Fetch options for tuning batch behaviour. Worker cron uses defaults (no retry,
+// fast) to stay within CPU/time limits; a patient Node runner can pass retries +
+// delays to survive Yahoo rate-limiting (see scripts/build-snapshot.ts).
+export type FetchTuning = {
+  retries?: number       // extra attempts per item on failure
+  retryDelayMs?: number  // base backoff (exponential) between retries
+  batchDelayMs?: number  // pause between concurrency chunks
+}
+
+async function withRetry<T>(fn: () => Promise<T>, retries: number, delayMs: number): Promise<T> {
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try { return await fn() }
+    catch (e) {
+      lastErr = e
+      if (attempt < retries && delayMs) await sleep(delayMs * Math.pow(2, attempt))
+    }
+  }
+  throw lastErr
+}
+
 // Fetch with concurrency cap to avoid Yahoo rate-limiting
 async function fetchBatch<T>(
   items: string[],
   fn: (item: string) => Promise<T>,
-  concurrency = 8
+  concurrency = 8,
+  tuning: FetchTuning = {}
 ): Promise<Map<string, T | null>> {
+  const { retries = 0, retryDelayMs = 0, batchDelayMs = 0 } = tuning
   const results = new Map<string, T | null>()
   for (let i = 0; i < items.length; i += concurrency) {
     const chunk = items.slice(i, i + concurrency)
-    const settled = await Promise.allSettled(chunk.map(item => fn(item)))
+    const settled = await Promise.allSettled(
+      chunk.map(item => withRetry(() => fn(item), retries, retryDelayMs))
+    )
     settled.forEach((result, index) => {
       results.set(chunk[index], result.status === 'fulfilled' ? result.value : null)
     })
+    if (batchDelayMs && i + concurrency < items.length) await sleep(batchDelayMs)
   }
   return results
 }
@@ -264,14 +292,21 @@ export type DailySnapshotResult = {
   benchmarks: Record<string, TickerHistory>
 }
 
-export async function buildDailySnapshot(): Promise<DailySnapshotResult> {
+export type BuildSnapshotOptions = {
+  stockConcurrency?: number  // default 8 (Worker); a patient runner can lower it
+  tuning?: FetchTuning       // retry/backoff; defaults to none (Worker behaviour unchanged)
+}
+
+export async function buildDailySnapshot(opts: BuildSnapshotOptions = {}): Promise<DailySnapshotResult> {
+  const { stockConcurrency = 8, tuning } = opts
   const fetchOptions = { baseUrl: YAHOO_DIRECT, range: '2y' }
 
   // Fetch benchmarks first (needed for regime)
   const benchmarkMap = await fetchBatch(
     BENCHMARK_TICKERS,
     ticker => fetchYahooTickerHistory(ticker, fetchOptions),
-    4
+    4,
+    tuning
   )
 
   const benchmarks: Record<string, TickerHistory> = {}
@@ -289,7 +324,8 @@ export async function buildDailySnapshot(): Promise<DailySnapshotResult> {
   const stockHistoryMap = await fetchBatch(
     stockTickers,
     ticker => fetchYahooTickerHistory(ticker, fetchOptions),
-    8
+    stockConcurrency,
+    tuning
   )
 
   const stockHistories: Record<string, TickerHistory> = {}
