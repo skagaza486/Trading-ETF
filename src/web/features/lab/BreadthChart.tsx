@@ -47,21 +47,21 @@ export function BreadthChart({ rows, width = 320, height = 80 }: Props) {
               x1={pad.left} y1={y(v)} x2={pad.left + w} y2={y(v)}
               stroke="rgba(255,255,255,0.06)" strokeWidth="1"
             />
-            <text x={pad.left - 3} y={y(v) + 3.5} textAnchor="end" fontSize="8" fill="rgba(150,180,167,0.6)">{v}</text>
+            <text x={pad.left - 3} y={y(v) + 3.5} textAnchor="end" fontSize="8" fill="rgba(155,166,180,0.6)">{v}</text>
           </g>
         ))}
 
         {/* Base area (LONG_BASE — yellow) */}
-        <polygon points={baseAreaPts} fill="rgba(255,191,60,0.15)" />
-        <polyline points={basePts} fill="none" stroke="rgba(255,191,60,0.5)" strokeWidth="1" />
+        <polygon points={baseAreaPts} fill="rgba(245,181,68,0.15)" />
+        <polyline points={basePts} fill="none" stroke="rgba(245,181,68,0.5)" strokeWidth="1" />
 
         {/* StrongBull area (LONG_BREAK/VCP/BOUNCE — green) */}
-        <polygon points={strongAreaPts} fill="rgba(39,227,141,0.18)" />
-        <polyline points={strongPts} fill="none" stroke="#27e38d" strokeWidth="1.5" strokeLinejoin="round" />
+        <polygon points={strongAreaPts} fill="rgba(47,209,131,0.18)" />
+        <polyline points={strongPts} fill="none" stroke="#2FD183" strokeWidth="1.5" strokeLinejoin="round" />
 
         {/* X labels */}
         {labelIdxs.map(i => (
-          <text key={i} x={x(i)} y={height - 4} textAnchor="middle" fontSize="8" fill="rgba(150,180,167,0.55)">
+          <text key={i} x={x(i)} y={height - 4} textAnchor="middle" fontSize="8" fill="rgba(155,166,180,0.55)">
             {rows[i].date.slice(5)} {/* MM-DD */}
           </text>
         ))}

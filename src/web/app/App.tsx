@@ -7,10 +7,16 @@ import { SectorsView } from '../features/sectors/SectorsView'
 import { DiscoverView } from '../features/discover/DiscoverView'
 import { DetailView } from '../features/detail/DetailView'
 import { LabView } from '../features/lab/LabView'
+import { RedesignShowcase } from '../features/showcase/RedesignShowcase'
 import styles from './App.module.css'
 
 export function App() {
   const { view, onboardingDone } = useApp()
+  const showcase = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('showcase')
+    : null
+
+  if (showcase === 'redesign') return <RedesignShowcase />
 
   if (!onboardingDone) return <Onboarding />
 

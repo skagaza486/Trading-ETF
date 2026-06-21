@@ -56,6 +56,29 @@
 .choice strong, .choiceActive strong { font-size: 14px; color: var(--text-primary); }
 .choice small,  .choiceActive small  { font-size: 11px; color: var(--text-muted); }
 
+.choiceDisabled {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 16px 12px;
+  border-radius: var(--r-lg);
+  border: 1.5px dashed var(--border-faint);
+  background: var(--bg-elevated);
+  font-family: inherit;
+  opacity: 0.55; cursor: not-allowed;
+}
+.choiceDisabled strong { font-size: 14px; color: var(--text-secondary); }
+.choiceDisabled small  { font-size: 11px; color: var(--text-muted); }
+
+.comingSoon {
+  position: absolute; top: 6px; right: 6px;
+  font-size: 9px; font-weight: 700;
+  color: var(--color-warn);
+  background: rgba(245,181,68,0.12);
+  border: 1px solid rgba(245,181,68,0.3);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 .flag { font-size: 28px; }
 
 .btnRow { display: flex; gap: 10px; }

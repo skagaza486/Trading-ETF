@@ -14,14 +14,14 @@ export function Sparkline({ values, width = 60, height = 28, gain }: Props) {
   }).join(' ')
 
   const isGain = gain ?? values[values.length - 1] >= values[0]
-  const color = isGain ? '#38f19d' : '#ff7b7b'
+  const color = isGain ? 'var(--color-gain)' : 'var(--color-loss)'
 
   return (
     <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }}>
       <polyline
         points={pts}
         fill="none"
-        stroke={color}
+        style={{ stroke: color }}
         strokeWidth="1.5"
         strokeLinejoin="round"
         strokeLinecap="round"

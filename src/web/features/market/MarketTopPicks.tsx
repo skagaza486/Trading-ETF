@@ -43,13 +43,14 @@ export function MarketTopPicks({ stocks }: { stocks: StockSnapshotEntry[] }) {
     <div className={styles.section}>
       <h3 className={styles.heading}>值得留意</h3>
       <div className={styles.list}>
-        {picks.map(s => {
+        {picks.map((s, idx) => {
           const meta = getStockMeta(s.ticker, s.name)
           const isFresh = STRONG_LABELS.includes(s.label) && PREV_WEAK.has(s.previousLabel ?? '')
           return (
             <button
               key={s.ticker}
               className={styles.row}
+              style={{ '--row-delay': `${idx * 0.04}s` } as React.CSSProperties}
               onClick={() => openDetail({ ticker: s.ticker, name: meta.nameZh })}
             >
               <div className={styles.left}>

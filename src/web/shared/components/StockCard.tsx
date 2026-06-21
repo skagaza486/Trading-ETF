@@ -5,9 +5,9 @@ import { getStockLogoAsset } from '../../../ui/assetRegistry'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import styles from './StockCard.module.css'
 
-type Props = { stock: StockSnapshotEntry; showMode?: 'simple' | 'pro' }
+type Props = { stock: StockSnapshotEntry; showMode?: 'simple' | 'pro'; delay?: number }
 
-export function StockCard({ stock, showMode = 'simple' }: Props) {
+export function StockCard({ stock, showMode = 'simple', delay = 0 }: Props) {
   const { openDetail } = useApp()
   const meta = getStockMeta(stock.ticker, stock.name)
   const logo = getStockLogoAsset(stock.ticker)
@@ -19,6 +19,7 @@ export function StockCard({ stock, showMode = 'simple' }: Props) {
   return (
     <button
       className={styles.card}
+      style={{ '--card-delay': `${delay}s` } as React.CSSProperties}
       onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
     >
       <div className={styles.top}>
@@ -45,7 +46,7 @@ export function StockCard({ stock, showMode = 'simple' }: Props) {
           <span className={styles.price}>${close.toFixed(2)}</span>
           {pctFromEma50 !== null && (
             <span className={pctFromEma50 >= 0 ? styles.gain : styles.loss}>
-              EMA50 {pctFromEma50 >= 0 ? '+' : ''}{pctFromEma50.toFixed(1)}%
+              EMA50 {pctFromEma50 >= 0 ? '▲' : '▼'}{Math.abs(pctFromEma50).toFixed(1)}%
             </span>
           )}
         </div>

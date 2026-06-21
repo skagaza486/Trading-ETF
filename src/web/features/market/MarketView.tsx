@@ -85,6 +85,10 @@ export function MarketView() {
         </span>
       </div>
 
+      {/* Weather card — hero section (top of visual hierarchy) */}
+      <WeatherCard regime={snapshot.regime} proxyWeakBreadth={snapshot.proxyWeakBreadth} breadth={breadth} />
+
+      {/* Signal counts — supporting detail, below the hero */}
       {sigCounts && (
         <div className={styles.signalSummary}>
           {SIGNAL_CHIPS.map(({ label, zh }) => {
@@ -98,9 +102,6 @@ export function MarketView() {
           })}
         </div>
       )}
-
-      {/* Weather card — hero section */}
-      <WeatherCard regime={snapshot.regime} proxyWeakBreadth={snapshot.proxyWeakBreadth} breadth={breadth} />
 
       {/* Three metric cards */}
       <div className={styles.metricGrid}>

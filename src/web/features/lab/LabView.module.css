@@ -87,8 +87,8 @@
   transition: background 0.1s;
 }
 .row:last-child, .rowBull:last-child, .rowBear:last-child { border-bottom: none; }
-.rowBull { background: rgba(39,227,141,0.04); }
-.rowBear { background: rgba(255,80,80,0.04); }
+.rowBull { background: rgba(47,209,131,0.04); }
+.rowBear { background: rgba(242,96,106,0.04); }
 
 .td, .tdLabel {
   padding: 9px 10px;

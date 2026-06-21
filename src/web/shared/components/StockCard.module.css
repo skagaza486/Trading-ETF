@@ -8,6 +8,8 @@
   cursor: pointer; font-family: inherit; text-align: left;
   transition: border-color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
+  animation: fade-up var(--dur) var(--ease) both;
+  animation-delay: var(--card-delay, 0s);
 }
 .card:hover { border-color: var(--border-subtle); background: var(--bg-elevated); }
 
@@ -46,16 +48,16 @@
 
 .priceRow { display: flex; align-items: baseline; gap: 8px; }
 .price    { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.gain     { font-size: 11px; color: var(--color-gain); }
-.loss     { font-size: 11px; color: var(--color-loss); }
+.gain     { font-size: 11px; color: var(--color-gain); font-variant-numeric: tabular-nums; }
+.loss     { font-size: 11px; color: var(--color-loss); font-variant-numeric: tabular-nums; }
 
 .badgeRow { display: flex; align-items: center; gap: 6px; }
 .rs       { font-size: 10px; color: var(--text-muted); }
 .earnings {
   font-size: 10px; font-weight: 600;
   color: var(--color-warn);
-  background: rgba(255,191,60,0.12);
-  border: 1px solid rgba(255,191,60,0.3);
+  background: rgba(245,181,68,0.12);
+  border: 1px solid rgba(245,181,68,0.3);
   border-radius: 4px;
   padding: 1px 5px;
 }

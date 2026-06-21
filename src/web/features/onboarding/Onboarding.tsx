@@ -18,7 +18,7 @@ export function Onboarding() {
         {screen === 1 && (
           <Step
             title="你想先看？"
-            subtitle="選擇市場，隨時可以在頂部切換"
+            subtitle="現階段先支援美股，港股建設中"
           >
             <ChoiceGrid>
               <Choice selected={scope === 'US'} onClick={() => setScope('US')}>
@@ -26,10 +26,11 @@ export function Onboarding() {
                 <strong>美股</strong>
                 <small>S&P 500、Nasdaq</small>
               </Choice>
-              <Choice selected={scope === 'HK'} onClick={() => setScope('HK')}>
+              <Choice selected={false} disabled onClick={() => {}}>
+                <span className={styles.comingSoon}>即將推出</span>
                 <span className={styles.flag}>🇭🇰</span>
                 <strong>港股</strong>
-                <small>恒生指數、H股</small>
+                <small>建設中</small>
               </Choice>
             </ChoiceGrid>
             <button className={styles.next} onClick={() => setScreen(2)}>下一步 →</button>
@@ -107,9 +108,13 @@ function ChoiceGrid({ children }: { children: React.ReactNode }) {
   return <div className={styles.choiceGrid}>{children}</div>
 }
 
-function Choice({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
+function Choice({ selected, disabled, onClick, children }: { selected: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button className={selected ? styles.choiceActive : styles.choice} onClick={onClick}>
+    <button
+      className={disabled ? styles.choiceDisabled : selected ? styles.choiceActive : styles.choice}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+    >
       {children}
     </button>
   )

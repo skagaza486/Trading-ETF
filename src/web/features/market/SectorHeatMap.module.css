@@ -20,9 +20,9 @@
   border: 1px solid transparent;
 }
 
-.bull { background: rgba(39,227,141,0.12); border-color: rgba(39,227,141,0.3); color: var(--color-gain); }
-.mid  { background: rgba(255,191,60,0.10); border-color: rgba(255,191,60,0.25); color: var(--color-warn); }
-.bear { background: rgba(255,80,80,0.10);  border-color: rgba(255,80,80,0.25);  color: var(--color-loss); }
+.bull { background: rgba(47,209,131,0.12); border-color: rgba(47,209,131,0.3); color: var(--color-gain); }
+.mid  { background: rgba(245,181,68,0.10); border-color: rgba(245,181,68,0.25); color: var(--color-warn); }
+.bear { background: rgba(242,96,106,0.10); border-color: rgba(242,96,106,0.25); color: var(--color-loss); }
 
 .name { font-weight: 600; }
 .pct  { font-size: 11px; opacity: 0.8; }
