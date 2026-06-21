@@ -12,7 +12,7 @@
 import { buildDailySnapshot } from '../src/worker/cronSnapshot'
 
 const INGEST_URL = process.env.INGEST_URL
-  ?? 'https://trading-etf.skagaza486.workers.dev/api/admin/ingest-snapshot'
+  || 'https://trading-etf.skagaza486.workers.dev/api/admin/ingest-snapshot'
 const INGEST_TOKEN = process.env.INGEST_TOKEN
 const MIN_STOCKS = Number(process.env.MIN_STOCKS ?? 100)
 
