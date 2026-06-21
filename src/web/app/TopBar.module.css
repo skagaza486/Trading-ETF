@@ -35,6 +35,13 @@
   animation: pulse-dot 2.2s var(--ease) infinite;  /* live indicator */
 }
 
+.updatedAt {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+}
+
 .controls {
   display: flex;
   align-items: center;

@@ -13,6 +13,8 @@
   cursor: pointer; font-family: inherit; text-align: left;
   transition: border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
+  animation: fade-up var(--dur) var(--ease) both;
+  animation-delay: var(--row-delay, 0s);
 }
 .row:hover { border-color: var(--border-subtle); }
 

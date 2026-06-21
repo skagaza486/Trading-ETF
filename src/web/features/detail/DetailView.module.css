@@ -115,6 +115,58 @@
 
 .reason { font-size: 11px; line-height: 1.4; }
 
+/* Stage indicator */
+.stageBar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-lg);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.stageLead {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stageSteps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.stageItem {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-faint);
+}
+.stageActive {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent-dim);
+}
+.stageArrow {
+  font-size: 12px;
+  color: var(--border-subtle);
+}
+.stageNote {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-faint);
+}
+
 .peerRow {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
   padding: 7px 0; gap: 8px;

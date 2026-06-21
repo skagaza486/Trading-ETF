@@ -2,10 +2,20 @@ import { useApp, type MarketScope, type UiMode } from './providers/AppContext'
 import { useSnapshot } from '../shared/hooks/useSnapshot'
 import styles from './TopBar.module.css'
 
+function fmtUpdated(iso: string): string {
+  const d = new Date(iso)
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${mm}/${dd} ${hh}:${min}`
+}
+
 export function TopBar() {
   const { scope, setScope, mode, setMode } = useApp()
   const snap = useSnapshot()
   const regime = snap.status === 'ok' ? snap.snapshot.regime : null
+  const updatedAt = snap.status === 'ok' ? snap.snapshot.generatedAt : null
 
   return (
     <header className={styles.bar}>
@@ -21,6 +31,11 @@ export function TopBar() {
             }}
             title={regime === 'long_friendly' ? '偏多環境' : regime === 'short_friendly' ? '偏空環境' : '震盪環境'}
           />
+        )}
+        {updatedAt && (
+          <span className={styles.updatedAt} title={`資料生成：${updatedAt}`}>
+            更新 {fmtUpdated(updatedAt)}
+          </span>
         )}
       </div>
 

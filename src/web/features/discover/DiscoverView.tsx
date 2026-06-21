@@ -244,7 +244,7 @@ export function DiscoverView() {
               : search ? `找不到「${search}」的結果` : '此篩選條件下沒有項目'}
           </div>
         ) : assetType === 'stocks'
-          ? displayedStocks.map(s => <StockCard key={s.ticker} stock={s} showMode={mode} />)
+          ? displayedStocks.map((s, i) => <StockCard key={s.ticker} stock={s} showMode={mode} delay={i * 0.04} />)
           : assetType === 'etf'
           ? displayedEtfs.map(e => <EtfCard key={e.ticker} etf={e} showMode={mode} />)
           : changedStocks.map(s => <ChangeRow key={s.ticker} stock={s} />)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { useApp } from '../../app/providers/AppContext'
 import { useIntraday, type TimeFrame } from '../../shared/hooks/useIntraday'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
@@ -111,6 +111,9 @@ export function DetailView() {
           ⚡ 財報日在窗口內，信號風險較高，倉位宜輕
         </div>
       )}
+
+      {/* Stage indicator (stocks only) */}
+      {!isEtf && stock && <StageIndicator label={stock.label} />}
 
       {/* Time frame selector */}
       <div className={styles.tfRow}>
@@ -268,6 +271,36 @@ function SignalStatsCard({ label }: { label: string }) {
       <p className={styles.disclaimer}>
         以上為過去已結算樣本的歷史平均，屬研究統計、非未來預測；樣本不足或市況改變時參考價值有限。
       </p>
+    </div>
+  )
+}
+
+const STAGE_MAP: Record<string, 1 | 2 | 3> = {
+  WATCH: 1, NEUTRAL: 1,
+  LONG_BASE: 2,
+  LONG_BREAK: 3, LONG_VCP: 3, LONG_BOUNCE: 3,
+}
+const WEAK_LABELS = new Set(['AVOID_CHOP', 'SHORT_BREAK', 'SHORT_BASE', 'SHORT_WATCH'])
+const STAGES = ['觀察名單', '等待突破', '入場時機'] as const
+
+function StageIndicator({ label }: { label: string }) {
+  if (WEAK_LABELS.has(label)) {
+    return (
+      <div className={styles.stageNote}>偏弱格局，不宜做多操作</div>
+    )
+  }
+  const active = STAGE_MAP[label] ?? 1
+  return (
+    <div className={styles.stageBar}>
+      <span className={styles.stageLead}>現在哪一步？</span>
+      <div className={styles.stageSteps}>
+        {STAGES.map((s, i) => (
+          <Fragment key={s}>
+            {i > 0 && <span className={styles.stageArrow}>›</span>}
+            <span className={i + 1 === active ? styles.stageActive : styles.stageItem}>{s}</span>
+          </Fragment>
+        ))}
+      </div>
     </div>
   )
 }
