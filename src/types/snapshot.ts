@@ -30,6 +30,15 @@ export type SectorSnapshotEntry = {
   trajectory20d: SectorTrajectoryPoint[]
 }
 
+export type LiquiditySlope = 'expanding' | 'flat' | 'contracting'
+
+export type LiquidityNote = {
+  slope: LiquiditySlope
+  netLiquidityB: number   // Fed net liquidity in $B (WALCL − TGA − RRP)
+  change4wB: number       // 4-week change in $B (positive = expanding)
+  asOf: string            // YYYY-MM-DD of latest FRED observation
+}
+
 export type DailySnapshot = {
   generatedAt: string    // ISO datetime
   date: string           // YYYY-MM-DD signal date
@@ -37,4 +46,5 @@ export type DailySnapshot = {
   proxyWeakBreadth: boolean
   stocks: StockSnapshotEntry[]
   sectors?: SectorSnapshotEntry[]
+  liquidityNote?: LiquidityNote  // FRED net liquidity note; absent if key not set
 }

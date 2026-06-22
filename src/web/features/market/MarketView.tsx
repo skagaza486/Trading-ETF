@@ -11,7 +11,7 @@ import { SectorHeatMap } from './SectorHeatMap'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import { getStockMeta } from '../../shared/i18n/stockNames'
 import { buildSectorLeadership } from '../../shared/market/sectorLeadership'
-import type { StockSnapshotEntry } from '../../../types/snapshot'
+import type { StockSnapshotEntry, LiquidityNote } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import styles from './MarketView.module.css'
 
@@ -282,6 +282,26 @@ function buildFocusNarrative(stock: StockSnapshotEntry, breadth: ReturnType<type
   }
 }
 
+const LIQUIDITY_CONFIG = {
+  expanding:    { dot: styles.liqDotGreen,  label: '聯儲流動性擴張' },
+  flat:         { dot: styles.liqDotYellow, label: '聯儲流動性平穩' },
+  contracting:  { dot: styles.liqDotRed,    label: '聯儲流動性收縮' },
+}
+
+function LiquidityBanner({ note }: { note: LiquidityNote }) {
+  const cfg = LIQUIDITY_CONFIG[note.slope]
+  const sign = note.change4wB >= 0 ? '+' : ''
+  return (
+    <div className={styles.liqBanner}>
+      <span className={`${styles.liqDot} ${cfg.dot}`} />
+      <span className={styles.liqLabel}>{cfg.label}</span>
+      <span className={styles.liqDetail}>
+        {sign}{note.change4wB}B / 4周 · 淨流動性 {note.netLiquidityB}B · {note.asOf}
+      </span>
+    </div>
+  )
+}
+
 export function MarketView() {
   const { mode, scope, openDetail } = useApp()
   const snap = useSnapshot()
@@ -451,6 +471,10 @@ export function MarketView() {
 
       <IndexChart compact breadthPct={breadth?.pctAboveEma50} rvolLabel={rvolLabel ?? undefined} />
       <MiniBreadthChart />
+
+      {mode === 'pro' && snap.status === 'ok' && snap.snapshot.liquidityNote && (
+        <LiquidityBanner note={snap.snapshot.liquidityNote} />
+      )}
 
       <div className={styles.storyGrid}>
         <section className={styles.storyCard}>

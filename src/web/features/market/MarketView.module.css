@@ -570,3 +570,37 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ── FRED Liquidity Banner (Pro mode only) ─────────────────────── */
+.liqBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+}
+
+.liqDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.liqDotGreen  { background: #4ade80; }
+.liqDotYellow { background: #facc15; }
+.liqDotRed    { background: #f87171; }
+
+.liqLabel {
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+  white-space: nowrap;
+}
+
+.liqDetail {
+  opacity: 0.7;
+}

@@ -10,10 +10,12 @@
  * Run:  INGEST_TOKEN=… node --import tsx scripts/build-snapshot.ts
  */
 import { buildDailySnapshot } from '../src/worker/cronSnapshot'
+import { fetchFredLiquidity } from './fredLiquidity'
 
 const INGEST_URL = process.env.INGEST_URL
   || 'https://trading-etf.skagaza486.workers.dev/api/admin/ingest-snapshot'
 const INGEST_TOKEN = process.env.INGEST_TOKEN
+const FRED_API_KEY = process.env.FRED_API_KEY   // optional; skips liquidity note if absent
 const MIN_STOCKS = Number(process.env.MIN_STOCKS ?? 100)
 
 async function main(): Promise<void> {
@@ -23,10 +25,19 @@ async function main(): Promise<void> {
   }
 
   console.log('Building snapshot (patient fetch: concurrency=3, retries=4)…')
-  const { snapshot } = await buildDailySnapshot({
-    stockConcurrency: 3,
-    tuning: { retries: 4, retryDelayMs: 1500, batchDelayMs: 900 },
-  })
+  const [{ snapshot }, liquidityNote] = await Promise.all([
+    buildDailySnapshot({
+      stockConcurrency: 3,
+      tuning: { retries: 4, retryDelayMs: 1500, batchDelayMs: 900 },
+    }),
+    FRED_API_KEY ? fetchFredLiquidity(FRED_API_KEY) : Promise.resolve(null),
+  ])
+  if (liquidityNote) {
+    snapshot.liquidityNote = liquidityNote
+    console.log(`FRED liquidity: ${liquidityNote.slope} (${liquidityNote.change4wB > 0 ? '+' : ''}${liquidityNote.change4wB}B / 4w, asOf ${liquidityNote.asOf})`)
+  } else {
+    console.log('FRED liquidity: skipped (no key or fetch failed)')
+  }
   console.log(`Built snapshot: date=${snapshot.date}, stocks=${snapshot.stocks.length}`)
   const sample = snapshot.stocks[0]
   if (sample) {
