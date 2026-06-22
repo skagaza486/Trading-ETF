@@ -12,12 +12,18 @@
 import { buildDailySnapshot } from '../src/worker/cronSnapshot'
 import { fetchFredLiquidity } from './fredLiquidity'
 import { fetchYahooMarketCaps } from './yahooMarketCap'
+import { fetchFinnhubNewsCounts } from './finnhubNews'
 
 const INGEST_URL = process.env.INGEST_URL
   || 'https://trading-etf.skagaza486.workers.dev/api/admin/ingest-snapshot'
 const INGEST_TOKEN = process.env.INGEST_TOKEN
 const FRED_API_KEY = process.env.FRED_API_KEY   // optional; skips liquidity note if absent
+const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY   // optional; skips news-density if absent
 const MIN_STOCKS = Number(process.env.MIN_STOCKS ?? 100)
+
+// Event-density subset: only the stocks worth a Finnhub call — bullish or
+// anything whose signal changed today. Keeps us well under the free-tier quota.
+const BULLISH = new Set(['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE', 'LONG_BASE', 'WATCH'])
 
 async function main(): Promise<void> {
   if (!INGEST_TOKEN) {
@@ -50,6 +56,24 @@ async function main(): Promise<void> {
     if (cap) { stock.marketCap = cap; capCount++ }
   }
   console.log(`Market caps attached: ${capCount}/${tickers.length}`)
+
+  // Event density (Finnhub 7-day news count) — only for the changed/bullish subset.
+  if (FINNHUB_API_KEY) {
+    const subset = snapshot.stocks.filter(
+      s => BULLISH.has(s.label) || (s.previousLabel !== undefined && s.previousLabel !== s.label)
+    )
+    console.log(`Fetching 7-day news counts for ${subset.length} changed/bullish tickers…`)
+    const newsCounts = await fetchFinnhubNewsCounts(subset.map(s => s.ticker), FINNHUB_API_KEY)
+    let newsAttached = 0
+    for (const stock of snapshot.stocks) {
+      const c = newsCounts.get(stock.ticker)
+      if (c !== undefined) { stock.newsCount7d = c; newsAttached++ }
+    }
+    console.log(`News counts attached: ${newsAttached}/${subset.length}`)
+  } else {
+    console.log('News density: skipped (no FINNHUB_API_KEY)')
+  }
+
   console.log(`Built snapshot: date=${snapshot.date}, stocks=${snapshot.stocks.length}`)
   const sample = snapshot.stocks[0]
   if (sample) {

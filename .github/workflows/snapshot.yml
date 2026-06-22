@@ -32,4 +32,5 @@ jobs:
           INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
           INGEST_URL: ${{ secrets.INGEST_URL }}       # optional; defaults to prod worker URL
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}   # optional; skips liquidity note if absent
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}  # optional; skips news-density if absent
         run: node --import tsx scripts/build-snapshot.ts

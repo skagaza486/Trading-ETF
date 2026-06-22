@@ -16,6 +16,7 @@ export type StockSnapshotEntry = {
   reason: string
   rsRank: number | null  // percentile 0–100 of 126d return vs snapshot universe
   marketCap?: number     // USD market cap from Yahoo quote; absent from Worker-cron snapshots
+  newsCount7d?: number   // Finnhub company-news count over last 7d; only fetched for changed/bullish subset in the GH Actions build
 }
 
 export type SectorTrajectoryPoint = {

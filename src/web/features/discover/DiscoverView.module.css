@@ -308,6 +308,27 @@
   color: var(--text-secondary);
 }
 
+.priorityChip,
+.newsChip {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.priorityChip {
+  background: var(--accent-soft, rgba(76, 157, 247, 0.14));
+  color: var(--accent, #4C9DF7);
+}
+
+.newsChip {
+  background: var(--warn-soft, rgba(240, 180, 80, 0.16));
+  color: var(--color-warn, #E0A34A);
+}
+
 .opportunityNarrative {
   display: flex;
   flex-direction: column;

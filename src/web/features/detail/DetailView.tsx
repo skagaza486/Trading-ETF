@@ -118,6 +118,9 @@ export function DetailView() {
           {earningsWithin30d && earnings.status === 'ok' && earnings.date && (
             <span className={styles.earningsChip}>財報 {earnings.date}</span>
           )}
+          {!isEtf && stock?.newsCount7d !== undefined && stock.newsCount7d > 0 && (
+            <span className={styles.newsChip}>7日 {stock.newsCount7d} 則新聞</span>
+          )}
         </div>
       )}
 

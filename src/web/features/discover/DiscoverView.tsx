@@ -13,7 +13,7 @@ import { etfUniverse } from '../../../data/etfUniverse'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import type { EtfSignalEntry, EtfSignalLabel } from '../../shared/hooks/useEtfSignals'
-import { buildVerificationNote, buildWatchout, buildWhyNow, hasMeaningfulChange, hasRaisedRisk } from '../../shared/stockNarrative'
+import { buildPriorityScore, buildVerificationNote, buildWatchout, buildWhyNow, byPriority, hasMeaningfulChange, hasRaisedRisk } from '../../shared/stockNarrative'
 import styles from './DiscoverView.module.css'
 
 const ETF_CATEGORY_ZH: Record<string, string> = {
@@ -52,7 +52,7 @@ function getChangedStocks(stocks: StockSnapshotEntry[]) {
       const aUp = BULL_SET.has(a.label) && !BULL_SET.has(a.previousLabel!) ? -1 : 0
       const bUp = BULL_SET.has(b.label) && !BULL_SET.has(b.previousLabel!) ? -1 : 0
       if (aUp !== bUp) return aUp - bUp
-      return (b.rsRank ?? 0) - (a.rsRank ?? 0)
+      return byPriority(a, b)
     })
 }
 
@@ -126,22 +126,16 @@ function buildOpportunityGroups(stocks: StockSnapshotEntry[]): OpportunityGroup[
     BULLISH_STOCK.includes(stock.label) &&
     !BULL_SET.has(stock.previousLabel)
 
-  const byRs = (a: StockSnapshotEntry, b: StockSnapshotEntry) => (b.rsRank ?? 0) - (a.rsRank ?? 0)
-  const newStrength = stocks.filter(isNewStrength).sort(byRs)
+  const newStrength = stocks.filter(isNewStrength).sort(byPriority)
   const continuing = stocks
     .filter(stock => BULLISH_STOCK.includes(stock.label) && !isNewStrength(stock))
-    .sort(byRs)
+    .sort(byPriority)
   const waiting = stocks
     .filter(stock => WATCHLIST_STOCK.includes(stock.label))
-    .sort(byRs)
+    .sort(byPriority)
   const risk = stocks
     .filter(stock => BEARISH_STOCK.includes(stock.label))
-    .sort((a, b) => {
-      const aChanged = a.previousLabel !== undefined && a.previousLabel !== a.label ? 1 : 0
-      const bChanged = b.previousLabel !== undefined && b.previousLabel !== b.label ? 1 : 0
-      if (aChanged !== bChanged) return bChanged - aChanged
-      return (a.rsRank ?? 0) - (b.rsRank ?? 0)
-    })
+    .sort(byPriority)
 
   return [
     { kind: 'new', title: '剛轉強', description: '今日首次進入強勢訊號，最值得先看原因', stocks: newStrength },
@@ -179,7 +173,7 @@ export function DiscoverView() {
       const aScore = BULLISH_STOCK.includes(a.label) ? 2 : WATCHLIST_STOCK.includes(a.label) ? 1 : 0
       const bScore = BULLISH_STOCK.includes(b.label) ? 2 : WATCHLIST_STOCK.includes(b.label) ? 1 : 0
       if (aScore !== bScore) return bScore - aScore
-      return (b.rsRank ?? 0) - (a.rsRank ?? 0)
+      return byPriority(a, b)
     })
   }, [snap, filter, search, starred])
 
@@ -447,6 +441,7 @@ function OpportunityRow({ stock }: { stock: StockSnapshotEntry }) {
     ? ((stock.indicators.close - stock.prevClose) / stock.prevClose) * 100
     : null
   const changed = hasMeaningfulChange(stock)
+  const priority = buildPriorityScore(stock)
   const whyNow = buildWhyNow(stock)
   const watchout = buildWatchout(stock)
   const verification = buildVerificationNote(stock)
@@ -459,6 +454,10 @@ function OpportunityRow({ stock }: { stock: StockSnapshotEntry }) {
       <div className={styles.opportunityIdentity}>
         <strong>{stock.ticker}</strong>
         <span>{meta.nameZh}</span>
+        <span className={styles.priorityChip} title="今日研究關注度（0–100）">關注 {priority}</span>
+        {stock.newsCount7d !== undefined && stock.newsCount7d > 0 && (
+          <span className={styles.newsChip} title="近 7 日新聞則數">7日 {stock.newsCount7d} 新聞</span>
+        )}
       </div>
       <div className={styles.opportunityMove}>
         {changed

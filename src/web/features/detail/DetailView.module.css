@@ -61,6 +61,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+.newsChip {
+  font-size: 11px;
+  color: var(--accent, #4C9DF7);
+  background: rgba(76,157,247,0.12);
+  border: 1px solid rgba(76,157,247,0.28);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-variant-numeric: tabular-nums;
+}
+
 .signalChange {
   font-size: 11px;
   color: var(--text-muted);

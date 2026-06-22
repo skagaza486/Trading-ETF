@@ -11,7 +11,8 @@ import { SectorHeatMap } from './SectorHeatMap'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import { getStockMeta } from '../../shared/i18n/stockNames'
 import { buildSectorLeadership } from '../../shared/market/sectorLeadership'
-import { buildVerificationNote, buildWatchout, buildWhyNow, hasMeaningfulChange } from '../../shared/stockNarrative'
+import { buildVerificationNote, buildWatchout, buildWhyNow, byPriority, hasMeaningfulChange } from '../../shared/stockNarrative'
+import { useSignalStats } from '../../shared/hooks/useSignalStats'
 import type { StockSnapshotEntry, LiquidityNote } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import styles from './MarketView.module.css'
@@ -237,7 +238,7 @@ function buildThreeThings(
 function getChangedStocks(stocks: StockSnapshotEntry[]) {
   return stocks
     .filter(hasMeaningfulChange)
-    .sort((a, b) => (b.rsRank ?? 0) - (a.rsRank ?? 0))
+    .sort(byPriority)
 }
 
 function sortTopIdeas(stocks: StockSnapshotEntry[]) {
@@ -255,7 +256,7 @@ function sortTopIdeas(stocks: StockSnapshotEntry[]) {
       const pa = priority[a.label] ?? 99
       const pb = priority[b.label] ?? 99
       if (pa !== pb) return pa - pb
-      return (b.rsRank ?? 0) - (a.rsRank ?? 0)
+      return byPriority(a, b)
     })
 }
 
@@ -339,6 +340,79 @@ function LiquidityBanner({ note }: { note: LiquidityNote }) {
   )
 }
 
+// 誠實戰績卡：用真實已結算的 forward returns（/api/d1/signal-stats）聚合看漲訊號整體表現。
+// 不挑單一最佳形態、不挑時間窗 —— 把三類進攻訊號（突破/VCP/反彈）按樣本數加權合併；
+// 樣本不足時刻意不顯示回報數字。面向普通用戶、可驗證、非 cherry-pick 的信任錨。
+const TRACK_RECORD_LABELS = ['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE']
+const TRACK_MIN_SAMPLE = 30
+
+function fmtTrackPct(v: number | null): string {
+  if (v === null) return '—'
+  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
+}
+
+function toneFor(v: number | null): string | undefined {
+  if (v === null) return undefined
+  return v > 0 ? styles.trackGain : v < 0 ? styles.trackLoss : undefined
+}
+
+function SignalTrackRecord() {
+  const stats = useSignalStats(90)
+  if (stats.status !== 'ok') return null
+
+  const rows = stats.stats.filter(s => TRACK_RECORD_LABELS.includes(s.label))
+  const totalN = rows.reduce((sum, r) => sum + r.n, 0)
+  const weighted = (pick: (s: (typeof rows)[number]) => number | null): number | null => {
+    let num = 0, den = 0
+    for (const r of rows) {
+      const v = pick(r)
+      if (v !== null) { num += v * r.n; den += r.n }
+    }
+    return den > 0 ? num / den : null
+  }
+
+  const avg5d = weighted(s => s.avgRet5d)
+  const vsSpy = weighted(s => s.avgVsSpy)
+  const winRate = weighted(s => s.winRate)
+  const insufficient = totalN < TRACK_MIN_SAMPLE
+
+  return (
+    <section className={styles.trackCard}>
+      <div className={styles.sectionHeader}>
+        <h2>看漲訊號 90 天戰績</h2>
+        <span>已結算樣本</span>
+      </div>
+      {insufficient ? (
+        <p className={styles.trackEmpty}>
+          目前僅 {totalN} 個已結算樣本，數量不足以提供可靠戰績，因此暫不顯示回報數字。
+        </p>
+      ) : (
+        <div className={styles.trackGrid}>
+          <div className={styles.trackStat}>
+            <span>樣本數</span>
+            <strong>{totalN}</strong>
+          </div>
+          <div className={styles.trackStat}>
+            <span>勝率</span>
+            <strong>{winRate !== null ? `${winRate.toFixed(0)}%` : '—'}</strong>
+          </div>
+          <div className={styles.trackStat}>
+            <span>平均 5 日</span>
+            <strong className={toneFor(avg5d)}>{fmtTrackPct(avg5d)}</strong>
+          </div>
+          <div className={styles.trackStat}>
+            <span>相對大盤</span>
+            <strong className={toneFor(vsSpy)}>{fmtTrackPct(vsSpy)}</strong>
+          </div>
+        </div>
+      )}
+      <p className={styles.trackDisclaimer}>
+        統計自過去 90 天「突破／VCP／反彈」三類進攻訊號的已結算實際回報，按樣本數加權合併，非挑選最佳形態或最佳時段。屬研究統計、非未來預測。
+      </p>
+    </section>
+  )
+}
+
 export function MarketView() {
   const { mode, scope, openDetail } = useApp()
   const snap = useSnapshot()
@@ -404,7 +478,7 @@ export function MarketView() {
       const aS = starred.has(a.ticker) ? 1 : 0
       const bS = starred.has(b.ticker) ? 1 : 0
       if (aS !== bS) return bS - aS
-      return (b.rsRank ?? 0) - (a.rsRank ?? 0)
+      return byPriority(a, b)
     })
     .slice(0, 3)
   const topIdeas = sortTopIdeas(snapshot.stocks)
@@ -508,6 +582,8 @@ export function MarketView() {
       </section>
 
       <IndexChart compact breadthPct={breadth?.pctAboveEma50} rvolLabel={rvolLabel ?? undefined} />
+
+      <SignalTrackRecord />
 
       <div className={styles.storyGrid}>
         <section className={styles.storyCard}>

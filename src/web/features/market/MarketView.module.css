@@ -296,12 +296,64 @@
 .storyCard,
 .focusCard,
 .railCard,
-.storyLiquidity {
+.storyLiquidity,
+.trackCard {
   border: 1px solid var(--border-subtle);
   border-radius: 20px;
   background: var(--bg-card);
   padding: 16px;
   box-shadow: var(--shadow-card);
+}
+
+.trackCard {
+  margin-bottom: 16px;
+}
+
+.trackGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.trackStat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: var(--bg-elevated, rgba(127, 127, 127, 0.06));
+  text-align: center;
+}
+
+.trackStat span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.trackStat strong {
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.trackGain { color: var(--color-gain); }
+.trackLoss { color: var(--color-loss); }
+
+.trackEmpty {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.trackDisclaimer {
+  margin-top: 10px;
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 420px) {
+  .trackGrid { grid-template-columns: repeat(2, 1fr); }
 }
 
 .sectionHeader {

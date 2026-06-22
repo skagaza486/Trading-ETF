@@ -85,6 +85,39 @@ export function buildWatchout(stock: StockSnapshotEntry): string {
   return '若量能或延續性不足，今日訊號很容易回到觀察階段。'
 }
 
+// 研究關注度 0–100：把「今天有沒有變化 + 相對強度 + 量能 + 觸發 + 風險事件」
+// 合成一個可解釋的優先分數，用來排序機會佇列，而不是只看單一 RS 排名。
+// 不是買賣訊號強度，而是「今天值得先看的程度」。
+export function buildPriorityScore(stock: StockSnapshotEntry): number {
+  let score = 0
+
+  // 1. 今天訊號有沒有變化 — 邊際變化最值得先看（參考站的核心邏輯）
+  if (hasMeaningfulChange(stock)) score += 25
+
+  // 2. 相對強度（0–100 百分位）
+  if (stock.rsRank !== null) score += stock.rsRank * 0.25
+
+  // 3. 量能確認 — RVOL > 1 代表成交量高於近期平均
+  const rvol = stock.indicators.rvol
+  if (rvol !== null) score += Math.max(0, Math.min(15, (rvol - 1) * 15))
+
+  // 4. 今天是否出現突破／跌破觸發
+  if (stock.indicators.breakout20d || stock.indicators.breakdown20d) score += 10
+
+  // 5. 風險／事件提示（財報窗口、派貨警號）也值得優先檢查
+  if (stock.earningsWithinWindow || stock.researchFlags.length > 0) score += 10
+
+  // 6. 事件熱度 — 近 7 日新聞則數（補純技術面盲點；缺資料時視為 0，不扣分）
+  if (stock.newsCount7d !== undefined) score += Math.min(15, stock.newsCount7d * 2.5)
+
+  return Math.round(Math.max(0, Math.min(100, score)))
+}
+
+// 機會佇列排序用：關注度由高至低
+export function byPriority(a: StockSnapshotEntry, b: StockSnapshotEntry): number {
+  return buildPriorityScore(b) - buildPriorityScore(a)
+}
+
 export function buildVerificationNote(stock: StockSnapshotEntry): string {
   if (stock.earningsWithinWindow) {
     return '先確認最近財報日期與市場反應，避免把事件波動誤當成結構改善。'
