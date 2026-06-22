@@ -18,7 +18,18 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 6px;
+  margin: 0 -6px;
+  border-radius: var(--r-sm);
+  transition: background 0.12s;
+  -webkit-tap-highlight-color: transparent;
 }
+.row:hover { background: var(--bg-elevated); }
 
 .name {
   font-size: 13px;

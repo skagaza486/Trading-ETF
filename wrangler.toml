@@ -23,7 +23,5 @@ binding = "trading_etf_db"
 database_name = "trading-etf-db"
 database_id = "7a5b3490-d69f-457d-9f3a-64c7b9139a62"
 
-# B1: Cron trigger — 21:30 UTC = 17:30 ET (90 min after US market close), Mon–Fri
-# Requires Workers Paid plan ($5/month) for sufficient CPU time.
-[triggers]
-crons = ["30 21 * * 1-5"]
+# Cron removed: GH Actions pipeline handles daily snapshots (294 stocks).
+# Worker cron was limited to ~43 stocks due to subrequest cap.

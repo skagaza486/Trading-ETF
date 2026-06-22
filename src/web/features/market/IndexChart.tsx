@@ -13,11 +13,11 @@ const US_INDICES: IndexInfo[] = [
 ]
 
 const HK_INDICES: IndexInfo[] = [
-  { ticker: '^HSI',   label: '恒指' },
+  { ticker: '^HSI',   label: '恆指' },
   { ticker: '^HSCE',  label: 'H股' },
 ]
 
-type IndexData = { label: string; pct: number; values: number[] }
+type IndexData = { ticker: string; label: string; pct: number; values: number[] }
 
 function pctChange(arr: number[]) {
   if (arr.length < 2) return 0
@@ -25,7 +25,7 @@ function pctChange(arr: number[]) {
 }
 
 export function IndexChart() {
-  const { scope } = useApp()
+  const { scope, openIndexDetail } = useApp()
   const [data, setData] = useState<IndexData[]>([])
   const indices = scope === 'US' ? US_INDICES : HK_INDICES
 
@@ -36,7 +36,7 @@ export function IndexChart() {
         try {
           const h = await fetchYahooTickerHistory(ticker, { interval: '1d', range: '1mo' })
           const values = h.bars.map(b => b.close)
-          return { label, pct: pctChange(values), values }
+          return { ticker, label, pct: pctChange(values), values }
         } catch {
           return null
         }
@@ -58,13 +58,17 @@ export function IndexChart() {
     <div className={styles.card}>
       <div className={styles.header}>📊 主要指數（近一個月）</div>
       {data.map(d => (
-        <div key={d.label} className={styles.row}>
+        <button
+          key={d.label}
+          className={styles.row}
+          onClick={() => openIndexDetail({ ticker: d.ticker, label: d.label })}
+        >
           <span className={styles.name}>{d.label}</span>
           <Sparkline values={d.values} width={80} height={24} />
           <span className={d.pct >= 0 ? styles.gain : styles.loss}>
             {d.pct >= 0 ? '+' : ''}{d.pct.toFixed(1)}%
           </span>
-        </div>
+        </button>
       ))}
     </div>
   )

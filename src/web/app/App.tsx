@@ -6,6 +6,7 @@ import { MarketView } from '../features/market/MarketView'
 import { SectorsView } from '../features/sectors/SectorsView'
 import { DiscoverView } from '../features/discover/DiscoverView'
 import { DetailView } from '../features/detail/DetailView'
+import { IndexDetailSheet } from '../features/market/IndexDetailSheet'
 import { LabView } from '../features/lab/LabView'
 import { RedesignShowcase } from '../features/showcase/RedesignShowcase'
 import styles from './App.module.css'
@@ -27,8 +28,9 @@ export function App() {
         {view === 'market'   && <MarketView />}
         {view === 'sectors'  && <SectorsView />}
         {view === 'discover' && <DiscoverView />}
-        {view === 'detail'   && <DetailView />}
-        {view === 'lab'      && <LabView />}
+        {view === 'detail'        && <DetailView />}
+        {view === 'index-detail'  && <IndexDetailSheet />}
+        {view === 'lab'           && <LabView />}
       </main>
       <BottomNav />
     </div>

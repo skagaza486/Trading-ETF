@@ -2,7 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 
 export type MarketScope = 'US' | 'HK'
 export type UiMode = 'simple' | 'pro'
-export type ViewId = 'market' | 'sectors' | 'discover' | 'detail' | 'lab'
+export type ViewId = 'market' | 'sectors' | 'discover' | 'detail' | 'lab' | 'index-detail'
 
 export type DetailTarget = {
   ticker: string
@@ -12,6 +12,11 @@ export type DetailTarget = {
   etfDescription?: string
   etfPrice?: number | null
   etfIndicators?: import('../../shared/hooks/useEtfSignals').EtfIndicators
+}
+
+export type IndexTarget = {
+  ticker: string
+  label: string
 }
 
 type AppContextValue = {
@@ -25,6 +30,9 @@ type AppContextValue = {
   detailTarget: DetailTarget | null
   openDetail: (t: DetailTarget) => void
   closeDetail: () => void
+  indexTarget: IndexTarget | null
+  openIndexDetail: (t: IndexTarget) => void
+  closeIndexDetail: () => void
   onboardingDone: boolean
   completeOnboarding: (scope: MarketScope, mode: UiMode) => void
 }
@@ -46,21 +54,34 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [scope, setScopeState] = useState<MarketScope>(() => load('web:scope', 'US'))
   const [mode, setModeState] = useState<UiMode>(() => load('web:mode', 'simple'))
   const [view, setViewState] = useState<ViewId>('market')
-  const [prevView, setPrevView] = useState<ViewId>('discover')
+  const [prevView, setPrevView] = useState<ViewId>('market')
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null)
+  const [indexTarget, setIndexTarget] = useState<IndexTarget | null>(null)
   const [onboardingDone, setOnboardingDone] = useState<boolean>(() => load('web:onboarded', false))
 
   const setScope = (s: MarketScope) => { setScopeState(s); save('web:scope', s) }
   const setMode  = (m: UiMode)      => { setModeState(m);  save('web:mode', m) }
-  const setView  = (v: ViewId)      => { setViewState(v); setDetailTarget(null) }
+  const setView  = (v: ViewId)      => { setViewState(v); setDetailTarget(null); setIndexTarget(null) }
 
   const openDetail = (t: DetailTarget) => {
-    setPrevView(view === 'detail' ? prevView : view)
+    setPrevView(view === 'detail' || view === 'index-detail' ? prevView : view)
     setDetailTarget(t)
+    setIndexTarget(null)
     setViewState('detail')
   }
   const closeDetail = () => {
     setDetailTarget(null)
+    setViewState(prevView)
+  }
+
+  const openIndexDetail = (t: IndexTarget) => {
+    setPrevView(view === 'detail' || view === 'index-detail' ? prevView : view)
+    setIndexTarget(t)
+    setDetailTarget(null)
+    setViewState('index-detail')
+  }
+  const closeIndexDetail = () => {
+    setIndexTarget(null)
     setViewState(prevView)
   }
 
@@ -75,6 +96,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
       scope, setScope, mode, setMode,
       view, prevView, setView,
       detailTarget, openDetail, closeDetail,
+      indexTarget, openIndexDetail, closeIndexDetail,
       onboardingDone, completeOnboarding
     }}>
       {children}
