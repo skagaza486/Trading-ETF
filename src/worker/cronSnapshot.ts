@@ -17,6 +17,7 @@ import { buildForwardReturnRecord, buildHistoricalSignals } from '../engine/stoc
 import { buildHistoricalETFSignals, settleETFForwardReturns } from '../engine/etfReplayEngine'
 import { evaluateAllGates } from '../engine/researchGate'
 import { latestBar } from '../engine/historyUtils'
+import { readHistoricalEarningsMapFromD1 } from './researchData'
 import type { TickerHistory } from '../types/indicator'
 import type { ForwardReturnRecord } from '../types/research'
 import type { LabelGateResult } from '../engine/researchGate'
@@ -278,7 +279,9 @@ export async function settleForwardReturns(
   // Fetch existing signals that still have NULL ret5d
   const { results } = await db.prepare(
     `SELECT ticker, signal_date, label, regime, research_flags, rvol, atr_at_signal
-     FROM signals WHERE signal_date >= ? AND ret5d IS NULL ORDER BY signal_date`
+     FROM signals
+     WHERE signal_date >= ? AND (ret5d IS NULL OR next_open IS NULL)
+     ORDER BY signal_date`
   ).bind(since).all() as { results: Array<Record<string, unknown>> }
 
   if (results.length === 0) return { count: 0, records: [] }
@@ -318,13 +321,13 @@ export async function settleForwardReturns(
     const stmts = chunk.map(r =>
       db.prepare(
         `UPDATE signals SET
-           close_at_signal = ?, ret1d = ?, ret3d = ?, ret5d = ?, ret10d = ?,
+           close_at_signal = ?, next_open = ?, ret1d = ?, ret3d = ?, ret5d = ?, ret10d = ?,
            ret5d_vs_spy = ?, ret10d_vs_spy = ?,
            mfe5d = ?, mae5d = ?, mfe10d = ?, mae10d = ?,
            earnings_in_window = ?, suggested_stop_loss = ?, stop_loss_hit = ?, atr_at_signal = ?
          WHERE ticker = ? AND signal_date = ?`
       ).bind(
-        r.closeAtSignal, r.ret1d, r.ret3d, r.ret5d, r.ret10d,
+        r.closeAtSignal, r.nextOpen, r.ret1d, r.ret3d, r.ret5d, r.ret10d,
         r.ret5dVsSpy, r.ret10dVsSpy,
         r.mfe5d, r.mae5d, r.mfe10d, r.mae10d,
         r.earningsInWindow ? 1 : 0, r.suggestedStopLoss,
@@ -552,8 +555,9 @@ export async function runBackfillChunk(
 
   const allHistories = { ...benchmarks, ...chunkHistories }
   const tickers = chunk.map(s => s.ticker)
+  const historicalEarningsMap = await readHistoricalEarningsMapFromD1(db, tickers)
 
-  const signals = buildHistoricalSignals(allHistories, tickers, 250)
+  const signals = buildHistoricalSignals(allHistories, tickers, 250, historicalEarningsMap)
   const records = buildForwardReturnRecord(signals, allHistories)
 
   if (records.length === 0) return { offset, fetched: chunk.length, records: 0 }
@@ -565,13 +569,14 @@ export async function runBackfillChunk(
       db.prepare(
         `INSERT INTO signals
           (ticker, signal_date, label, regime, research_flags,
-           close_at_signal, ret1d, ret3d, ret5d, ret10d,
+           close_at_signal, next_open, ret1d, ret3d, ret5d, ret10d,
            ret5d_vs_spy, ret10d_vs_spy,
            mfe5d, mae5d, mfe10d, mae10d,
            earnings_in_window, suggested_stop_loss, stop_loss_hit, atr_at_signal)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(ticker, signal_date) DO UPDATE SET
            close_at_signal = excluded.close_at_signal,
+           next_open = excluded.next_open,
            ret1d = excluded.ret1d, ret3d = excluded.ret3d,
            ret5d = excluded.ret5d, ret10d = excluded.ret10d,
            ret5d_vs_spy = excluded.ret5d_vs_spy, ret10d_vs_spy = excluded.ret10d_vs_spy,
@@ -584,7 +589,7 @@ export async function runBackfillChunk(
       ).bind(
         r.ticker, r.signalDate, r.label, r.regimeAtSignal,
         r.researchFlags.join(',') || null,
-        r.closeAtSignal, r.ret1d, r.ret3d, r.ret5d, r.ret10d,
+        r.closeAtSignal, r.nextOpen, r.ret1d, r.ret3d, r.ret5d, r.ret10d,
         r.ret5dVsSpy, r.ret10dVsSpy,
         r.mfe5d, r.mae5d, r.mfe10d, r.mae10d,
         r.earningsInWindow ? 1 : 0,

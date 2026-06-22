@@ -83,8 +83,8 @@
 │   └── ui/                            # Playwright smoke tests (navigation / layout / lab)
 ├── .github/workflows/
 │   └── snapshot.yml                   # Cron 21:30 UTC Mon–Fri; secrets: INGEST_TOKEN, FRED_API_KEY
-├── worker.ts                          # Cloudflare Worker entry (cron + API routes + assets)
-├── wrangler.toml                      # Cloudflare config (KV, D1, cron schedule)
+├── worker.ts                          # Cloudflare Worker entry (API routes + assets; dead scheduled() handler)
+├── wrangler.toml                      # Cloudflare config (KV, D1; no cron — see snapshot.yml)
 ├── vite.config.ts                     # Dev-server proxy for Yahoo / Finnhub
 └── .env.local                         # FINNHUB_API_KEY (gitignored)
 ```
@@ -104,9 +104,11 @@ GitHub Actions (primary, Node, 21:30 UTC Mon–Fri)
   → POST /api/admin/ingest-snapshot (Bearer INGEST_TOKEN)
        → Worker: KV put + writeSignalsToD1 + settleForwardReturns
 
-Worker Cron (fallback, 21:30 UTC Mon–Fri — fires if GH Actions missed)
-  → same fetch pipeline (no FRED, no market caps — subrequest limited)
-  → write KV + D1 directly via bindings
+Worker Cron — REMOVED (no [triggers] block in wrangler.toml)
+  worker.ts still has a scheduled() handler calling buildDailySnapshot,
+  but it never fires. GitHub Actions is the only daily pipeline.
+  (Manual on-demand run still available via POST /api/admin/run-snapshot,
+   but it is subrequest/rate-limited to ~43 stocks.)
 
 Browser (Stocks tab)
   → GET /api/snapshot/latest → read KV → StockSnapshotEntry[]
@@ -261,7 +263,7 @@ Used in "ETF Replay" tab to compute FAVOUR win rate vs SPY and alpha.
 
 ## 9. Stock Research Engine (`stockResearchEngine.ts`)
 
-Provides helpers for building `ForwardReturnRecord[]`. In production (B2+), forward returns are **computed server-side by the cron** (`cronSnapshot.ts → settleForwardReturns`) and stored in D1. The browser reads them via `/api/d1/signals` — no client-side replay.
+Provides helpers for building `ForwardReturnRecord[]`. In production (B2+), forward returns are **computed server-side by the daily pipeline** (`cronSnapshot.ts → settleForwardReturns`, run via GitHub Actions) and stored in D1. The browser reads them via `/api/d1/signals` — no client-side replay.
 
 `stockResearchEngine.ts` is still used by the cron for helper utilities. Key functions:
 
@@ -374,8 +376,8 @@ binding = "SNAPSHOT_KV"
 binding = "trading_etf_db"
 database_name = "trading-etf-db"
 
-[triggers]
-crons = ["30 21 * * 1-5"]   # 21:30 UTC Mon–Fri = ~90 min after US market close
+# No [triggers] block — Worker cron was removed; GitHub Actions
+# (.github/workflows/snapshot.yml) runs the daily snapshot at 21:30 UTC Mon–Fri.
 ```
 
 **Deploy steps (always both together):**
@@ -467,18 +469,18 @@ type StockSnapshotEntry = {
 
 ## 19. Known Constraints & Design Decisions
 
-- **Stocks tab is a pure renderer.** Labels are computed by the cron and stored in KV. The browser reads the snapshot directly — no re-classification. If the cron hasn't run, the tab shows an error.
-- **Verify tab reads D1 only.** `loadResearchData` fetches `/api/d1/signals` — no client-side replay. Records only appear after the cron has run and settled forward returns (5 trading days lag for ret5d).
+- **Stocks tab is a pure renderer.** Labels are computed by the daily pipeline (GitHub Actions) and stored in KV. The browser reads the snapshot directly — no re-classification. If the pipeline hasn't run, the tab shows an error.
+- **Verify tab reads D1 only.** `loadResearchData` fetches `/api/d1/signals` — no client-side replay. Records only appear after the daily pipeline has run and settled forward returns (5 trading days lag for ret5d).
 - **ETF tab still fetches Yahoo live.** Each browser session re-fetches ETF OHLCV bars from Yahoo via `/api/yahoo`. This is acceptable given the small ETF universe (~50 tickers).
 - **Forward returns require 5 trading days to settle.** Signals from the last 5 days will have `ret5d = NULL` and are excluded from the Verify tab query.
-- **Yahoo Finance is unofficial.** Rate limiting or format changes can break data fetch. The cron retries query1/query2 endpoints automatically.
+- **Yahoo Finance is unofficial.** Rate limiting or format changes can break data fetch. The snapshot builder retries query1/query2 endpoints automatically.
 - **Finnhub earnings is optional.** Without `FINNHUB_API_KEY`, `REVIEW_EVENT` labels never fire; earnings risk filtering is silently disabled.
 - **HYP-009 rule:** LONG_BREAK and SHORT_BREAK require the prior bar to be in the same direction ladder, preventing single-bar impulse breakouts from mislabelling.
 - **Structure + Trigger design:** As of 2026-06-18, all entry signals require both a structural condition (trend alignment, above EMA200) and a trigger condition (breakout, bounce, compression). WATCH is a universe filter only and is not gate-evaluated.
 - **Research phase:** Gates still building sample size with new label taxonomy. The app is a signal generator and backtesting workspace, not a validated trading system.
 - **Safe-haven override:** GLD, IAU, SGOV, SHY, IEF, TLT, BIL, TIP are immune to regime downgrades in the ETF engine.
 - **HYP-013 — D1 earnings contamination (confirmed bug):** `cronSnapshot.ts` backfill path calls `buildHistoricalSignals` without the `historicalEarningsMap` parameter, so all historical D1 signals have `earnings_in_window = false`. Approximately 11% of signals occur near earnings windows and are not flagged. Gate Summary statistics have a known optimistic bias until this is fixed. See `SIGNAL_IMPROVEMENT.md` HYP-013.
-- **Market cap data:** `StockSnapshotEntry.marketCap` is only populated by GitHub Actions builds (via `scripts/yahooMarketCap.ts`). Worker-cron snapshots lack market cap data; the Sector Treemap gracefully degrades to equal-width tiles.
+- **Market cap data:** `StockSnapshotEntry.marketCap` is only populated by GitHub Actions builds (via `scripts/yahooMarketCap.ts`). The on-demand Worker snapshot trigger lacks market cap data; the Sector Treemap gracefully degrades to equal-width tiles.
 
 ---
 
@@ -492,8 +494,8 @@ type StockSnapshotEntry = {
 | B2 — D1 signals | ✅ Complete (2026-06-19) | Forward returns settled server-side; Verify tab reads D1; 2yr backfill done |
 | Track B — FRED liquidity | ✅ Complete (2026-06-22) | `fredLiquidity.ts` → `LiquidityNote` in DailySnapshot; GH Actions verified |
 | Track C — Sector Treemap | ✅ Complete (2026-06-22) | `SectorTreemap.tsx` Pro-only CSS flex treemap; `yahooMarketCap.ts` batch fetch |
-| Track A — Python ML infra | ✅ Infrastructure done (2026-06-22) | `scripts/ml/`: fetch_signals.py + label.py (Triple-Barrier); training unblocks 2026-07-19 |
-| B3 — ML training | ⏳ Unblock 2026-07-19 | Requires: D1 ≥ 30 days + **HYP-013 earnings fix** + **HYP-015 universe snapshot** |
+| Track A — Python ML infra | ✅ Infrastructure done (2026-06-22) | `scripts/ml/`: fetch_signals.py + label.py (Triple-Barrier); sample volume already sufficient (~74k rows / ~14 months) |
+| B3 — ML training | ⏳ Blocked on data quality | Sample count is NOT the blocker (~74k rows since 2025-04). Requires only: **HYP-013 earnings fix** + **HYP-015 universe snapshot** |
 
 ### Pre-conditions Before ML Training
 

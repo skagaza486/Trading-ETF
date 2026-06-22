@@ -12,7 +12,7 @@
 | 資料管線 | GitHub Actions `snapshot.yml` off-peak 21:30 UTC；294 隻 KV snapshot 正常寫入；FRED 流動性指標每日附加；Yahoo 市值批次抓取（Track C） |
 | Watchlist | 299 stocks（T1=123 growth，T2=176 defensive） |
 | UI | **UI 2.0** 完成並部署。5-tab 新架構（大市/板塊/發現/詳情/研究室）+ Trust-First P0 全落實；板塊 Pro Treemap（Track C）已上線 |
-| ML 基建 | **Track A 已落地**（2026-06-22）：`scripts/ml/` Python pipeline；Triple-Barrier labeling；unblock 2026-07-19 |
+| ML 基建 | **Track A 已落地**（2026-06-22）：`scripts/ml/` Python pipeline；Triple-Barrier labeling；樣本已充足（~74k 條／~14 個月），唯一前置是修 HYP-013/015 資料品質（非樣本數） |
 
 ---
 
@@ -56,7 +56,7 @@
 - [x] `buildDailySnapshot` + `fetchBatch` 加 `FetchTuning`（retry/backoff/batchDelay）
 - [x] Worker `POST /api/admin/ingest-snapshot`（token 保護）
 - [x] `scripts/build-snapshot.ts` + `.github/workflows/snapshot.yml`（21:30 UTC Mon–Fri + manual dispatch）
-- [x] Worker cron 保留為 fallback（settle / gate / ETF）
+- [x] Worker cron 已移除（`wrangler.toml` 無 `[triggers]`）；`worker.ts` 的 `scheduled()` handler 仍在但不會觸發。GitHub Actions 為唯一每日管線
 
 ---
 
@@ -88,9 +88,9 @@
 | ADX　HYP-022 | 在非牛市或更長時間跨度重新評估區分力 | 需要更多樣本 |
 | EXP-013　LONG_BOUNCE MAE ✅ 關閉 | HYP-028a CLV 0.7 + HYP-028b ema20Slope 均已測試無效；MAE 3% 是結構性特徵，position sizing 是正確槓桿 | — |
 | L9　Headless UI smoke test（Playwright）✅ | navigation / layout / lab 三個 spec 已更新至 UI 2.0 架構；mock snapshot + D1 routes | UI 2.0 完成後 ✅ |
-| Track A　Python ML 基建 ✅ | `scripts/ml/` 已建立：`fetch_signals.py`（D1 API→CSV）、`label.py`（Triple-Barrier Method k=1.5）、`requirements.txt`；**實際訓練 unblock：2026-07-19**；注意：訓練前需先修 HYP-013 earnings contamination + HYP-015 survivorship bias | Track A 基建 ✅ |
+| Track A　Python ML 基建 ✅ | `scripts/ml/` 已建立：`fetch_signals.py`（D1 API→CSV）、`label.py`（Triple-Barrier Method k=1.5）、`requirements.txt`；**樣本已充足（~74k 條／~14 個月，2025-04 起）**；訓練唯一前置是修 HYP-013 earnings contamination + HYP-015 survivorship bias（非樣本數） | Track A 基建 ✅ |
 | HYP-013　D1 earnings 缺口 P0 | `cronSnapshot.ts:523` 缺 earningsMap 參數，D1 所有 historical signal 的 `earnings_in_window` 永遠 false，Gate Summary 有 ~11% earnings 偏差；修復需建立 `earnings_calendar` D1 表 | 確認 bug，修復優先於調 threshold |
-| B3 + L8　ML / Meta-labeling 實際執行 | Track A 基建已落地；等 D1 ≥ 30 天 + HYP-013/015 修復後可執行訓練 | Track A ✅，HYP-013/015 待修 |
+| B3 + L8　ML / Meta-labeling 實際執行 | Track A 基建已落地；樣本已充足（~74k 條／~14 個月），修 HYP-013/015 資料品質後即可執行訓練 | Track A ✅，HYP-013/015 待修 |
 
 ---
 
@@ -106,7 +106,7 @@
 | L4　Options / IV-HV 濾網 | 容易把 repo 拉向衍生品資料平台 |
 | L5　Social sentiment | 噪音高，可驗證性弱 |
 | L6　Macro blackout calendar | 輔助風險層，不應早於核心 signal quality |
-| L8　ML / Meta-labeling | 見研究待驗證 — unblock 2026-07-19（D1 滿 30 天） |
+| L8　ML / Meta-labeling | 見研究待驗證 — 樣本已充足（~74k 條／~14 個月），前置是修 HYP-013/015 資料品質 |
 | L9　Headless UI smoke test（Playwright） | 見研究待驗證 — UI 2.0 完成後可展開 |
 
 ---
@@ -175,8 +175,8 @@
 
 - `src/types/snapshot.ts` — DailySnapshot / StockSnapshotEntry（含 tier）
 - `src/worker/cronSnapshot.ts` — fetchBatch + rsRank + D1 write
-- `worker.ts` — scheduled() + /api/snapshot/latest + /api/d1/signals
-- `wrangler.toml` — KV + D1 binding + cron 21:30 UTC Mon–Fri
+- `worker.ts` — scheduled()（已停用、不觸發）+ /api/snapshot/latest + /api/d1/signals
+- `wrangler.toml` — KV + D1 binding（無 cron trigger；每日 snapshot 由 GitHub Actions 跑）
 - `src/services/marketData/snapshotProvider.ts` — snapshot fetch + stale 判斷
 - `App.tsx` — snapshot 優先，stale 時 fallback 至 live Yahoo
 - Stocks tab 新增 RS% 欄
@@ -215,4 +215,4 @@
 - `scripts/ml/requirements.txt` — pandas / numpy / scikit-learn / joblib
 - `scripts/ml/fetch_signals.py` — 從 `/api/d1/signals` 抓 settled signals → `data/signals.csv`
 - `scripts/ml/label.py` — Triple-Barrier Method（k=1.5，mfe5d/mae5d/atrAtSignal）→ `data/labeled.csv`
-- **⚠️ 實際訓練 unblock：2026-07-19**；訓練前需先修 HYP-013 + HYP-015
+- **樣本已充足（~74k 條／~14 個月，2025-04 起）**；訓練唯一前置是修 HYP-013 + HYP-015 資料品質（非樣本數）

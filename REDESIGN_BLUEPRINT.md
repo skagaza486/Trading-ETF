@@ -608,7 +608,7 @@ GitHub Actions (Node, 無 Worker 限制)
        buildDailySnapshot({ stockConcurrency:3, tuning:{retries:4, backoff, batchDelay} })
        └─ POST 完整 snapshot ──► Worker  POST /api/admin/ingest-snapshot  (Bearer INGEST_TOKEN)
                                           └─ KV put + writeSignalsToD1（現有 binding 寫入路徑）
-Worker cron（保留做 fallback + settle/gate/ETF）
+Worker cron（已移除 — 無 [triggers]；scheduled() handler 仍在但不觸發）
 ```
 
 - **點解 POST-to-ingest 而唔係 CI 跑 wrangler 寫 SQL**：Action 只需 1 個 secret（`INGEST_TOKEN`）+ Worker URL，唔使 wrangler-in-CI、唔使 D1 API token、唔使生 SQL、零 schema drift；寫入重用已驗證嘅 `writeSignalsToD1` + KV binding。
@@ -620,9 +620,9 @@ Worker cron（保留做 fallback + settle/gate/ETF）
 - ✅ `buildDailySnapshot` + `fetchBatch` 加 `FetchTuning`（retry/backoff/batchDelay）
 - ✅ Worker `POST /api/admin/ingest-snapshot`（token 保護，已部署，已實測 auth + KV + D1 寫入）
 - ✅ `scripts/build-snapshot.ts`（tsx 跑）+ `.github/workflows/snapshot.yml`（cron 21:30 UTC + manual dispatch）
-- ⬜ **用戶要做**：GitHub repo Settings → Secrets 加 `INGEST_TOKEN`（值已生成、見對話）；首次喺 Actions tab 手動 dispatch 驗證 off-peak Yahoo 抓滿 130
+- ✅ `INGEST_TOKEN` 已設定，GH Actions 每日正常寫入（~294/299 隻；少數 Yahoo timeout 屬正常）
 - ⬜ **後續**：Yahoo 若 off-peak 都唔穩，加第二源（Tiingo / Twelve Data；Stooq 已加 JS 反爬、唔再係簡單 fallback）
-- ⬜ 驗證綠燈後，可移除 Worker cron 嘅 snapshot 部分（留 settle/gate/ETF）
+- ✅ Worker cron 已移除（`wrangler.toml` 無 `[triggers]`）；GitHub Actions 為唯一每日管線；`worker.ts` 的 `scheduled()` handler 仍在但不會觸發
 
 ---
 
@@ -662,7 +662,7 @@ Worker cron（保留做 fallback + settle/gate/ETF）
 
 - ✅ **板塊 Pro Treemap（Track C，2026-06-22）**：`SectorTreemap.tsx` CSS flex tile，寬度 ∝ 市值；用 Yahoo `/v8/finance/quote` 而非 Finnhub（`scripts/yahooMarketCap.ts`）；Worker-cron snapshot 無市值時降級為等寬；點格子 → `openDetail({ticker, name})`
 - ⬜ 港股接入（`.HK` watchlist + 第二 cron + D1 market 維度）
-- ⬜ B3 + L8 ML / Meta-labeling — Track A 基建已落地（2026-06-22）；unblock 2026-07-19；訓練前需修 HYP-013/015
+- ⬜ B3 + L8 ML / Meta-labeling — Track A 基建已落地（2026-06-22）；樣本已充足（~74k 條／~14 個月），唯一前置是修 HYP-013/015 資料品質（非樣本數）
 
 ### 16.4 技術快速索引
 

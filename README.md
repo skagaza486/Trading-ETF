@@ -35,11 +35,11 @@ node node_modules/.bin/vite         # dev server at localhost:5173
 主要程式碼：
 
 - `src/` — React UI、純計算 engine、型別、樣式與資料定義。
-- `src/worker/cronSnapshot.ts` — Cron 邏輯：fetch 299 stocks，分類，寫 KV + D1。
+- `src/worker/cronSnapshot.ts` — 每日 snapshot 邏輯：fetch 299 stocks，分類，寫 KV + D1（production 由 GitHub Actions 跑，非 Worker cron）。
 - `schema/` — D1 schema 及 migration SQL。
 - `scripts/` — 研究 agent、同步工具等離線工具。
 - `tests/ui/` — Playwright UI smoke tests（layout / navigation / Quant Lab）。
-- `worker.ts` — Cloudflare Worker 入口：cron handler + API routes + static assets。
+- `worker.ts` — Cloudflare Worker 入口：API routes + static assets（含一個已停用、不會觸發的 `scheduled()` handler）。
 
 ## Common Commands
 
@@ -67,9 +67,9 @@ node node_modules/.bin/playwright test      # headless，CI 用
 
 ## Gate Data Source
 
-自 B2 完成（2026-06-19）起，gate 數字的**主要來源是 D1**（由 cron 每日更新）。瀏覽器的 Verify tab 直接從 `/api/d1/signals` 讀取 `ForwardReturnRecord[]`，不再做 client-side replay。
+自 B2 完成（2026-06-19）起，gate 數字的**主要來源是 D1**（由每日 GitHub Actions pipeline 更新）。瀏覽器的 Verify tab 直接從 `/api/d1/signals` 讀取 `ForwardReturnRecord[]`，不再做 client-side replay。
 
-離線 research agent (`scripts/researchAgent.ts`) 仍可用於本地實驗（不需要 cron 的環境），但 production gate 以 D1 為準。
+離線 research agent (`scripts/researchAgent.ts`) 仍可用於本地實驗，但 production gate 以 D1 為準。
 
 ## UI QA
 
@@ -86,7 +86,7 @@ vite build && wrangler deploy
 ```
 
 - Target worker: `trading-etf`（有 hyphen）。舊 worker `tradingetf`（無 hyphen）不要 deploy。
-- `wrangler.toml` 在根目錄，KV binding: `SNAPSHOT_KV`，D1 binding: `trading_etf_db`，cron: `30 21 * * 1-5`。
+- `wrangler.toml` 在根目錄，KV binding: `SNAPSHOT_KV`，D1 binding: `trading_etf_db`。無 cron trigger — 每日 snapshot 由 GitHub Actions（`.github/workflows/snapshot.yml`，21:30 UTC Mon–Fri）跑。
 
 ## Working Rules
 

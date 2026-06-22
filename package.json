@@ -12,8 +12,14 @@
     "ui:qa:headed": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -b && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/vite/bin/vite.js build && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/@playwright/test/cli.js test --headed",
     "research:sync-exp009": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -p tsconfig.research-sync.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./scripts/patchResearchSyncImports.mjs && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./.cache/research-sync/scripts/syncSignalImprovement.js",
     "research:agent": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -p tsconfig.research-sync.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./scripts/patchResearchSyncImports.mjs && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./.cache/research-sync/scripts/researchAgent.js",
+    "research:backfill-local": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -p tsconfig.research-sync.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./scripts/patchResearchSyncImports.mjs && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./.cache/research-sync/scripts/localResearchBackfill.js",
+    "research:backfill-universe": "./.tools/node-v22.22.3-darwin-arm64/bin/node scripts/backfillUniverseSnapshotsFromGit.mjs",
+    "research:rebuild-data": "./.tools/node-v22.22.3-darwin-arm64/bin/node scripts/rebuildResearchData.mjs",
     "deploy": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc -b && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/vite/bin/vite.js build && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/wrangler/bin/wrangler.js deploy",
-    "snapshot:build": "./.tools/node-v22.22.3-darwin-arm64/bin/node --import tsx scripts/build-snapshot.ts"
+    "snapshot:build": "./.tools/node-v22.22.3-darwin-arm64/bin/node --import tsx scripts/build-snapshot.ts",
+    "sp:types": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/wrangler/bin/wrangler.js types --config wrangler.signalpilot.toml --path signalpilot/worker-configuration.d.ts",
+    "sp:typecheck": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.signalpilot.json",
+    "sp:deploy": "./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.signalpilot.json && ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/wrangler/bin/wrangler.js deploy --config wrangler.signalpilot.toml"
   },
   "dependencies": {
     "lightweight-charts": "^4.2.3",

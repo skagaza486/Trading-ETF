@@ -256,7 +256,7 @@ etfWeeklyEngine.ts      — ETF 週線評級和 risk-adjusted score
 
 ```text
 Yahoo Finance（每日）
-  → Cloudflare Worker cron（21:30 UTC Mon-Fri）
+  → GitHub Actions snapshot.yml（21:30 UTC Mon-Fri；Worker cron 已移除）
       → 計算 indicators + RS rank（stockScreenerEngine）
       → 呼叫 signalClassifier → 寫入 KV（daily snapshot，含 label）
       → 寫入 D1 signals 表（label + indicators）

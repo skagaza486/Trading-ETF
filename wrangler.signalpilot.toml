@@ -1,0 +1,35 @@
+# SignalPilot — separate control-plane Worker (ADR-SP-000).
+# Deploy with: wrangler deploy --config wrangler.signalpilot.toml
+# NEVER deploy this config to the `trading-etf` worker, and never deploy
+# trading-etf's wrangler.toml here.
+name = "signalpilot"
+compatibility_date = "2025-01-01"
+main = "signalpilot/worker.ts"
+
+[observability]
+enabled = true
+
+# Control-plane KV: kill-switch mirror + replay-nonce store. Low-latency reads;
+# the durable source of truth for flags is control_flags in SIGNALPILOT_DB.
+# Create with: wrangler kv namespace create SP_CONTROL_KV
+[[kv_namespaces]]
+binding = "SP_CONTROL_KV"
+id = "feedaa9ce2864b66a85334f2835534a2"
+
+# Write side: ledger + audit. SP-0 uses audit_log + control_flags only.
+# Create with: wrangler d1 create signalpilot-db
+[[d1_databases]]
+binding = "SIGNALPILOT_DB"
+database_name = "signalpilot-db"
+database_id = "095a9cf7-b05e-4e3d-9150-7cb480485d23"
+
+# Read-only consumption of the existing signal DB. D1 has no binding-level
+# read-only enforcement, so this is a CODE DISCIPLINE: this Worker must only
+# ever SELECT from TRADING_ETF_DB_RO, never INSERT/UPDATE/DELETE.
+[[d1_databases]]
+binding = "TRADING_ETF_DB_RO"
+database_name = "trading-etf-db"
+database_id = "7a5b3490-d69f-457d-9f3a-64c7b9139a62"
+
+# Secrets (NEVER in this file; set via `wrangler secret put --config wrangler.signalpilot.toml`):
+#   SP_AUTH_TOKEN  — single-user bearer token for all mutation endpoints

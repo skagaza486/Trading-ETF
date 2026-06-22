@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS signals (
   reason              TEXT,
   -- forward returns (B2+) — NULL until outcome bars are available
   close_at_signal     REAL,
+  next_open           REAL,
   ret1d               REAL,
   ret3d               REAL,
   ret5d               REAL,
@@ -63,3 +64,29 @@ CREATE TABLE IF NOT EXISTS gate_snapshots (
 CREATE INDEX IF NOT EXISTS idx_signals_date   ON signals (signal_date DESC);
 CREATE INDEX IF NOT EXISTS idx_signals_label  ON signals (label, signal_date DESC);
 CREATE INDEX IF NOT EXISTS idx_gate_snapshots ON gate_snapshots (snapshot_date DESC, label);
+
+CREATE TABLE IF NOT EXISTS earnings_calendar (
+  ticker        TEXT NOT NULL,
+  earnings_date TEXT NOT NULL,  -- YYYY-MM-DD
+  source        TEXT DEFAULT 'finnhub',
+  updated_at    TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (ticker, earnings_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_earnings_calendar_date   ON earnings_calendar (earnings_date DESC);
+CREATE INDEX IF NOT EXISTS idx_earnings_calendar_ticker ON earnings_calendar (ticker, earnings_date DESC);
+
+CREATE TABLE IF NOT EXISTS watchlist_universe_snapshots (
+  snapshot_month TEXT NOT NULL,  -- YYYY-MM
+  effective_date TEXT NOT NULL,  -- YYYY-MM-DD
+  ticker         TEXT NOT NULL,
+  name           TEXT,
+  sector         TEXT,
+  tier           INTEGER,
+  source         TEXT DEFAULT 'repo_watchlist',
+  created_at     TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (snapshot_month, ticker)
+);
+
+CREATE INDEX IF NOT EXISTS idx_universe_snapshots_month  ON watchlist_universe_snapshots (snapshot_month DESC);
+CREATE INDEX IF NOT EXISTS idx_universe_snapshots_ticker ON watchlist_universe_snapshots (ticker, snapshot_month DESC);

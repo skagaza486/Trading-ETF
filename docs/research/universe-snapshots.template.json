@@ -1,0 +1,22 @@
+{
+  "snapshots": [
+    {
+      "snapshotMonth": "2026-05",
+      "effectiveDate": "2026-05-31",
+      "tickers": [
+        {
+          "ticker": "AAPL",
+          "name": "Apple",
+          "sector": "Technology",
+          "tier": 1
+        },
+        {
+          "ticker": "MSFT",
+          "name": "Microsoft",
+          "sector": "Technology",
+          "tier": 1
+        }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ export type ForwardReturnRecord = {
   ticker: string
   label: StockSignalLabel
   closeAtSignal: number
+  nextOpen: number | null
   ret1d: number | null
   ret3d: number | null
   ret5d: number | null

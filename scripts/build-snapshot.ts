@@ -10,6 +10,8 @@
  * Run:  INGEST_TOKEN=… node --import tsx scripts/build-snapshot.ts
  */
 import { buildDailySnapshot } from '../src/worker/cronSnapshot'
+import { stockWatchlist } from '../src/data/watchlist'
+import { fetchHistoricalEarningsMapNode, serializeHistoricalEarningsMap } from '../src/worker/researchData'
 import { fetchFredLiquidity } from './fredLiquidity'
 import { fetchYahooMarketCaps } from './yahooMarketCap'
 import { fetchFinnhubNewsCounts } from './finnhubNews'
@@ -88,10 +90,27 @@ async function main(): Promise<void> {
     process.exit(2)
   }
 
+  let historicalEarningsPayload: ReturnType<typeof serializeHistoricalEarningsMap> = []
+  if (FINNHUB_API_KEY) {
+    console.log(`Fetching 2y historical earnings archive for ${stockWatchlist.length} watchlist tickers…`)
+    const historicalEarnings = await fetchHistoricalEarningsMapNode(
+      stockWatchlist.map(stock => stock.ticker),
+      FINNHUB_API_KEY
+    )
+    historicalEarningsPayload = serializeHistoricalEarningsMap(historicalEarnings)
+    const earningsRows = historicalEarningsPayload.reduce((sum, item) => sum + item.dates.length, 0)
+    console.log(`Historical earnings archive attached: ${historicalEarningsPayload.length} tickers / ${earningsRows} rows`)
+  } else {
+    console.log('Historical earnings archive: skipped (no FINNHUB_API_KEY)')
+  }
+
   const res = await fetch(INGEST_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${INGEST_TOKEN}` },
-    body: JSON.stringify(snapshot),
+    body: JSON.stringify({
+      snapshot,
+      historicalEarnings: historicalEarningsPayload
+    }),
   })
   const text = await res.text()
   if (!res.ok) {

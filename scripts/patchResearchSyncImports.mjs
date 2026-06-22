@@ -44,18 +44,30 @@ function withJsExtension(sourceFile, specifier) {
 }
 
 function rewriteRelativeImports(sourceFile, content) {
-  const patterns = [
-    /(from\s+['"])(\.{1,2}\/[^'"]+)(['"])/g,
-    /(import\s+['"])(\.{1,2}\/[^'"]+)(['"])/g,
-    /(import\(\s*['"])(\.{1,2}\/[^'"]+)(['"]\s*\))/g
-  ]
+  const rewrite = (text, pattern) => text.replace(pattern, (match, prefix, specifier, suffix) => {
+    const updatedSpecifier = withJsExtension(sourceFile, specifier)
+    return updatedSpecifier === specifier ? match : `${prefix}${updatedSpecifier}${suffix}`
+  })
 
-  return patterns.reduce((nextContent, pattern) => (
-    nextContent.replace(pattern, (match, prefix, specifier, suffix) => {
-      const updatedSpecifier = withJsExtension(sourceFile, specifier)
-      return updatedSpecifier === specifier ? match : `${prefix}${updatedSpecifier}${suffix}`
-    })
-  ), content)
+  let nextContent = content
+  nextContent = rewrite(nextContent, /(from\s+['"])(\.{1,2}\/[^'"]+)(['"])/g)
+  nextContent = rewrite(nextContent, /(import\s+['"])(\.{1,2}\/[^'"]+)(['"])/g)
+  nextContent = rewrite(nextContent, /(import\(\s*['"])(\.{1,2}\/[^'"]+)(['"]\s*\))/g)
+  // Fallback for any remaining bare relative imports without extensions.
+  nextContent = nextContent.replace(
+    /(from\s+['"])(\.{1,2}\/[^'".]+)(['"])/g,
+    (match, prefix, specifier, suffix) => `${prefix}${specifier}.js${suffix}`
+  )
+  nextContent = nextContent.replace(
+    /(import\s+['"])(\.{1,2}\/[^'".]+)(['"])/g,
+    (match, prefix, specifier, suffix) => `${prefix}${specifier}.js${suffix}`
+  )
+  nextContent = nextContent.replace(
+    /(import\(\s*['"])(\.{1,2}\/[^'".]+)(['"]\s*\))/g,
+    (match, prefix, specifier, suffix) => `${prefix}${specifier}.js${suffix}`
+  )
+
+  return nextContent
 }
 
 async function main() {

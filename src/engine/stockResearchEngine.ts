@@ -52,7 +52,8 @@ export function buildForwardReturnRecord(
 
     const closeAtSignal = history.bars[signalIndex]?.close ?? 0
     const nextBar = history.bars[signalIndex + 1]
-    const entryPrice = nextBar?.open ?? closeAtSignal
+    const nextOpen = nextBar?.open ?? null
+    const entryPrice = nextOpen ?? closeAtSignal
     const spyIndex = spyHistory ? findBarIndexByDate(spyHistory, signal.signalDate) : -1
     const returnForDays = (days: number): number | null =>
       percentChange(history.bars[signalIndex + days]?.close ?? NaN, entryPrice)
@@ -85,6 +86,7 @@ export function buildForwardReturnRecord(
         ticker: signal.ticker,
         label: signal.label,
         closeAtSignal,
+        nextOpen,
         ret1d: returnForDays(1),
         ret3d: returnForDays(3),
         ret5d,
