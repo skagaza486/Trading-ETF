@@ -33,9 +33,27 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.iconWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .icon {
   font-size: 18px;
   line-height: 1;
+}
+
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-loss);
+  border: 1.5px solid var(--bg-base);
 }
 
 .label {

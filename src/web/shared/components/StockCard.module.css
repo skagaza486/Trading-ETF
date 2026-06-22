@@ -44,14 +44,34 @@
   -webkit-box-orient: vertical;
 }
 
-.bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.priceBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
 
 .priceRow { display: flex; align-items: baseline; gap: 8px; }
 .price    { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .gain     { font-size: 11px; color: var(--color-gain); font-variant-numeric: tabular-nums; }
 .loss     { font-size: 11px; color: var(--color-loss); font-variant-numeric: tabular-nums; }
 
-.badgeRow { display: flex; align-items: center; gap: 6px; }
+.secondaryStat {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sideRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.badgeRow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .rs       { font-size: 10px; color: var(--text-muted); }
 .earnings {
   font-size: 10px; font-weight: 600;
@@ -60,4 +80,15 @@
   border: 1px solid rgba(245,181,68,0.3);
   border-radius: 4px;
   padding: 1px 5px;
+}
+
+@media (max-width: 640px) {
+  .bottom {
+    align-items: flex-start;
+  }
+
+  .sideRow {
+    flex-direction: column;
+    align-items: flex-end;
+  }
 }

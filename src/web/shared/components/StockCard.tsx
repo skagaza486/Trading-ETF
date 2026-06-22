@@ -2,6 +2,7 @@ import { useApp } from '../../app/providers/AppContext'
 import { SignalBadge } from './SignalBadge'
 import { getStockMeta } from '../i18n/stockNames'
 import { getStockLogoAsset } from '../../../ui/assetRegistry'
+import { Sparkline } from './Sparkline'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import styles from './StockCard.module.css'
 
@@ -12,7 +13,13 @@ export function StockCard({ stock, showMode = 'simple', delay = 0 }: Props) {
   const meta = getStockMeta(stock.ticker, stock.name)
   const logo = getStockLogoAsset(stock.ticker)
   const close = stock.indicators.close
-  const ema50  = stock.indicators.ema50
+  const ema50 = stock.indicators.ema50
+  const prevClose = stock.prevClose ?? null
+  const recentClose = stock.recentClose ?? []
+  const sparklineValues = [...recentClose].reverse()
+  const dayPct = prevClose && prevClose > 0
+    ? ((close - prevClose) / prevClose) * 100
+    : null
 
   const pctFromEma50 = ema50 && ema50 > 0 ? ((close - ema50) / ema50) * 100 : null
 
@@ -42,23 +49,40 @@ export function StockCard({ stock, showMode = 'simple', delay = 0 }: Props) {
       </div>
 
       <div className={styles.bottom}>
-        <div className={styles.priceRow}>
-          <span className={styles.price}>${close.toFixed(2)}</span>
-          {pctFromEma50 !== null && (
-            <span className={pctFromEma50 >= 0 ? styles.gain : styles.loss}>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceRow}>
+            <span className={styles.price}>${close.toFixed(2)}</span>
+            {dayPct !== null && (
+              <span className={dayPct >= 0 ? styles.gain : styles.loss}>
+                今日 {dayPct >= 0 ? '▲' : '▼'}{Math.abs(dayPct).toFixed(1)}%
+              </span>
+            )}
+            {dayPct === null && pctFromEma50 !== null && (
+              <span className={pctFromEma50 >= 0 ? styles.gain : styles.loss}>
+                EMA50 {pctFromEma50 >= 0 ? '▲' : '▼'}{Math.abs(pctFromEma50).toFixed(1)}%
+              </span>
+            )}
+          </div>
+          {dayPct !== null && pctFromEma50 !== null && (
+            <div className={styles.secondaryStat}>
               EMA50 {pctFromEma50 >= 0 ? '▲' : '▼'}{Math.abs(pctFromEma50).toFixed(1)}%
-            </span>
+            </div>
           )}
         </div>
 
-        <div className={styles.badgeRow}>
-          {stock.earningsWithinWindow && (
-            <span className={styles.earnings} title="財報日在信號窗口內">財報⚡</span>
+        <div className={styles.sideRow}>
+          {sparklineValues.length > 1 && (
+            <Sparkline values={sparklineValues} width={72} height={24} gain={dayPct !== null ? dayPct >= 0 : undefined} />
           )}
-          <SignalBadge label={stock.label} showCode={showMode === 'pro'} />
-          {stock.rsRank !== null && (
-            <span className={styles.rs}>RS {stock.rsRank}</span>
-          )}
+          <div className={styles.badgeRow}>
+            {stock.earningsWithinWindow && (
+              <span className={styles.earnings} title="財報日在信號窗口內">財報⚡</span>
+            )}
+            <SignalBadge label={stock.label} showCode={showMode === 'pro'} />
+            {stock.rsRank !== null && (
+              <span className={styles.rs}>RS {stock.rsRank}</span>
+            )}
+          </div>
         </div>
       </div>
     </button>

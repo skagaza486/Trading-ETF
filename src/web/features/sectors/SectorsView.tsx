@@ -88,7 +88,7 @@ export function SectorsView() {
           </div>
           {(second || hero.topTicker) && (
             <p className={styles.heroSecond}>
-              {second && `次強：${second.sectorZh} ${Math.round(second.bullish / second.count * 100)}%`}
+              {second && `次選：${second.sectorZh}`}
               {second && hero.topTicker && '　'}
               {hero.topTicker && `代表股 ${hero.topTicker}`}
             </p>

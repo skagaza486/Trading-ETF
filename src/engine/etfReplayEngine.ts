@@ -13,6 +13,8 @@ export type ETFSignalRow = {
   indicatorsJson: string
   regime: string
   closeAtSignal: number | null
+  prevClose: number | null
+  recentCloseJson: string
   ret1w: number | null
   ret4w: number | null
 }
@@ -104,6 +106,11 @@ export function buildHistoricalETFSignals(
       const recommendation = classifyETF(slicedHistory, slicedBenchmarks, regime)
 
       const currentClose = weeklyHistory.bars[absoluteIndex]?.close ?? null
+      const prevClose = absoluteIndex > 0 ? weeklyHistory.bars[absoluteIndex - 1]?.close ?? null : null
+      const recentClose = weeklyHistory.bars
+        .slice(Math.max(0, absoluteIndex - 4), absoluteIndex + 1)
+        .map(bar => bar.close)
+        .reverse()
       const close1w = weeklyHistory.bars[absoluteIndex + 1]?.close ?? NaN
       const close4w = weeklyHistory.bars[absoluteIndex + 4]?.close ?? NaN
 
@@ -114,6 +121,8 @@ export function buildHistoricalETFSignals(
         indicatorsJson: JSON.stringify(recommendation.indicators),
         regime: regime,
         closeAtSignal: currentClose,
+        prevClose,
+        recentCloseJson: JSON.stringify(recentClose),
         ret1w: percentChange(close1w, currentClose ?? NaN),
         ret4w: percentChange(close4w, currentClose ?? NaN)
       })

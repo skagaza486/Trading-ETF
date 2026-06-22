@@ -1,5 +1,6 @@
 import { useApp } from '../../app/providers/AppContext'
 import { EtfSignalBadge } from './EtfSignalBadge'
+import { Sparkline } from './Sparkline'
 import { getStockLogoAsset } from '../../../ui/assetRegistry'
 import { etfUniverse } from '../../../data/etfUniverse'
 import type { EtfSignalEntry } from '../hooks/useEtfSignals'
@@ -30,6 +31,10 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
   const desc = meta?.description ?? ''
   const categoryZh = meta ? (ETF_CATEGORY_ZH[meta.category] ?? meta.category) : 'ETF'
   const price = etf.closeAtSignal
+  const dayPct = price !== null && etf.prevClose && etf.prevClose > 0
+    ? ((price - etf.prevClose) / etf.prevClose) * 100
+    : null
+  const sparklineValues = [...etf.recentClose].reverse()
 
   return (
     <button
@@ -62,20 +67,32 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
       </div>
 
       <div className={styles.bottom}>
-        <div className={styles.priceRow}>
+        <div className={styles.priceBlock}>
+          <div className={styles.priceRow}>
           {price !== null
             ? <span className={styles.price}>${price.toFixed(2)}</span>
             : <span className={styles.price}>—</span>
           }
+          {dayPct !== null && (
+            <span className={dayPct >= 0 ? styles.gain : styles.loss}>
+              今日 {dayPct >= 0 ? '▲' : '▼'}{Math.abs(dayPct).toFixed(1)}%
+            </span>
+          )}
           {showMode === 'pro' && etf.indicators.return13w !== null && (
             <span className={etf.indicators.return13w >= 0 ? styles.gain : styles.loss}>
               13w {etf.indicators.return13w >= 0 ? '+' : ''}{(etf.indicators.return13w * 100).toFixed(1)}%
             </span>
           )}
+          </div>
         </div>
 
-        <div className={styles.badgeRow}>
-          <EtfSignalBadge label={etf.label} showCode={showMode === 'pro'} />
+        <div className={styles.sideRow}>
+          {sparklineValues.length > 1 && (
+            <Sparkline values={sparklineValues} width={72} height={24} gain={dayPct !== null ? dayPct >= 0 : undefined} />
+          )}
+          <div className={styles.badgeRow}>
+            <EtfSignalBadge label={etf.label} showCode={showMode === 'pro'} />
+          </div>
         </div>
       </div>
     </button>

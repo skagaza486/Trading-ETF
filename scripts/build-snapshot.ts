@@ -28,6 +28,12 @@ async function main(): Promise<void> {
     tuning: { retries: 4, retryDelayMs: 1500, batchDelayMs: 900 },
   })
   console.log(`Built snapshot: date=${snapshot.date}, stocks=${snapshot.stocks.length}`)
+  const sample = snapshot.stocks[0]
+  if (sample) {
+    console.log(
+      `Snapshot sample fields: prevClose=${sample.prevClose ?? 'null'}, recentClose=${sample.recentClose.length} points`
+    )
+  }
 
   // Guard: never overwrite a healthy snapshot with a thin (rate-limited) one.
   if (snapshot.stocks.length < MIN_STOCKS) {

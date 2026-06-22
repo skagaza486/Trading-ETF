@@ -17,6 +17,8 @@ export type EtfSignalEntry = {
   label: EtfSignalLabel
   regime: string
   closeAtSignal: number | null
+  prevClose: number | null
+  recentClose: number[]
   indicators: EtfIndicators
 }
 
@@ -48,18 +50,27 @@ export function useEtfSignals(): State {
           label: string
           regime: string
           closeAtSignal: number | null
+          prevClose: number | null
+          recentCloseJson?: string
           indicatorsJson?: string
         }>) {
           const existing = latest.get(row.ticker)
           if (!existing || row.weekEndingDate > existing.weekEndingDate) {
             let parsed: Record<string, number> = {}
             try { parsed = JSON.parse(row.indicatorsJson ?? '{}') } catch { /* ignore */ }
+            let recentClose: number[] = []
+            try {
+              const parsedRecent = JSON.parse(row.recentCloseJson ?? '[]')
+              recentClose = Array.isArray(parsedRecent) ? parsedRecent.filter((v): v is number => typeof v === 'number') : []
+            } catch { /* ignore */ }
             latest.set(row.ticker, {
               ticker: row.ticker,
               weekEndingDate: row.weekEndingDate,
               label: row.label as EtfSignalLabel,
               regime: row.regime,
               closeAtSignal: row.closeAtSignal,
+              prevClose: row.prevClose,
+              recentClose,
               indicators: {
                 return13w:        parsed.return13w        ?? null,
                 return26w:        parsed.return26w        ?? null,

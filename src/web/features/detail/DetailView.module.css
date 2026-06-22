@@ -2,6 +2,25 @@
 
 .header { display: flex; align-items: flex-start; gap: 12px; }
 
+.headerInfo { flex: 1; min-width: 0; }
+
+.starBtn {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 6px 10px;
+  font-size: 20px;
+  line-height: 1;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--color-warn);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.starBtn:hover { background: var(--bg-elevated); }
+
 .back {
   padding: 6px 10px; font-size: 13px;
   border: 1px solid var(--border-faint);
@@ -31,6 +50,16 @@
 
 .priceBlock { display: flex; align-items: center; gap: 12px; }
 .price      { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.earningsChip {
+  font-size: 11px;
+  color: var(--color-warn);
+  background: rgba(245,181,68,0.12);
+  border: 1px solid rgba(245,181,68,0.28);
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-variant-numeric: tabular-nums;
+}
 
 .signalChange {
   font-size: 11px;
@@ -87,6 +116,38 @@
 .explainText { font-size: 13px; color: var(--text-primary); line-height: 1.55; }
 
 .disclaimer { font-size: 10px; color: var(--text-muted); }
+
+.newsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.newsRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-decoration: none;
+  color: inherit;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-faint);
+}
+
+.newsRow:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.newsRow strong {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.newsRow span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
 
 .metricsGrid {
   display: grid;
@@ -166,6 +227,29 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-faint);
 }
+
+.historyTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.historyTable th {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--border-faint);
+}
+.historyTable td {
+  padding: 6px 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid var(--border-faint);
+}
+.historyTable tr:last-child td { border-bottom: none; }
+.historyTable th:not(:first-child),
+.historyTable td:not(:first-child) { text-align: right; }
 
 .peerRow {
   width: 100%; display: flex; align-items: center; justify-content: space-between;

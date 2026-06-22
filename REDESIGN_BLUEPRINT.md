@@ -624,3 +624,83 @@ Worker cron（保留做 fallback + settle/gate/ETF）
 - ⬜ **後續**：Yahoo 若 off-peak 都唔穩，加第二源（Tiingo / Twelve Data；Stooq 已加 JS 反爬、唔再係簡單 fallback）
 - ⬜ 驗證綠燈後，可移除 Worker cron 嘅 snapshot 部分（留 settle/gate/ETF）
 
+---
+
+## 16. 當前進度快照（最後更新：2026-06-22）
+
+> 本節給任何 AI/協作者快速了解「現在做到哪，下一步是什麼」。
+
+### 16.1 已完成（生產環境）
+
+| 類別 | 完成內容 |
+| --- | --- |
+| **資料管線** | GitHub Actions `snapshot.yml` cron 21:30 UTC 自動跑；`POST /api/admin/ingest-snapshot` 端點已部署；294 隻股票 KV snapshot 正常寫入 |
+| **P0 信任止血** | 港股鎖定（onboarding 禁選）；`DetailView` 回報數字改為動態 `/api/d1/signal-stats`（n<20 不顯示）；`BreadthCard` 改名「偏強/偏弱訊號數」；`InfoDot` ❓ 元件上線（市寬/VIX/RVOL 三卡） |
+| **Calm Fintech 色彩系統** | `web-global.css` 全套 token 換成藍色 accent（`--accent: #4C9DF7`）、neutral dark 背景；清除 `BottomNav`/`TopBar`/`MarketView` 所有硬編碼綠色 rgba |
+| **板塊頁改善** | 新增 hero card（今日板塊焦點：頂部板塊名/看漲%/次選/代表股）；每行補 `N↑ M↓ · K檔 · TICKER` 子行 |
+| **發現頁改善** | summary strip：「今日 294 檔 · N 項轉強 · 板塊最多」 |
+
+### 16.2 計劃中：大市頁面佈局重組
+
+**目標**：把現有四個分散區塊（IndexChart + BreadthCard + VixCard + RvolCard）整合成更緊湊的結構。
+
+**新渲染順序：**
+
+```
+1. Hero Card（今日市場）← 新增 VIX inline 一行
+2. IndexStrip          ← 3 指數橫排（左/中/右） + 下方 市寬EMA50% · RVOL 小字
+3. Story Grid          ← 今日三件事 / 今日值得研究 / 今日動向/發現（不動）
+4. SectorHeatMap       ← 不動
+```
+
+**移除：** 獨立 `BreadthCard`、`VixCard`、`RvolCard`（共 3 個 card + `MetricCard.module.css`）
+
+#### IndexDetailSheet（指數詳情頁）增強
+
+- 現有：整體市況 + 市寬 EMA50%
+- 新增：EMA200%、偏強/偏弱訊號數（帶 bar）、RVOL 中位 + 標籤
+
+#### 涉及檔案
+
+- `src/web/features/market/MarketView.tsx` — VIX fetch inline + rvol compute + 渲染順序 + 移除 metricGrid
+- `src/web/features/market/IndexChart.tsx` — 新增 `compact` prop + 3欄 strip layout
+- `src/web/features/market/IndexChart.module.css` — strip 樣式
+- `src/web/features/market/MarketView.module.css` — vixInline 樣式
+- `src/web/features/market/IndexDetailSheet.tsx` — 完整廣度 + RVOL stats
+- `src/web/features/market/IndexDetailSheet.module.css` — metricsSection 樣式
+- 刪除：`BreadthCard.tsx`、`VixCard.tsx`、`RvolCard.tsx`、`MetricCard.module.css`
+
+### 16.3 待辦 backlog（按優先序）
+
+#### P1（下一批）
+
+- ⬜ 大市頁面佈局重組（見 §16.2）
+- ⬜ 首頁「值得留意」→ 行動板（機會/風險/失效條件，已在 MarketView FocusCard 落實，待擴展）
+- ⬜ 詳情頁「現在哪一步」stage indicator（觀察/等確認/已觸發/失效）
+- ⬜ 資料最後更新時間顯示
+- ⬜ snapshot 補 `prevClose` + 短 `close[]`（需動 cron）→ 解鎖卡片日漲跌% + sparkline
+
+#### P2（留存核心）
+
+- ⬜ 真正的 ⭐ 自選（localStorage 先行）
+- ⬜ 「今日動向」上提到大市首頁（現成 `ChangeRow`/`getChangedStocks` 在 `DiscoverView` 已存在，已在 SideRail 顯示）
+- ⬜ 自選變動通知
+
+#### P3（深度）
+
+- ⬜ 新聞、財報日曆（Finnhub）、板塊 treemap、港股、完整研究統計
+
+### 16.4 技術快速索引
+
+| 需要了解 | 看哪裡 |
+| --- | --- |
+| 色彩 token | `src/web/app/styles/web-global.css` |
+| 大市頁 | `src/web/features/market/MarketView.tsx` |
+| 板塊頁 | `src/web/features/sectors/SectorsView.tsx` |
+| 發現頁 | `src/web/features/discover/DiscoverView.tsx` |
+| KV snapshot 結構 | `src/types/snapshot.ts` |
+| 信號引擎 | `src/engine/signalClassifier.ts` |
+| GH Actions 管線 | `.github/workflows/snapshot.yml` + `scripts/build-snapshot.ts` |
+| Worker 端點 | `worker.ts` → `/api/admin/ingest-snapshot`, `/api/snapshot/latest` |
+| 設計原則 | `DESIGN_SYSTEM.md` |
+

@@ -39,11 +39,40 @@ export function IndexDetailSheet() {
   const pct = latest && first ? ((latest.close - first.close) / first.close) * 100 : null
   const desc = INDEX_DESC[indexTarget.ticker]
   const regime = snap.status === 'ok' ? snap.snapshot.regime : null
-  const breadthPct = snap.status === 'ok'
+
+  const marketStats = snap.status === 'ok'
     ? (() => {
         const stocks = snap.snapshot.stocks
-        const above = stocks.filter(s => s.indicators.close > (s.indicators.ema50 ?? 0) && s.indicators.ema50).length
-        return stocks.length ? Math.round(above / stocks.length * 100) : null
+        const n = stocks.length
+        if (!n) return null
+
+        let above50 = 0, above200 = 0, bullish = 0, bearish = 0
+        const rvolVals: number[] = []
+        for (const s of stocks) {
+          const { close, ema50, ema200, rvol } = s.indicators
+          if (ema50 !== null && close > ema50)   above50++
+          if (ema200 !== null && close > ema200)  above200++
+          if (['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE','WATCH'].includes(s.label)) bullish++
+          else if (['SHORT_BREAK','SHORT_BASE','SHORT_WATCH','AVOID_CHOP'].includes(s.label)) bearish++
+          if (rvol !== null) rvolVals.push(rvol)
+        }
+
+        rvolVals.sort((a, b) => a - b)
+        const mid = Math.floor(rvolVals.length / 2)
+        const rvolMedian = rvolVals.length
+          ? (rvolVals.length % 2 === 0 ? (rvolVals[mid - 1] + rvolVals[mid]) / 2 : rvolVals[mid])
+          : null
+
+        return {
+          pctAboveEma50:  Math.round(above50  / n * 100),
+          pctAboveEma200: Math.round(above200 / n * 100),
+          bullish,
+          bearish,
+          total: n,
+          rvolMedian,
+          rvolLabel: rvolMedian === null ? '—'
+            : rvolMedian >= 1.5 ? '量能旺盛' : rvolMedian >= 1.0 ? '量能正常' : '量能萎縮',
+        }
       })()
     : null
 
@@ -90,18 +119,49 @@ export function IndexDetailSheet() {
       <div className={styles.contextSection}>
         {desc && <p className={styles.desc}>{desc}</p>}
 
-        {(regime || breadthPct !== null) && (
-          <div className={styles.statsRow}>
-            {regime && (
-              <div className={styles.stat}>
-                <span className={styles.statLabel}>整體市況</span>
-                <span className={styles.statVal}>{REGIME_ZH[regime] ?? regime}</span>
-              </div>
-            )}
-            {breadthPct !== null && (
-              <div className={styles.stat}>
-                <span className={styles.statLabel}>個股 EMA50 以上</span>
-                <span className={styles.statVal}>{breadthPct}%</span>
+        {(regime || marketStats) && (
+          <div className={styles.metricsSection}>
+            <div className={styles.statsRow}>
+              {regime && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>整體市況</span>
+                  <span className={styles.statVal}>{REGIME_ZH[regime] ?? regime}</span>
+                </div>
+              )}
+              {marketStats && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>EMA50 以上</span>
+                  <span className={styles.statVal}>{marketStats.pctAboveEma50}%</span>
+                </div>
+              )}
+              {marketStats && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>EMA200 以上</span>
+                  <span className={styles.statVal}>{marketStats.pctAboveEma200}%</span>
+                </div>
+              )}
+              {marketStats && (
+                <div className={styles.stat}>
+                  <span className={styles.statLabel}>RVOL 中位</span>
+                  <span className={styles.statVal}>
+                    {marketStats.rvolMedian !== null ? marketStats.rvolMedian.toFixed(2) : '—'}
+                    <span className={styles.rvolTag}>{' '}{marketStats.rvolLabel}</span>
+                  </span>
+                </div>
+              )}
+            </div>
+            {marketStats && (
+              <div className={styles.signalBar}>
+                <div className={styles.signalBarLabel}>
+                  <span>偏強訊號 {marketStats.bullish}</span>
+                  <span>偏弱 {marketStats.bearish}</span>
+                </div>
+                <div className={styles.signalBarTrack}>
+                  <div
+                    className={styles.signalBarFill}
+                    style={{ width: `${Math.round(marketStats.bullish / marketStats.total * 100)}%` }}
+                  />
+                </div>
               </div>
             )}
           </div>

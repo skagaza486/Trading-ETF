@@ -138,3 +138,42 @@
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
+
+.rvolTag {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.metricsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.signalBar {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.signalBarLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.signalBarTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.signalBarFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-gain);
+  transition: width 0.3s ease;
+}

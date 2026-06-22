@@ -58,6 +58,12 @@
 .filterBtn    { background: var(--bg-elevated); color: var(--text-secondary); }
 .filterActive { background: var(--accent); color: var(--bg-base); border-color: var(--accent); font-weight: 700; }
 
+.filterCount {
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.75;
+}
+
 .count { font-size: 11px; color: var(--text-muted); }
 
 .list { display: flex; flex-direction: column; gap: 8px; }

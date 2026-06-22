@@ -3,6 +3,10 @@ import { useApp } from '../../app/providers/AppContext'
 import { useIntraday, type TimeFrame } from '../../shared/hooks/useIntraday'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { useSignalStats } from '../../shared/hooks/useSignalStats'
+import { useWatchlist } from '../../shared/hooks/useWatchlist'
+import { useFinancialNews } from '../../shared/hooks/useFinancialNews'
+import { useEarningsDate } from '../../shared/hooks/useEarningsDate'
+import { useTickerHistory } from '../../shared/hooks/useTickerHistory'
 import { PriceChart } from '../../shared/components/PriceChart'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import { EtfSignalBadge } from '../../shared/components/EtfSignalBadge'
@@ -39,12 +43,16 @@ const SIGNAL_EXPLANATION: Partial<Record<string, string>> = {
 export function DetailView() {
   const { detailTarget, closeDetail, mode } = useApp()
   const snap = useSnapshot()
+  const { starred, toggle } = useWatchlist()
   const [tf, setTf] = useState<TimeFrame>('1M')
-  const chart = useIntraday(detailTarget?.ticker ?? '', tf)
 
   if (!detailTarget) return null
 
   const isEtf = !!detailTarget.etfLabel
+  const chart = useIntraday(detailTarget.ticker, tf)
+  const news = useFinancialNews(isEtf ? null : detailTarget.ticker)
+  const earnings = useEarningsDate(isEtf ? null : detailTarget.ticker)
+  const history = useTickerHistory(isEtf ? '' : (detailTarget?.ticker ?? ''))
 
   const stock: StockSnapshotEntry | undefined =
     snap.status === 'ok'
@@ -62,6 +70,9 @@ export function DetailView() {
   const displayPrice = isEtf
     ? (detailTarget.etfPrice ?? null)
     : (stock?.indicators.close ?? null)
+  const earningsWithin30d = !isEtf && earnings.status === 'ok' && earnings.date
+    ? daysUntil(earnings.date) <= 30 && daysUntil(earnings.date) >= 0
+    : false
 
   return (
     <div className={styles.view}>
@@ -74,7 +85,7 @@ export function DetailView() {
             : <div className={styles.logoFallback}>{detailTarget.ticker.slice(0, 2)}</div>
           }
         </div>
-        <div>
+        <div className={styles.headerInfo}>
           <div className={styles.nameRow}>
             <span className={styles.nameZh}>{displayName}</span>
             <span className={styles.ticker}>
@@ -83,6 +94,13 @@ export function DetailView() {
           </div>
           {displayDesc && <p className={styles.desc}>{displayDesc}</p>}
         </div>
+        <button
+          className={styles.starBtn}
+          onClick={() => toggle(detailTarget.ticker)}
+          aria-label={starred.has(detailTarget.ticker) ? '移除自選' : '加入自選'}
+        >
+          {starred.has(detailTarget.ticker) ? '★' : '☆'}
+        </button>
       </div>
 
       {/* Price + signal */}
@@ -93,6 +111,9 @@ export function DetailView() {
             ? <EtfSignalBadge label={detailTarget.etfLabel} showCode={mode === 'pro'} />
             : stock && <SignalBadge label={stock.label} showCode={mode === 'pro'} />
           }
+          {earningsWithin30d && earnings.status === 'ok' && earnings.date && (
+            <span className={styles.earningsChip}>財報 {earnings.date}</span>
+          )}
         </div>
       )}
 
@@ -174,8 +195,13 @@ export function DetailView() {
         </div>
       )}
 
+      {!isEtf && <NewsSection news={news} />}
+
       {/* Historical stats — real settled samples, sample-gated (stocks only) */}
       {!isEtf && stock && <SignalStatsCard label={stock.label} />}
+
+      {/* Per-ticker signal history (stocks only) */}
+      {!isEtf && stock && <HistoricalSignalsCard history={history} />}
 
       {/* Key metrics (stocks only) */}
       {!isEtf && stock && (
@@ -222,6 +248,46 @@ export function DetailView() {
           allStocks={snap.snapshot.stocks}
         />
       )}
+    </div>
+  )
+}
+
+function daysUntil(isoDate: string): number {
+  const now = new Date()
+  const target = new Date(`${isoDate}T00:00:00`)
+  return Math.ceil((target.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+}
+
+function relativeTime(iso: string): string {
+  const deltaMs = Date.now() - new Date(iso).getTime()
+  const minutes = Math.max(1, Math.floor(deltaMs / 60000))
+  if (minutes < 60) return `${minutes} 分鐘前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} 小時前`
+  const days = Math.floor(hours / 24)
+  return `${days} 天前`
+}
+
+function NewsSection({ news }: { news: ReturnType<typeof useFinancialNews> }) {
+  if (news.status !== 'ok' || news.items.length === 0) return null
+
+  return (
+    <div className={styles.explainCard}>
+      <div className={styles.metricsTitle}>最新新聞（7天）</div>
+      <div className={styles.newsList}>
+        {news.items.map(item => (
+          <a
+            key={item.id}
+            className={styles.newsRow}
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <strong>{item.headline}</strong>
+            <span>{item.source} · {relativeTime(item.datetime)}</span>
+          </a>
+        ))}
+      </div>
     </div>
   )
 }
@@ -320,6 +386,53 @@ function EtfMetric({ label, value, fmt }: { label: string; value: number | null;
     <div className={styles.metric}>
       <span className={styles.metricLabel}>{label}</span>
       <span className={styles.metricValue} style={{ color }}>{display}</span>
+    </div>
+  )
+}
+
+const HISTORY_LABEL_ZH: Record<string, string> = {
+  LONG_BREAK: '突破', LONG_VCP: 'VCP', LONG_BOUNCE: '反彈', LONG_BASE: '整固',
+  WATCH: '觀察', NEUTRAL: '中性', AVOID_CHOP: '震盪',
+  SHORT_BREAK: '空頭突破', SHORT_BASE: '空頭整固', SHORT_WATCH: '空頭轉弱',
+}
+
+function HistoricalSignalsCard({ history }: { history: ReturnType<typeof useTickerHistory> }) {
+  if (history.status !== 'ok') return null
+  const rows = history.rows.slice(0, 8)
+  if (rows.length < 3) return null
+
+  return (
+    <div className={styles.metricsCard}>
+      <div className={styles.metricsTitle}>歷史信號記錄（90天）</div>
+      <table className={styles.historyTable}>
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>信號</th>
+            <th>5日回報</th>
+            <th>vs大盤</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(row => {
+            const retColor = row.ret5d === null ? 'var(--text-muted)' : row.ret5d >= 0 ? 'var(--color-gain)' : 'var(--color-loss)'
+            const spyColor = row.ret5dVsSpy === null ? 'var(--text-muted)' : row.ret5dVsSpy >= 0 ? 'var(--color-gain)' : 'var(--color-loss)'
+            return (
+              <tr key={row.signalDate}>
+                <td>{row.signalDate.slice(5)}</td>
+                <td>{HISTORY_LABEL_ZH[row.label] ?? row.label}</td>
+                <td style={{ color: retColor }}>
+                  {row.ret5d === null ? '待結算' : `${row.ret5d >= 0 ? '+' : ''}${row.ret5d.toFixed(1)}%`}
+                </td>
+                <td style={{ color: spyColor }}>
+                  {row.ret5dVsSpy === null ? '—' : `${row.ret5dVsSpy >= 0 ? '+' : ''}${row.ret5dVsSpy.toFixed(1)}%`}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <p className={styles.disclaimer}>以已結算樣本為準，近期資料尚未結算顯示「待結算」。</p>
     </div>
   )
 }

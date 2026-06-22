@@ -95,6 +95,16 @@ function computeRsRank(ticker: string, histories: Map<string, TickerHistory | nu
   return Math.round((below / allReturns.length) * 100)
 }
 
+function buildSnapshotPriceFields(history: TickerHistory): Pick<StockSnapshotEntry, 'prevClose' | 'recentClose'> {
+  const prevClose = history.bars.length >= 2 ? history.bars[history.bars.length - 2].close : null
+  const recentClose = history.bars
+    .slice(-5)
+    .map(bar => bar.close)
+    .reverse()
+
+  return { prevClose, recentClose }
+}
+
 export async function writeSignalsToD1(db: D1Database, snapshot: DailySnapshot): Promise<void> {
   const stmts = snapshot.stocks.map(stock =>
     db.prepare(
@@ -342,12 +352,15 @@ export async function buildDailySnapshot(opts: BuildSnapshotOptions = {}): Promi
 
     const signal = classifyStock(history, { ...benchmarks, ...stockHistories }, null, regime, stock.tier)
     const rsRank = computeRsRank(stock.ticker, stockHistoryMap)
+    const { prevClose, recentClose } = buildSnapshotPriceFields(history)
 
     stocks.push({
       ticker: stock.ticker,
       name: stock.name,
       sector: stock.sector,
       tier: stock.tier,
+      prevClose,
+      recentClose,
       label: signal.label,
       previousLabel: signal.previousLabel,
       researchFlags: signal.researchFlags,
@@ -494,16 +507,18 @@ export async function writeETFSignalsToD1(
     const stmts = currentRows.map(row =>
       db.prepare(
         `INSERT INTO etf_signals
-          (ticker, week_ending_date, label, indicators_json, regime, close_at_signal, ret1w, ret4w)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          (ticker, week_ending_date, label, indicators_json, regime, close_at_signal, prev_close, recent_close_json, ret1w, ret4w)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(ticker, week_ending_date) DO UPDATE SET
            label = excluded.label,
            indicators_json = excluded.indicators_json,
            regime = excluded.regime,
-           close_at_signal = excluded.close_at_signal`
+           close_at_signal = excluded.close_at_signal,
+           prev_close = excluded.prev_close,
+           recent_close_json = excluded.recent_close_json`
       ).bind(
         row.ticker, row.weekEndingDate, row.label,
-        row.indicatorsJson, row.regime, row.closeAtSignal,
+        row.indicatorsJson, row.regime, row.closeAtSignal, row.prevClose, row.recentCloseJson,
         row.ret1w, row.ret4w
       )
     )
@@ -549,18 +564,20 @@ export async function runETFBackfill(
     const stmts = slice.map(row =>
       db.prepare(
         `INSERT INTO etf_signals
-          (ticker, week_ending_date, label, indicators_json, regime, close_at_signal, ret1w, ret4w)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          (ticker, week_ending_date, label, indicators_json, regime, close_at_signal, prev_close, recent_close_json, ret1w, ret4w)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(ticker, week_ending_date) DO UPDATE SET
            label = excluded.label,
            indicators_json = excluded.indicators_json,
            regime = excluded.regime,
            close_at_signal = COALESCE(etf_signals.close_at_signal, excluded.close_at_signal),
+           prev_close = COALESCE(etf_signals.prev_close, excluded.prev_close),
+           recent_close_json = COALESCE(etf_signals.recent_close_json, excluded.recent_close_json),
            ret1w = COALESCE(excluded.ret1w, etf_signals.ret1w),
            ret4w = COALESCE(excluded.ret4w, etf_signals.ret4w)`
       ).bind(
         row.ticker, row.weekEndingDate, row.label,
-        row.indicatorsJson, row.regime, row.closeAtSignal,
+        row.indicatorsJson, row.regime, row.closeAtSignal, row.prevClose, row.recentCloseJson,
         row.ret1w, row.ret4w
       )
     )

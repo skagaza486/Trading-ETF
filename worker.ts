@@ -436,7 +436,7 @@ async function handleETFSignalsRead(env: Env, url: URL): Promise<Response> {
     : 'WHERE week_ending_date >= ?'
   const params = ticker ? [since, ticker] : [since]
 
-  const query = `SELECT ticker, week_ending_date, label, indicators_json, regime, close_at_signal, ret1w, ret4w
+  const query = `SELECT ticker, week_ending_date, label, indicators_json, regime, close_at_signal, prev_close, recent_close_json, ret1w, ret4w
                  FROM etf_signals ${baseWhere}
                  ORDER BY week_ending_date DESC, ticker
                  LIMIT 5000`
@@ -450,6 +450,8 @@ async function handleETFSignalsRead(env: Env, url: URL): Promise<Response> {
     indicatorsJson: (row.indicators_json as string) ?? '{}',
     regime: (row.regime as string) ?? 'neutral',
     closeAtSignal: row.close_at_signal as number | null,
+    prevClose: row.prev_close as number | null,
+    recentCloseJson: (row.recent_close_json as string) ?? '[]',
     ret1w: row.ret1w as number | null,
     ret4w: row.ret4w as number | null,
   }))

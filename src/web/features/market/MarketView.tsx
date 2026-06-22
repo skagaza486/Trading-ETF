@@ -1,18 +1,32 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { useApp } from '../../app/providers/AppContext'
+import { useWatchlist } from '../../shared/hooks/useWatchlist'
 import { LoadingScreen, ErrorScreen } from '../../shared/components/LoadingScreen'
 import { HkPlaceholder } from '../../shared/components/HkPlaceholder'
-import { BreadthCard } from './BreadthCard'
-import { VixCard } from './VixCard'
-import { RvolCard } from './RvolCard'
+import { fetchYahooTickerHistory } from '../../../services/marketData/yahooFinanceProvider'
 import { IndexChart } from './IndexChart'
+import { MiniBreadthChart } from './MiniBreadthChart'
 import { SectorHeatMap } from './SectorHeatMap'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import { getStockMeta } from '../../shared/i18n/stockNames'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import styles from './MarketView.module.css'
+
+const LABEL_SHORT_MV: Partial<Record<StockSignalLabel, string>> = {
+  LONG_BREAK: '突破', LONG_VCP: 'VCP', LONG_BOUNCE: '反彈', LONG_BASE: '整固',
+  WATCH: '觀察', NEUTRAL: '中性', AVOID_CHOP: '震盪',
+  SHORT_BREAK: '空頭突破', SHORT_BASE: '空頭整固', SHORT_WATCH: '空頭轉弱',
+}
+
+function medianRvol(stocks: StockSnapshotEntry[]): number | null {
+  const vals = stocks.map(s => s.indicators.rvol).filter((v): v is number => v !== null)
+  if (!vals.length) return null
+  vals.sort((a, b) => a - b)
+  const mid = Math.floor(vals.length / 2)
+  return vals.length % 2 === 0 ? (vals[mid - 1] + vals[mid]) / 2 : vals[mid]
+}
 
 const SIGNAL_CHIPS = [
   { label: 'LONG_BREAK', zh: '突破' },
@@ -33,6 +47,14 @@ type FocusNarrative = {
   opportunity: string
   risk: string
   invalidation: string
+}
+
+type HeroFact = {
+  label: string
+  value: string
+  note: string
+  priority: 'primary' | 'secondary'
+  tone?: 'gain' | 'warn' | 'muted'
 }
 
 function computeSignalCounts(stocks: StockSnapshotEntry[]) {
@@ -63,13 +85,15 @@ function computeBreadth(stocks: StockSnapshotEntry[]) {
   }
 }
 
+const SECTOR_BULL_LABELS: StockSignalLabel[] = ['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE', 'LONG_BASE']
+
 function buildSectorLeader(stocks: StockSnapshotEntry[]) {
   const map = new Map<string, { total: number; bullish: number }>()
   for (const stock of stocks) {
     const sector = getStockMeta(stock.ticker, stock.name).sectorZh
     const row = map.get(sector) ?? { total: 0, bullish: 0 }
     row.total += 1
-    if (BULLISH_LABELS.includes(stock.label)) row.bullish += 1
+    if (SECTOR_BULL_LABELS.includes(stock.label)) row.bullish += 1
     map.set(sector, row)
   }
 
@@ -121,6 +145,48 @@ function buildHeroSummary(regime: string, breadth: ReturnType<typeof computeBrea
   }
 }
 
+function buildHeroFacts(
+  stocks: StockSnapshotEntry[],
+  breadth: ReturnType<typeof computeBreadth> | null,
+  signalCounts: Record<string, number> | null,
+) : HeroFact[] {
+  const leader = buildSectorLeader(stocks)
+  const breakoutCount = (signalCounts?.LONG_BREAK ?? 0) + (signalCounts?.LONG_VCP ?? 0)
+  const reboundCount = signalCounts?.LONG_BOUNCE ?? 0
+  const weakCount = (signalCounts?.SHORT_BREAK ?? 0) + (signalCounts?.SHORT_BASE ?? 0) + (signalCounts?.AVOID_CHOP ?? 0)
+
+  return [
+    {
+      label: '中期趨勢仍穩',
+      value: `${breadth?.pctAboveEma50 ?? 0}%`,
+      note: '股票仍守住 50 日均線',
+      priority: 'primary',
+      tone: (breadth?.pctAboveEma50 ?? 0) >= 55 ? 'gain' : 'muted',
+    },
+    {
+      label: '長期底子未差',
+      value: `${breadth?.pctAboveEma200 ?? 0}%`,
+      note: '股票仍站在 200 日均線之上',
+      priority: 'primary',
+      tone: (breadth?.pctAboveEma200 ?? 0) >= 50 ? 'gain' : 'muted',
+    },
+    {
+      label: '強勢觸發',
+      value: `${breakoutCount} 突破 · ${reboundCount} 反彈`,
+      note: breakoutCount + reboundCount >= weakCount ? '今天仍有進攻訊號' : '進攻訊號仍偏少',
+      priority: 'secondary',
+      tone: breakoutCount + reboundCount >= weakCount ? 'gain' : 'warn',
+    },
+    {
+      label: '領先板塊',
+      value: leader ? `${leader.sectorZh} ${leader.bullishPct}%` : '未明',
+      note: leader ? '今天最值得先看這個方向' : '暫未見明顯領先群組',
+      priority: 'secondary',
+      tone: leader && leader.bullishPct >= 55 ? 'gain' : 'muted',
+    },
+  ]
+}
+
 function buildThreeThings(
   stocks: StockSnapshotEntry[],
   breadth: ReturnType<typeof computeBreadth> | null,
@@ -134,49 +200,49 @@ function buildThreeThings(
 
   const first: StoryItem = pctAbove50 >= 55
     ? {
-        title: '市場仍偏強',
-        note: `${pctAbove50}% 個股站穩 EMA50，整體承接仍在，回吐未見大面積轉弱。`,
+        title: '大多數股票仍守得住',
+        note: `${pctAbove50}% 股票仍站在 50 日均線之上，代表市場承接仍在，暫未見明顯轉弱。`,
         tone: 'positive',
-        stat: `EMA200 以上 ${pctAbove200}%`,
+        stat: `${pctAbove200}% 仍守住長期趨勢`,
       }
     : pctAbove50 >= 45
       ? {
-          title: '市場保持分化',
-          note: `${pctAbove50}% 個股仍守住 EMA50，暫未轉弱，但追價勝算一般。`,
+          title: '市場未差，但仍在拉鋸',
+          note: `${pctAbove50}% 股票仍守住 50 日均線，代表底子未壞，但強勢範圍仍未全面擴散。`,
           tone: 'neutral',
-          stat: `EMA200 以上 ${pctAbove200}%`,
+          stat: `${pctAbove200}% 仍守住長期趨勢`,
         }
       : {
-          title: '承接開始轉弱',
-          note: '企穩 EMA50 的股票不足一半，短線宜先收窄進攻範圍。',
+          title: '承接開始變弱',
+          note: '守住 50 日均線的股票不足一半，代表市場支撐變薄，短線宜先保守一點。',
           tone: 'risk',
-          stat: `EMA200 以上 ${pctAbove200}%`,
+          stat: `${pctAbove200}% 仍守住長期趨勢`,
         }
 
   const second: StoryItem = leader
     ? {
-        title: `${leader.sectorZh}板塊領先`,
-        note: `${leader.bullishPct}% 成份股維持偏強，今天最值得先看這個板塊。`,
+        title: `${leader.sectorZh}最有帶頭感`,
+        note: `${leader.bullishPct}% 成份股維持偏強，若今天要先看一個方向，這個板塊最值得優先觀察。`,
         tone: leader.bullishPct >= 55 ? 'positive' : 'neutral',
-        stat: `${leader.total} 檔樣本`,
+        stat: `${leader.total} 檔在監測名單`,
       }
     : {
-        title: '領先板塊未明',
-        note: '暫未見板塊形成一致領先，先聚焦個別強勢標的。',
+        title: '板塊領先仍未清晰',
+        note: '暫未見到哪個板塊全面跑出，現階段較適合先觀察個別較強股票。',
         tone: 'neutral',
         stat: '等待確認',
       }
 
   const third: StoryItem = cautionCount > breakoutCount
     ? {
-        title: '波動訊號增加',
-        note: '偏弱或震盪訊號已多於突破訊號，今天較適合等而不是追。',
+        title: '真正強勢訊號仍然不多',
+        note: '偏弱或震盪訊號仍多於突破訊號，代表今天未算全面轉強，較適合等確認而不是追價。',
         tone: 'risk',
         stat: `偏弱 ${cautionCount} · 突破 ${breakoutCount}`,
       }
     : {
-        title: '突破仍在增加',
-        note: '今天突破與反彈訊號仍多，市場未見全面熄火。',
+        title: '市場仍有進攻火種',
+        note: '今天突破與反彈訊號仍在增加，代表市場未熄火，但仍要觀察會否進一步擴散。',
         tone: 'positive',
         stat: `偏弱 ${cautionCount} · 突破 ${breakoutCount}`,
       }
@@ -236,6 +302,17 @@ function buildFocusNarrative(stock: StockSnapshotEntry, breadth: ReturnType<type
 export function MarketView() {
   const { mode, scope, openDetail } = useApp()
   const snap = useSnapshot()
+  const { starred } = useWatchlist()
+  const [vix, setVix] = useState<number | null>(null)
+
+  useEffect(() => {
+    fetchYahooTickerHistory('^VIX', { interval: '1d', range: '5d' })
+      .then(h => {
+        const closes = h.bars.map(b => b.close)
+        setVix(closes[closes.length - 1] ?? null)
+      })
+      .catch(() => {})
+  }, [])
 
   const breadth = useMemo(() => {
     if (snap.status !== 'ok') return null
@@ -247,6 +324,34 @@ export function MarketView() {
     return computeSignalCounts(snap.snapshot.stocks)
   }, [snap])
 
+  const rvolMedian = useMemo(() => {
+    if (snap.status !== 'ok') return null
+    return medianRvol(snap.snapshot.stocks)
+  }, [snap])
+
+  const upgradeDelta = useMemo(() => {
+    if (snap.status !== 'ok') return null
+    const stocks = snap.snapshot.stocks
+    const upgrades = stocks.filter(s =>
+      s.previousLabel !== undefined &&
+      s.previousLabel !== s.label &&
+      BULLISH_LABELS.includes(s.label) &&
+      !BULLISH_LABELS.includes(s.previousLabel)
+    ).length
+    const downgrades = stocks.filter(s =>
+      s.previousLabel !== undefined &&
+      s.previousLabel !== s.label &&
+      BEARISH_LABELS.includes(s.label) &&
+      !BEARISH_LABELS.includes(s.previousLabel)
+    ).length
+    return { upgrades, downgrades }
+  }, [snap])
+
+  const vixColor = vix === null ? 'var(--text-muted)' : vix < 18 ? 'var(--color-gain)' : vix < 26 ? 'var(--color-warn)' : 'var(--color-loss)'
+  const vixTag   = vix === null ? null : vix < 18 ? '低位' : vix < 26 ? '中性' : '高位'
+  const rvolLabel = rvolMedian === null ? null
+    : rvolMedian >= 1.5 ? '量能旺盛' : rvolMedian >= 1.0 ? '量能正常' : '量能萎縮'
+
   if (scope === 'HK') return <HkPlaceholder />
   if (snap.status === 'loading') return <LoadingScreen message="載入大市資料…" />
   if (snap.status === 'error')   return <ErrorScreen message={snap.message} />
@@ -254,15 +359,24 @@ export function MarketView() {
   const { snapshot } = snap
   const staleWarning = snap.stale
   const hero = buildHeroSummary(snapshot.regime, breadth, sigCounts)
-  const changedStocks = getChangedStocks(snapshot.stocks).slice(0, 3)
+  const changedStocks = getChangedStocks(snapshot.stocks)
+    .sort((a, b) => {
+      const aS = starred.has(a.ticker) ? 1 : 0
+      const bS = starred.has(b.ticker) ? 1 : 0
+      if (aS !== bS) return bS - aS
+      return (b.rsRank ?? 0) - (a.rsRank ?? 0)
+    })
+    .slice(0, 3)
   const topIdeas = sortTopIdeas(snapshot.stocks)
   const focusStock = changedStocks.find(stock => STRONG_LABELS.includes(stock.label)) ?? topIdeas[0] ?? snapshot.stocks[0]
   const focusMeta = getStockMeta(focusStock.ticker, focusStock.name)
   const focusNarrative = buildFocusNarrative(focusStock, breadth)
   const threeThings = buildThreeThings(snapshot.stocks, breadth, sigCounts)
-  const discoveryList = topIdeas
-    .filter(stock => stock.ticker !== focusStock.ticker)
-    .slice(0, 3)
+  const heroFacts = buildHeroFacts(snapshot.stocks, breadth, sigCounts)
+  const otherIdeas = topIdeas.filter(stock => stock.ticker !== focusStock.ticker)
+  const starredIdeas = otherIdeas.filter(s => starred.has(s.ticker))
+  const unstarredIdeas = otherIdeas.filter(s => !starred.has(s.ticker))
+  const discoveryList = [...starredIdeas, ...unstarredIdeas].slice(0, 3)
 
   return (
     <div className={styles.view}>
@@ -305,6 +419,16 @@ export function MarketView() {
 
         <div className={styles.heroBottom}>
           <p className={styles.heroSummary}>{hero.summary}</p>
+          {upgradeDelta && (upgradeDelta.upgrades > 0 || upgradeDelta.downgrades > 0) && (
+            <div className={styles.heroDelta}>
+              {upgradeDelta.upgrades > 0 && (
+                <span className={styles.heroDeltaGain}>↑ {upgradeDelta.upgrades} 轉強</span>
+              )}
+              {upgradeDelta.downgrades > 0 && (
+                <span className={styles.heroDeltaLoss}>↓ {upgradeDelta.downgrades} 轉弱</span>
+              )}
+            </div>
+          )}
           {sigCounts && (
             <div className={styles.signalSummary}>
               {SIGNAL_CHIPS.map(({ label, zh }) => {
@@ -318,8 +442,32 @@ export function MarketView() {
               })}
             </div>
           )}
+          {vix !== null && (
+            <div className={styles.vixInline}>
+              <span className={styles.vixKey}>VIX</span>
+              <span className={styles.vixVal} style={{ color: vixColor }}>{vix.toFixed(1)}</span>
+              <span className={styles.vixTag}>{vixTag}</span>
+            </div>
+          )}
+          <div className={styles.heroFacts}>
+            {heroFacts.map(fact => (
+              <div
+                key={fact.label}
+                className={fact.priority === 'primary' ? styles.heroFactPrimary : styles.heroFactSecondary}
+              >
+                <span>{fact.label}</span>
+                <strong className={fact.tone === 'gain' ? styles.factGain : fact.tone === 'warn' ? styles.factWarn : undefined}>
+                  {fact.value}
+                </strong>
+                <small>{fact.note}</small>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
+
+      <IndexChart compact breadthPct={breadth?.pctAboveEma50} rvolLabel={rvolLabel ?? undefined} />
+      <MiniBreadthChart />
 
       <div className={styles.storyGrid}>
         <section className={styles.storyCard}>
@@ -403,6 +551,13 @@ export function MarketView() {
                         <strong>{stock.ticker}</strong>
                         <span>{meta.nameZh}</span>
                       </div>
+                      {stock.previousLabel && stock.previousLabel !== stock.label && (
+                        <p className={styles.changeTrans}>
+                          {LABEL_SHORT_MV[stock.previousLabel] ?? stock.previousLabel}
+                          {' → '}
+                          {LABEL_SHORT_MV[stock.label] ?? stock.label}
+                        </p>
+                      )}
                       <p>{stock.reason}</p>
                     </div>
                     <span className={`${styles.statusPill} ${statusTone}`}>{statusLabel}</span>
@@ -420,13 +575,14 @@ export function MarketView() {
             <div className={styles.discoveryList}>
               {discoveryList.map(stock => {
                 const meta = getStockMeta(stock.ticker, stock.name)
+                const isStarred = starred.has(stock.ticker)
                 return (
                   <button
                     key={stock.ticker}
                     className={styles.discoveryRow}
                     onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
                   >
-                    <strong>{stock.ticker}</strong>
+                    <strong>{isStarred ? '⭐ ' : ''}{stock.ticker}</strong>
                     <p>{meta.descriptionZh}</p>
                   </button>
                 )
@@ -435,14 +591,6 @@ export function MarketView() {
           </section>
         </aside>
       </div>
-
-      <div className={styles.metricGrid}>
-        <BreadthCard breadth={breadth} mode={mode} />
-        <VixCard />
-        <RvolCard stocks={snapshot.stocks} />
-      </div>
-
-      <IndexChart />
 
       <SectorHeatMap stocks={snapshot.stocks} />
     </div>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { useEtfSignals } from '../../shared/hooks/useEtfSignals'
 import { useApp } from '../../app/providers/AppContext'
+import { useWatchlist } from '../../shared/hooks/useWatchlist'
 import { StockCard } from '../../shared/components/StockCard'
 import { EtfCard } from '../../shared/components/EtfCard'
 import { SignalBadge } from '../../shared/components/SignalBadge'
@@ -30,7 +31,7 @@ const ETF_CATEGORY_ZH: Record<string, string> = {
 const etfCategoryMap = new Map(etfUniverse.map(e => [e.ticker, e.category]))
 
 type AssetType = 'stocks' | 'etf' | 'changes'
-type Filter = 'all' | 'bullish' | 'watchlist' | 'bearish'
+type Filter = 'all' | 'starred' | 'bullish' | 'watchlist' | 'bearish'
 
 const BULL_SET = new Set<StockSignalLabel>(['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE','WATCH'])
 const BEAR_SET = new Set<StockSignalLabel>(['SHORT_BREAK','SHORT_BASE','SHORT_WATCH','AVOID_CHOP'])
@@ -56,13 +57,15 @@ const BEARISH_ETF: EtfSignalLabel[] = ['AVOID']
 
 const FILTER_LABELS: { id: Filter; label: string }[] = [
   { id: 'all',       label: '全部' },
+  { id: 'starred',   label: '⭐ 自選' },
   { id: 'bullish',   label: '🟢 看漲' },
   { id: 'watchlist', label: '🟡 觀察' },
   { id: 'bearish',   label: '🔴 偏弱' },
 ]
 
-function filterStocks(stocks: StockSnapshotEntry[], f: Filter): StockSnapshotEntry[] {
+function filterStocks(stocks: StockSnapshotEntry[], f: Filter, starred: Set<string>): StockSnapshotEntry[] {
   switch (f) {
+    case 'starred':   return stocks.filter(s => starred.has(s.ticker))
     case 'bullish':   return stocks.filter(s => BULLISH_STOCK.includes(s.label))
     case 'watchlist': return stocks.filter(s => WATCHLIST_STOCK.includes(s.label))
     case 'bearish':   return stocks.filter(s => BEARISH_STOCK.includes(s.label))
@@ -70,8 +73,9 @@ function filterStocks(stocks: StockSnapshotEntry[], f: Filter): StockSnapshotEnt
   }
 }
 
-function filterEtfs(etfs: EtfSignalEntry[], f: Filter): EtfSignalEntry[] {
+function filterEtfs(etfs: EtfSignalEntry[], f: Filter, starred: Set<string>): EtfSignalEntry[] {
   switch (f) {
+    case 'starred':   return etfs.filter(e => starred.has(e.ticker))
     case 'bullish':   return etfs.filter(e => BULLISH_ETF.includes(e.label))
     case 'watchlist': return etfs.filter(e => WATCHLIST_ETF.includes(e.label))
     case 'bearish':   return etfs.filter(e => BEARISH_ETF.includes(e.label))
@@ -106,6 +110,7 @@ export function DiscoverView() {
   const { mode, scope } = useApp()
   const snap = useSnapshot()
   const etfState = useEtfSignals()
+  const { starred } = useWatchlist()
   const [assetType, setAssetType] = useState<AssetType>('stocks')
   const [filter, setFilter] = useState<Filter>('all')
   const [etfCategory, setEtfCategory] = useState<string | null>(null)
@@ -113,7 +118,7 @@ export function DiscoverView() {
 
   const displayedStocks = useMemo(() => {
     if (snap.status !== 'ok') return []
-    let stocks = filterStocks(snap.snapshot.stocks, filter)
+    let stocks = filterStocks(snap.snapshot.stocks, filter, starred)
     if (search) {
       const q = search.toUpperCase()
       stocks = stocks.filter(s =>
@@ -121,17 +126,22 @@ export function DiscoverView() {
       )
     }
     return [...stocks].sort((a, b) => {
+      if (filter === 'starred') {
+        const aChanged = (a.previousLabel !== undefined && a.previousLabel !== a.label) ? 1 : 0
+        const bChanged = (b.previousLabel !== undefined && b.previousLabel !== b.label) ? 1 : 0
+        if (aChanged !== bChanged) return bChanged - aChanged
+      }
       const aScore = BULLISH_STOCK.includes(a.label) ? 2 : WATCHLIST_STOCK.includes(a.label) ? 1 : 0
       const bScore = BULLISH_STOCK.includes(b.label) ? 2 : WATCHLIST_STOCK.includes(b.label) ? 1 : 0
       if (aScore !== bScore) return bScore - aScore
       return (b.rsRank ?? 0) - (a.rsRank ?? 0)
     })
-  }, [snap, filter, search])
+  }, [snap, filter, search, starred])
 
   const etfsForCategory = useMemo(() => {
     if (etfState.status !== 'ok') return []
-    return filterEtfs(etfState.entries, filter)
-  }, [etfState, filter])
+    return filterEtfs(etfState.entries, filter, starred)
+  }, [etfState, filter, starred])
 
   const availableCategories = useMemo(() => {
     const seen = new Set<string>()
@@ -171,6 +181,30 @@ export function DiscoverView() {
     if (snap.status !== 'ok') return null
     return buildSummary(snap.snapshot.stocks)
   }, [snap])
+
+  const filterCounts = useMemo((): Record<Filter, number> => {
+    if (assetType === 'stocks' && snap.status === 'ok') {
+      const s = snap.snapshot.stocks
+      return {
+        all:       s.length,
+        starred:   s.filter(x => starred.has(x.ticker)).length,
+        bullish:   s.filter(x => BULLISH_STOCK.includes(x.label)).length,
+        watchlist: s.filter(x => WATCHLIST_STOCK.includes(x.label)).length,
+        bearish:   s.filter(x => BEARISH_STOCK.includes(x.label)).length,
+      }
+    }
+    if (assetType === 'etf' && etfState.status === 'ok') {
+      const e = etfState.entries
+      return {
+        all:       e.length,
+        starred:   e.filter(x => starred.has(x.ticker)).length,
+        bullish:   e.filter(x => BULLISH_ETF.includes(x.label)).length,
+        watchlist: e.filter(x => WATCHLIST_ETF.includes(x.label)).length,
+        bearish:   e.filter(x => BEARISH_ETF.includes(x.label)).length,
+      }
+    }
+    return { all: 0, starred: 0, bullish: 0, watchlist: 0, bearish: 0 }
+  }, [snap, etfState, starred, assetType])
 
   const isLoading = assetType === 'etf'
     ? etfState.status === 'loading'
@@ -247,6 +281,9 @@ export function DiscoverView() {
               onClick={() => setFilter(f.id)}
             >
               {f.label}
+              {filterCounts[f.id] > 0 && (
+                <span className={styles.filterCount}>{filterCounts[f.id]}</span>
+              )}
             </button>
           ))}
         </div>
@@ -278,7 +315,9 @@ export function DiscoverView() {
         {count === 0 ? (
           <div className={styles.empty}>
             {assetType === 'changes' ? '今日無信號變動記錄'
-              : search ? `找不到「${search}」的結果` : '此篩選條件下沒有項目'}
+              : search ? `找不到「${search}」的結果`
+              : filter === 'starred' ? '尚未加入自選。在個股詳情頁點 ☆ 即可加入。'
+              : '此篩選條件下沒有項目'}
           </div>
         ) : assetType === 'stocks'
           ? displayedStocks.map((s, i) => <StockCard key={s.ticker} stock={s} showMode={mode} delay={i * 0.04} />)
