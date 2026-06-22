@@ -118,3 +118,87 @@ export function buildFinnhubPayload(symbol: string) {
     earningsCalendar: date ? [{ symbol, date }] : []
   }
 }
+
+const MOCK_INDICATORS = {
+  close: 192.0, low: 190.0,
+  ema20: 191.0, ema50: 185.0, ema200: 170.0,
+  ema20Slope: 0.05, ema50Slope: 0.03,
+  rsi14: 52, macdHistogram: 0.2, rvol: 0.85,
+  cmf20: 0.05, obvSlope: 0.01, clv: 0.65,
+  atrSlope50: -0.01, rvolRecentAvg10: 0.8,
+  breakout20d: false, breakdown20d: false,
+  relStrengthVsSpy: 0.03, atr: 3.5,
+  aboveEma200: true, nearHigh52w: true,
+  recentPullbackNearEma20: true,
+  lowRvolDaysInWindow: 2, atrCompressing: false,
+  priorBaseStreak: null, pullbackRvolAvg: 0.8,
+  rsiSlope3: 2.0, ema150: 180.0, adx14: 22,
+  udVolRatio50: 1.1, nr7: null, extendedFromPivot: false,
+  rsLine: null, rsLineEma50: null, rsLineAboveEma: null, rsLineNewHigh120d: null,
+}
+
+export function buildSnapshotPayload() {
+  return {
+    generatedAt: new Date().toISOString(),
+    date: '2026-06-22',
+    regime: 'long_friendly',
+    proxyWeakBreadth: false,
+    stocks: [
+      {
+        ticker: 'AAPL', name: 'Apple Inc', sector: 'Technology', tier: 1,
+        prevClose: 190.0, recentClose: [192.0, 191.0, 190.0, 189.0, 188.0],
+        label: 'LONG_BOUNCE', previousLabel: 'WATCH',
+        researchFlags: [], indicators: MOCK_INDICATORS,
+        regime: 'long_friendly', earningsWithinWindow: false,
+        reason: 'Bounce from EMA20', rsRank: 75,
+      },
+      {
+        ticker: 'MSFT', name: 'Microsoft Corp', sector: 'Technology', tier: 1,
+        prevClose: 420.0, recentClose: [422.0, 421.0, 420.0, 419.0, 418.0],
+        label: 'LONG_BASE', previousLabel: 'LONG_BASE',
+        researchFlags: [], indicators: { ...MOCK_INDICATORS, close: 422.0, low: 418.0 },
+        regime: 'long_friendly', earningsWithinWindow: false,
+        reason: 'Base building', rsRank: 65,
+      },
+    ],
+    sectors: [],
+  }
+}
+
+export function buildSignalStatsPayload() {
+  return {
+    since: '2026-03-22',
+    days: 90,
+    stats: [
+      { label: 'LONG_BOUNCE', n: 45, avg_ret5d: 1.57, avg_ret10d: 2.1, avg_vs_spy: 1.09, win_rate: 64, avg_mfe5d: 3.2, avg_mae5d: -1.8 },
+      { label: 'LONG_BREAK',  n: 12, avg_ret5d: 2.5,  avg_ret10d: 3.8, avg_vs_spy: 2.3,  win_rate: 67, avg_mfe5d: 4.1, avg_mae5d: -1.2 },
+      { label: 'LONG_VCP',   n: 8,  avg_ret5d: 0.54, avg_ret10d: 1.1, avg_vs_spy: 0.34, win_rate: 52, avg_mfe5d: 2.0, avg_mae5d: -1.5 },
+    ],
+  }
+}
+
+export function buildSignalBreadthPayload() {
+  const rows = Array.from({ length: 20 }, (_, i) => {
+    const d = new Date('2026-06-02')
+    d.setDate(d.getDate() + i)
+    return {
+      date: d.toISOString().slice(0, 10),
+      strong_bull: 8 + (i % 5),
+      base: 15 + (i % 3),
+      bear: 3 + (i % 4),
+      total: 294,
+    }
+  })
+  return { since: '2026-05-22', days: 30, rows }
+}
+
+export function buildPerfByPeriodPayload(label = 'LONG_BOUNCE') {
+  return {
+    label,
+    periods: [
+      { period: '2026-06', n: 12, avg_ret5d: 1.8, avg_vs_spy: 1.2, win_rate: 67, avg_mfe5d: 3.5, avg_mae5d: -1.6 },
+      { period: '2026-05', n: 18, avg_ret5d: 1.4, avg_vs_spy: 0.9, win_rate: 61, avg_mfe5d: 3.0, avg_mae5d: -1.9 },
+      { period: '2026-04', n: 14, avg_ret5d: 0.9, avg_vs_spy: 0.5, win_rate: 57, avg_mfe5d: 2.8, avg_mae5d: -2.1 },
+    ],
+  }
+}

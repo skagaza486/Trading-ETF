@@ -62,6 +62,10 @@ export default {
       return handleTickerHistory(env, url)
     }
 
+    if (url.pathname === '/api/d1/signal-perf-by-period') {
+      return handleSignalPerfByPeriod(env, url)
+    }
+
     // Serve legacy app for /legacy and /legacy/* paths
     if (url.pathname === '/legacy' || url.pathname.startsWith('/legacy/')) {
       const legacyUrl = new URL(request.url)
@@ -388,6 +392,39 @@ async function handleSignalBreadth(env: Env, url: URL): Promise<Response> {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'public, max-age=900'
+    }
+  })
+}
+
+// R7 Walk-forward: returns per-month performance for a single label — D1 SQL slicing replaces browser replay
+async function handleSignalPerfByPeriod(env: Env, url: URL): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+
+  const label = url.searchParams.get('label') ?? 'LONG_BOUNCE'
+  const allowed = new Set(['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE','WATCH','NEUTRAL','SHORT_BREAK','SHORT_BASE','SHORT_WATCH','AVOID_CHOP'])
+  if (!allowed.has(label)) return jsonError('invalid label', 400)
+
+  const { results } = await env.trading_etf_db.prepare(`
+    SELECT
+      SUBSTR(signal_date, 1, 7) AS period,
+      COUNT(*) AS n,
+      ROUND(AVG(ret5d) * 100, 2) AS avg_ret5d,
+      ROUND(AVG(ret5d_vs_spy) * 100, 2) AS avg_vs_spy,
+      ROUND(SUM(CASE WHEN ret5d > 0 THEN 1.0 ELSE 0.0 END) * 100.0 / COUNT(*), 1) AS win_rate,
+      ROUND(AVG(mfe5d) * 100, 2) AS avg_mfe5d,
+      ROUND(AVG(mae5d) * 100, 2) AS avg_mae5d
+    FROM signals
+    WHERE label = ? AND ret5d IS NOT NULL
+    GROUP BY period
+    ORDER BY period DESC
+    LIMIT 12
+  `).bind(label).all()
+
+  return new Response(JSON.stringify({ label, periods: results }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=3600'
     }
   })
 }

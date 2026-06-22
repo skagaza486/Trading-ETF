@@ -111,7 +111,8 @@ export function resolveStockLabel(
   // Multi-bar: price was near EMA20 in last 5 days (recentPullbackNearEma20)
   // HYP-018 (multi-bar): pullback should be on low volume — healthy retracement, not distribution
   // HYP-026: RS Line above EMA50 — research tag only, not a hard gate (EXP-012: no MAE benefit)
-  // EXP-013: MAE is regime-cyclical, not filterable via entry conditions — G6 3/6 rolling windows
+  // EXP-013 CLOSED: CLV 0.7 (HYP-028a) and ema20Slope (HYP-028b) both tested — no MAE improvement.
+  //   MAE 3% is structural to mean-reversion trades; position sizing is the correct control lever.
   // Trigger: close reclaimed EMA20 today with quality close
   // T1 growth stocks need tighter filters — higher volatility causes more EMA20 fakeouts
   const rsiLow         = tier === 1 ? 46 : 42

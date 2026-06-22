@@ -1,34 +1,51 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import { buildFinnhubPayload, buildYahooChartPayload } from './mockMarketData'
+import {
+  buildFinnhubPayload, buildYahooChartPayload,
+  buildSnapshotPayload, buildSignalStatsPayload,
+  buildSignalBreadthPayload, buildPerfByPeriodPayload,
+} from './mockMarketData'
 
 export async function installMockRoutes(page: Page) {
   await page.route('**/api/yahoo/**', async route => {
     const url = new URL(route.request().url())
     const tickerMatch = url.pathname.match(/\/v8\/finance\/chart\/(.+)$/)
     const ticker = decodeURIComponent(tickerMatch?.[1] ?? 'SPY')
-
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(buildYahooChartPayload(ticker))
-    })
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(buildYahooChartPayload(ticker)) })
   })
 
   await page.route('**/api/finnhub/**', async route => {
     const url = new URL(route.request().url())
     const symbol = url.searchParams.get('symbol') ?? 'SPY'
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(buildFinnhubPayload(symbol)) })
+  })
 
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(buildFinnhubPayload(symbol))
-    })
+  await page.route('**/api/snapshot/latest', async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(buildSnapshotPayload()) })
+  })
+
+  await page.route('**/api/d1/signal-stats**', async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(buildSignalStatsPayload()) })
+  })
+
+  await page.route('**/api/d1/signal-breadth**', async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(buildSignalBreadthPayload()) })
+  })
+
+  await page.route('**/api/d1/ticker-history**', async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ticker: 'AAPL', since: '2026-03-22', rows: [] }) })
+  })
+
+  await page.route('**/api/d1/signal-perf-by-period**', async route => {
+    const url = new URL(route.request().url())
+    const label = url.searchParams.get('label') ?? 'LONG_BOUNCE'
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(buildPerfByPeriodPayload(label)) })
   })
 }
 
 export async function prepareApp(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem('onboarding_v1_done', '1')
+    window.localStorage.setItem('ui_mode', 'pro')
   })
   await installMockRoutes(page)
 }
@@ -37,19 +54,23 @@ export async function openApp(page: Page) {
   await prepareApp(page)
   await page.goto('/')
   await closeOnboardingIfPresent(page)
-  await expect(page.locator('.app-header')).toBeVisible()
-  await expect(page.locator('.bottom-nav')).toBeVisible()
+  await expect(page.locator('nav').first()).toBeVisible({ timeout: 10_000 })
 }
 
 export async function closeOnboardingIfPresent(page: Page) {
   const skip = page.getByRole('button', { name: '略過' })
-  if (await skip.isVisible().catch(() => false)) {
+  if (await skip.isVisible({ timeout: 1000 }).catch(() => false)) {
     await skip.click()
   }
 }
 
-export async function openPrimaryTab(page: Page, label: string) {
+export async function openBottomNavTab(page: Page, label: string) {
   await page.getByRole('button', { name: label, exact: true }).click()
+}
+
+// Legacy aliases kept for backward compatibility
+export async function openPrimaryTab(page: Page, label: string) {
+  await openBottomNavTab(page, label)
 }
 
 export async function openVerifySubTab(page: Page, label: string) {
@@ -61,7 +82,6 @@ export async function assertNoHorizontalOverflow(page: Page) {
     const root = document.documentElement
     return root.scrollWidth - root.clientWidth
   })
-
   expect(overflow).toBeLessThanOrEqual(2)
 }
 

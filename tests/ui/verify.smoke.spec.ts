@@ -1,21 +1,46 @@
 import { expect, test } from '@playwright/test'
-import { assertNoHorizontalOverflow, openApp, openPrimaryTab, openVerifySubTab } from './helpers/uiQa'
+import { assertNoHorizontalOverflow, openApp, openBottomNavTab } from './helpers/uiQa'
 
-test.describe('verify workspace smoke', () => {
-  test('covers all three verify sub-tabs', async ({ page }) => {
+test.describe('lab view smoke', () => {
+  test('shows signal breadth chart, stats, and walk-forward section', async ({ page }) => {
     await openApp(page)
-    await openPrimaryTab(page, 'Verify / 驗證')
+    await openBottomNavTab(page, '研究室')
 
-    await openVerifySubTab(page, 'ETF Check')
-    await expect(page.getByText('ETF Replay')).toBeVisible()
+    // Signal breadth chart
+    await expect(page.getByText('信號趨勢（近 30 日）')).toBeVisible()
 
-    await openVerifySubTab(page, 'Stock Check')
-    await expect(page.getByText('歷史記錄 All Signals')).toBeVisible()
+    // Ticker history lookup
+    await expect(page.getByText('個股信號歷程')).toBeVisible()
 
-    await openVerifySubTab(page, 'Signal Proof')
-    await expect(page.getByText('Gate Summary 七關卡驗證')).toBeVisible()
-    await expect(page.getByText('Research Flags Snapshot 研究旗標快照')).toBeVisible()
+    // Signal stats table
+    await expect(page.getByText('信號表現統計')).toBeVisible()
+
+    // Walk-forward section (R7)
+    await expect(page.getByText('走勢一致性（月度拆解）')).toBeVisible()
 
     await assertNoHorizontalOverflow(page)
+  })
+
+  test('walk-forward section switches label and shows monthly table', async ({ page }) => {
+    await openApp(page)
+    await openBottomNavTab(page, '研究室')
+
+    await expect(page.getByText('走勢一致性（月度拆解）')).toBeVisible()
+
+    // Monthly data should be visible (mocked)
+    await expect(page.getByText('2026-06')).toBeVisible({ timeout: 8_000 })
+
+    // Switch to 突破 label
+    await page.getByRole('button', { name: '突破', exact: true }).first().click()
+    await assertNoHorizontalOverflow(page)
+  })
+
+  test('legacy lab link is accessible', async ({ page }) => {
+    await openApp(page)
+    await openBottomNavTab(page, '研究室')
+    await expect(page.getByText('進階研究室')).toBeVisible()
+    const link = page.getByRole('link', { name: '開啟研究室（舊版）↗' })
+    await expect(link).toBeVisible()
+    await expect(link).toHaveAttribute('href', '/legacy.html')
   })
 })

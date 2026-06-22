@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useSignalStats } from '../../shared/hooks/useSignalStats'
 import { useSignalBreadth } from '../../shared/hooks/useSignalBreadth'
 import { useTickerHistory } from '../../shared/hooks/useTickerHistory'
+import { usePerfByPeriod } from '../../shared/hooks/usePerfByPeriod'
 import { BreadthChart } from './BreadthChart'
 import styles from './LabView.module.css'
 
@@ -24,6 +25,15 @@ const BEAR_LABELS = new Set(['SHORT_BREAK','SHORT_BASE','SHORT_WATCH','AVOID_CHO
 
 const DAYS_OPTIONS = [30, 90, 180] as const
 type DaysOpt = (typeof DAYS_OPTIONS)[number]
+
+const PERF_LABELS = ['LONG_BOUNCE', 'LONG_BREAK', 'LONG_VCP'] as const
+type PerfLabel = (typeof PERF_LABELS)[number]
+
+const PERF_LABEL_ZH: Record<PerfLabel, string> = {
+  LONG_BOUNCE: 'EMA 反彈',
+  LONG_BREAK:  '突破',
+  LONG_VCP:    'VCP 突破',
+}
 
 function pct(v: number | null, decimals = 1): string {
   if (v === null) return '—'
@@ -123,6 +133,73 @@ function TickerHistorySection() {
   )
 }
 
+function WalkForwardSection() {
+  const [label, setLabel] = useState<PerfLabel>('LONG_BOUNCE')
+  const state = usePerfByPeriod(label)
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>走勢一致性（月度拆解）</h2>
+        <div className={styles.daysTabs}>
+          {PERF_LABELS.map(l => (
+            <button
+              key={l}
+              className={label === l ? styles.dayActive : styles.dayBtn}
+              onClick={() => setLabel(l)}
+            >
+              {PERF_LABEL_ZH[l]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {state.status === 'loading' && <div className={styles.loading}>載入中…</div>}
+      {state.status === 'error'   && <div className={styles.error}>無法載入月度數據</div>}
+      {state.status === 'ok' && state.rows.length === 0 && (
+        <div className={styles.loading}>暫無足夠歷史數據</div>
+      )}
+      {state.status === 'ok' && state.rows.length > 0 && (
+        <>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th className={styles.thLabel}>月份</th>
+                  <th className={styles.th}>次數</th>
+                  <th className={styles.th}>勝率</th>
+                  <th className={styles.th}>5日均報</th>
+                  <th className={styles.th}>vs SPY</th>
+                  <th className={styles.th}>MFE</th>
+                  <th className={styles.th}>MAE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.rows.map(row => (
+                  <tr key={row.period} className={styles.row}>
+                    <td className={styles.tdDate}>{row.period}</td>
+                    <td className={styles.td}>{row.n}</td>
+                    <td className={styles.td} style={{ color: pctColor(row.winRate ? row.winRate - 50 : null) }}>
+                      {row.winRate !== null ? `${row.winRate.toFixed(0)}%` : '—'}
+                    </td>
+                    <td className={styles.td} style={{ color: pctColor(row.avgRet5d) }}>{pct(row.avgRet5d)}</td>
+                    <td className={styles.td} style={{ color: pctColor(row.avgVsSpy) }}>{pct(row.avgVsSpy)}</td>
+                    <td className={styles.td} style={{ color: 'var(--color-gain)' }}>{pct(row.avgMfe5d)}</td>
+                    <td className={styles.td} style={{ color: 'var(--color-loss)' }}>{pct(row.avgMae5d)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className={styles.note}>
+            每月信號（已結算 5 日回報）。MFE = 最大有利波動，MAE = 最大不利波動。研究參考，非投資建議。
+          </p>
+        </>
+      )}
+    </section>
+  )
+}
+
 export function LabView() {
   const [days, setDays] = useState<DaysOpt>(90)
   const statsState = useSignalStats(days)
@@ -212,6 +289,9 @@ export function LabView() {
           </>
         )}
       </section>
+
+      {/* Walk-forward: monthly performance breakdown (R7) */}
+      <WalkForwardSection />
 
       {/* Legacy app link */}
       <section className={styles.legacySection}>

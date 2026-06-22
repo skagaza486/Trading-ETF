@@ -4,44 +4,73 @@
 
 ---
 
-## 現況快照（2026-06-19）
+## 現況快照（2026-06-22）
 
 | 層級 | 狀態 |
 | --- | --- |
 | Signal engine | 穩定。LONG_BOUNCE T1 avg5D +1.57%，LONG_BREAK avg5D +2.5% vs SPY +2.3% |
-| 雲端架構 | B1 + B2 上線。KV daily snapshot + D1 signals，cron 21:30 UTC Mon–Fri |
+| 資料管線 | GitHub Actions `snapshot.yml` off-peak 21:30 UTC；294 隻 KV snapshot 正常寫入；`POST /api/admin/ingest-snapshot` 備援 |
 | Watchlist | 299 stocks（T1=123 growth，T2=176 defensive） |
-| UI | UI 1.1 完成並部署。Git → Cloudflare Workers 自動 build + deploy |
+| UI | **UI 2.0** 完成並部署。5-tab 新架構（大市/板塊/發現/詳情/研究室）+ Trust-First P0 全落實 |
 
 ---
 
-## ✅ 完成：UI 1.1 + 雲端遷移（2026-06-19）
+## ✅ 完成：UI 2.0 Trust-First 重設計（2026-06-22）
 
-### UI-A　Stocks 頁 → list-first screener　✅ 完成
+### P0　止血信任　✅ 完成
 
-### UI-B　Verify 頁 → overview-first workbench　✅ 完成
+- [x] 港股 onboarding 鎖定（禁選 HK，顯示「即將推出」）
+- [x] `DetailView` 移除寫死回報，改用 `/api/d1/signal-stats` 動態顯示真實樣本（n<20 不顯示）
+- [x] `BreadthCard` 改名「偏強/偏弱訊號數」（原 advancers/decliners 語意不準）
+- [x] `InfoDot` ❓ 元件上線，接入市寬 / VIX / RVOL 三卡
 
-### UI-C　其他　✅ 完成
+### P1　新手決策流程　✅ 完成
+
+- [x] 大市首頁重組：Hero 天氣卡 + IndexStrip（3 指數 + 市寬/RVOL 小字）+ Story Grid（今日三件事 / 今日值得研究 / 今日動向）
+- [x] 「今日值得研究」行動板：機會 / 主要風險 / 失效條件三行
+- [x] 詳情頁「現在哪一步？」stage indicator（觀察名單 → 等待突破 → 入場時機）
+- [x] TopBar 顯示資料最後更新時間
+- [x] snapshot 補 `prevClose` + `recentClose[]`（5日收盤）→ 解鎖卡片日漲跌% + sparkline
+
+### P2　留存閉環　✅ 完成
+
+- [x] 真正的 ⭐ 自選（localStorage `trading-etf-watchlist`）
+- [x] 「今日動向」上提到大市首頁，已starred 股票排序優先
+- [x] BottomNav Discover tab badge：自選標的有 label 變動時自動亮起
+
+### P3　深度功能　✅ 完成
+
+- [x] 詳情頁接入 Finnhub 新聞（`useFinancialNews`）
+- [x] 詳情頁財報日曆（`useEarningsDate`，30 日內財報警示）
+- [x] 板塊頁：強度 × 近期推進速度 scatter chart、自選曝險面板
+- [x] 發現頁：summary strip（今日 N 檔 · 轉強 · 板塊最多）
+
+### 設計系統　✅ 完成
+
+- [x] Calm Fintech 色彩系統（`--accent: #4C9DF7`，neutral dark 背景，清除所有硬編碼綠色）
+- [x] 舊 App.tsx 保留為 `/legacy` 入口；新 `src/web/` greenfield 架構
+
+### 資料管線遷移　✅ 完成
+
+- [x] `buildDailySnapshot` + `fetchBatch` 加 `FetchTuning`（retry/backoff/batchDelay）
+- [x] Worker `POST /api/admin/ingest-snapshot`（token 保護）
+- [x] `scripts/build-snapshot.ts` + `.github/workflows/snapshot.yml`（21:30 UTC Mon–Fri + manual dispatch）
+- [x] Worker cron 保留為 fallback（settle / gate / ETF）
 
 ---
 
-### B1+　Signal classification 移入 cron　✅ 完成
+## ✅ 完成：UI 1.1 + 雲端遷移（2026-06-19 封存）
 
-cron 已寫 label 進 KV snapshot；瀏覽器直接讀取，不再做 client-side classification。
+### B1+　Signal classification 移入 cron　✅
 
-- [x] `cronSnapshot.ts` 加入 `signalClassifier` 呼叫，把 `label` 寫入 KV snapshot
-- [x] `snapshotProvider.ts` 直接讀 label，不再 client-side 分類
-- [x] `App.tsx` 移除 client-side classify fallback（`buildStockRows` + `classifyStock` import 已刪）
-- **結果：** 瀏覽器變純 renderer，snapshot 不可用時顯示錯誤訊息
+- `cronSnapshot.ts` 加入 `signalClassifier` 呼叫，把 `label` 寫入 KV snapshot
+- 瀏覽器變純 renderer，snapshot 不可用時顯示錯誤訊息
 
-### B2+　Gate Summary 自動寫 D1　✅ 完成
+### B2+　Gate Summary 自動寫 D1　✅
 
-- [x] cron 完成分類後，把各 label 的 n / avg5D / vs SPY / gate pass/fail 寫入 `gate_snapshots` 表
-- [x] `signals` 表加入 forward-return 欄位（ret1d…mae10d, stop_loss_hit 等）；migration: `schema/d1-migrate-b2.sql`
-- [x] cron 執行 `writeHistoricalSignalsToD1`（250 bars replay）backfill forward returns
-- [x] `/api/d1/signals` 回傳 `ForwardReturnRecord[]`（days=365, limit 5000）
-- [x] `loadResearchData` 改為 fetch `/api/d1/signals`，移除 `buildHistoricalSignals` / `buildForwardReturnRecord` client-side 重算
-- **結果：** Verify tab 直接讀 D1，無需 client-side replay；EXP gate 數據由 cron 統一維護
+- cron 把各 label 的 n / avg5D / vs SPY / gate pass/fail 寫入 `gate_snapshots` 表
+- `signals` 表加入 forward-return 欄位；cron 執行 250 bars replay backfill
+- `/api/d1/signals` 回傳 `ForwardReturnRecord[]`；Verify tab 直接讀 D1，無 client-side replay
 
 ---
 
@@ -54,11 +83,11 @@ cron 已寫 label 進 KV snapshot；瀏覽器直接讀取，不再做 client-sid
 | R1　Breadth regime 升級 | 把 `proxyWeakBreadth` 升為正式 regime enum | I1 live observation 證明有用後 |
 | R2　ETF conditional routing | 不同 regime 走不同 scoring 邏輯 | R1 驗證後 |
 | R6　FRED 簡化濾網 | liquidity slope / warning 作 regime note | B1+ cron 穩定後接入 |
-| R7　Walk-forward 升級 | 直接 SQL 查詢 D1 切片，取代瀏覽器記憶體計算 | B2+ 上線後 |
+| R7　Walk-forward 升級 ✅ | LabView 新增「走勢一致性（月度拆解）」：`/api/d1/signal-perf-by-period` SQL 切片取代瀏覽器記憶體 | B2+ ✅ 已完成 |
 | ADX　HYP-022 | 在非牛市或更長時間跨度重新評估區分力 | 需要更多樣本 |
-| EXP-013　LONG_BOUNCE MAE | CLV floor 0.6→0.7 或收窄 recentPullbackNearEma20 | 現有架構內可做 |
-| B3 + L8　Python ML backend + Meta-labeling | B3 基建（Python 環境、data pipeline、schema 對齊）可現在準備；實際 ML 訓練等 D1 資料積累。**unblock：2026-07-19**（D1 上線滿 30 天） | R7 ✅，D1 上線 2026-06-19 |
-| L9　Headless UI smoke test（Playwright） | Dashboard smoke test 可先試點；全面展開等 **UI-A + UI-B 完成後** | UI 1.1 完成後 |
+| EXP-013　LONG_BOUNCE MAE ✅ 關閉 | HYP-028a CLV 0.7 + HYP-028b ema20Slope 均已測試無效；MAE 3% 是結構性特徵，position sizing 是正確槓桿 | — |
+| L9　Headless UI smoke test（Playwright）✅ | navigation / layout / lab 三個 spec 已更新至 UI 2.0 架構；mock snapshot + D1 routes | UI 2.0 完成後 ✅ |
+| B3 + L8　Python ML backend + Meta-labeling | B3 基建（Python 環境、data pipeline、schema 對齊）可現在準備；實際 ML 訓練等 D1 資料積累。**unblock：2026-07-19**（D1 上線 2026-06-19 滿 30 天） | R7 ✅，D1 上線 2026-06-19 |
 
 ---
 
@@ -74,8 +103,8 @@ cron 已寫 label 進 KV snapshot；瀏覽器直接讀取，不再做 client-sid
 | L4　Options / IV-HV 濾網 | 容易把 repo 拉向衍生品資料平台 |
 | L5　Social sentiment | 噪音高，可驗證性弱 |
 | L6　Macro blackout calendar | 輔助風險層，不應早於核心 signal quality |
-| L8　ML / Meta-labeling | 見研究待驗證 — 已升級，2026-07-19 unblock |
-| L9　Headless UI smoke test（Playwright） | 見研究待驗證 — 已升級，UI 1.1 完成後展開 |
+| L8　ML / Meta-labeling | 見研究待驗證 — unblock 2026-07-19（D1 滿 30 天） |
+| L9　Headless UI smoke test（Playwright） | 見研究待驗證 — UI 2.0 完成後可展開 |
 
 ---
 
