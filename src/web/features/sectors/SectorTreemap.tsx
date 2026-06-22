@@ -21,7 +21,7 @@ function formatCap(cap: number) {
 
 type SectorRowProps = {
   sector: SectorLeadership
-  onSelect: (ticker: string) => void
+  onSelect: (ticker: string, name: string) => void
 }
 
 function SectorRow({ sector, onSelect }: SectorRowProps) {
@@ -50,7 +50,7 @@ function SectorRow({ sector, onSelect }: SectorRowProps) {
             className={`${styles.tile} ${tileColor(stock.label)}`}
             style={{ flexBasis: `calc(${pct}% - 3px)` }}
             title={`${stock.ticker} ${stock.name}${stock.marketCap ? ' · ' + formatCap(stock.marketCap) : ''} · ${stock.label}`}
-            onClick={() => onSelect(stock.ticker)}
+            onClick={() => onSelect(stock.ticker, stock.name)}
           >
             <span className={styles.tileTicker}>{stock.ticker}</span>
             {stock.marketCap && pct >= 5 && (
@@ -91,7 +91,11 @@ export function SectorTreemap({ sectors }: Props) {
         <span className={styles.legendNote}>格子寬度 ≈ 市值比例</span>
       </div>
       {sorted.map(sector => (
-        <SectorRow key={sector.sectorZh} sector={sector} onSelect={openDetail} />
+        <SectorRow
+          key={sector.sectorZh}
+          sector={sector}
+          onSelect={(ticker, name) => openDetail({ ticker, name })}
+        />
       ))}
     </div>
   )
