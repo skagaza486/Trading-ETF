@@ -13,6 +13,7 @@ import { etfUniverse } from '../../../data/etfUniverse'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import type { EtfSignalEntry, EtfSignalLabel } from '../../shared/hooks/useEtfSignals'
+import { buildVerificationNote, buildWatchout, buildWhyNow, hasMeaningfulChange, hasRaisedRisk } from '../../shared/stockNarrative'
 import styles from './DiscoverView.module.css'
 
 const ETF_CATEGORY_ZH: Record<string, string> = {
@@ -31,7 +32,7 @@ const ETF_CATEGORY_ZH: Record<string, string> = {
 const etfCategoryMap = new Map(etfUniverse.map(e => [e.ticker, e.category]))
 
 type AssetType = 'stocks' | 'etf' | 'changes'
-type Filter = 'all' | 'starred' | 'bullish' | 'watchlist' | 'bearish'
+type Filter = 'all' | 'starred' | 'bullish' | 'watchlist' | 'bearish' | 'changed' | 'risk'
 type OpportunityKind = 'new' | 'continuing' | 'waiting' | 'risk'
 
 type OpportunityGroup = {
@@ -46,7 +47,7 @@ const BEAR_SET = new Set<StockSignalLabel>(['SHORT_BREAK','SHORT_BASE','SHORT_WA
 
 function getChangedStocks(stocks: StockSnapshotEntry[]) {
   return stocks
-    .filter(s => s.previousLabel !== undefined && s.previousLabel !== s.label)
+    .filter(hasMeaningfulChange)
     .sort((a, b) => {
       const aUp = BULL_SET.has(a.label) && !BULL_SET.has(a.previousLabel!) ? -1 : 0
       const bUp = BULL_SET.has(b.label) && !BULL_SET.has(b.previousLabel!) ? -1 : 0
@@ -69,6 +70,8 @@ const FILTER_LABELS: { id: Filter; label: string }[] = [
   { id: 'bullish',   label: '🟢 看漲' },
   { id: 'watchlist', label: '🟡 觀察' },
   { id: 'bearish',   label: '🔴 偏弱' },
+  { id: 'changed',   label: '↗ 今日有變化' },
+  { id: 'risk',      label: '⚠ 風險升高' },
 ]
 
 function filterStocks(stocks: StockSnapshotEntry[], f: Filter, starred: Set<string>): StockSnapshotEntry[] {
@@ -77,6 +80,8 @@ function filterStocks(stocks: StockSnapshotEntry[], f: Filter, starred: Set<stri
     case 'bullish':   return stocks.filter(s => BULLISH_STOCK.includes(s.label))
     case 'watchlist': return stocks.filter(s => WATCHLIST_STOCK.includes(s.label))
     case 'bearish':   return stocks.filter(s => BEARISH_STOCK.includes(s.label))
+    case 'changed':   return stocks.filter(hasMeaningfulChange)
+    case 'risk':      return stocks.filter(hasRaisedRisk)
     default:          return stocks
   }
 }
@@ -244,6 +249,8 @@ export function DiscoverView() {
         bullish:   s.filter(x => BULLISH_STOCK.includes(x.label)).length,
         watchlist: s.filter(x => WATCHLIST_STOCK.includes(x.label)).length,
         bearish:   s.filter(x => BEARISH_STOCK.includes(x.label)).length,
+        changed:   s.filter(hasMeaningfulChange).length,
+        risk:      s.filter(hasRaisedRisk).length,
       }
     }
     if (assetType === 'etf' && etfState.status === 'ok') {
@@ -254,9 +261,11 @@ export function DiscoverView() {
         bullish:   e.filter(x => BULLISH_ETF.includes(x.label)).length,
         watchlist: e.filter(x => WATCHLIST_ETF.includes(x.label)).length,
         bearish:   e.filter(x => BEARISH_ETF.includes(x.label)).length,
+        changed:   0,
+        risk:      0,
       }
     }
-    return { all: 0, starred: 0, bullish: 0, watchlist: 0, bearish: 0 }
+    return { all: 0, starred: 0, bullish: 0, watchlist: 0, bearish: 0, changed: 0, risk: 0 }
   }, [snap, etfState, starred, assetType])
 
   const isLoading = assetType === 'etf'
@@ -378,6 +387,8 @@ export function DiscoverView() {
             {assetType === 'changes' ? '今日無信號變動記錄'
               : search ? `找不到「${search}」的結果`
               : filter === 'starred' ? '尚未加入自選。在個股詳情頁點 ☆ 即可加入。'
+              : filter === 'changed' ? '今天暫時沒有新的信號變化。'
+              : filter === 'risk' ? '今天暫時沒有明顯升高的風險提示。'
               : '此篩選條件下沒有項目'}
           </div>
         ) : assetType === 'stocks'
@@ -435,7 +446,10 @@ function OpportunityRow({ stock }: { stock: StockSnapshotEntry }) {
   const dayPct = stock.prevClose && stock.prevClose > 0
     ? ((stock.indicators.close - stock.prevClose) / stock.prevClose) * 100
     : null
-  const changed = stock.previousLabel !== undefined && stock.previousLabel !== stock.label
+  const changed = hasMeaningfulChange(stock)
+  const whyNow = buildWhyNow(stock)
+  const watchout = buildWatchout(stock)
+  const verification = buildVerificationNote(stock)
 
   return (
     <button
@@ -450,6 +464,11 @@ function OpportunityRow({ stock }: { stock: StockSnapshotEntry }) {
         {changed
           ? `${LABEL_SHORT[stock.previousLabel ?? ''] ?? stock.previousLabel} → ${LABEL_SHORT[stock.label] ?? stock.label}`
           : `RS ${stock.rsRank ?? '—'}`}
+      </div>
+      <div className={styles.opportunityNarrative}>
+        <span>{whyNow}</span>
+        <span>{watchout}</span>
+        <span>{verification}</span>
       </div>
       <div className={styles.opportunityPrice}>
         <strong>${stock.indicators.close.toFixed(2)}</strong>

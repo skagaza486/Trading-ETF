@@ -60,6 +60,22 @@
   -webkit-box-orient: vertical;
 }
 
+.narrative {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.whyNow,
+.watchout {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.whyNow { color: var(--text-secondary); }
+.watchout { color: var(--text-muted); }
+
 .bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
 .priceBlock {

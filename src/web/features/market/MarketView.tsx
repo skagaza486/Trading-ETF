@@ -11,6 +11,7 @@ import { SectorHeatMap } from './SectorHeatMap'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import { getStockMeta } from '../../shared/i18n/stockNames'
 import { buildSectorLeadership } from '../../shared/market/sectorLeadership'
+import { buildVerificationNote, buildWatchout, buildWhyNow, hasMeaningfulChange } from '../../shared/stockNarrative'
 import type { StockSnapshotEntry, LiquidityNote } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import styles from './MarketView.module.css'
@@ -235,7 +236,7 @@ function buildThreeThings(
 
 function getChangedStocks(stocks: StockSnapshotEntry[]) {
   return stocks
-    .filter(stock => stock.previousLabel !== undefined && stock.previousLabel !== stock.label)
+    .filter(hasMeaningfulChange)
     .sort((a, b) => (b.rsRank ?? 0) - (a.rsRank ?? 0))
 }
 
@@ -282,10 +283,39 @@ function buildFocusNarrative(stock: StockSnapshotEntry, breadth: ReturnType<type
   }
 }
 
+function buildMarketQueue(stock: StockSnapshotEntry, breadth: ReturnType<typeof computeBreadth> | null) {
+  const whyNow = buildWhyNow(stock)
+  const verification = buildVerificationNote(stock)
+  const marketSoft = (breadth?.pctAboveEma50 ?? 50) < 45
+
+  return {
+    whyNow,
+    watchout: marketSoft && STRONG_LABELS.includes(stock.label)
+      ? '大市承接仍偏薄，就算個股漂亮，也要防止假突破。'
+      : buildWatchout(stock),
+    verification,
+  }
+}
+
 const LIQUIDITY_CONFIG = {
-  expanding:    { dot: styles.liqDotGreen,  label: '聯儲流動性擴張' },
-  flat:         { dot: styles.liqDotYellow, label: '聯儲流動性平穩' },
-  contracting:  { dot: styles.liqDotRed,    label: '聯儲流動性收縮' },
+  expanding: {
+    dot: styles.liqDotGreen,
+    badge: '聯儲偏放水',
+    headline: '市場資金環境偏寬鬆，對股市通常較友善',
+    takeaway: '可理解成大環境順風較多，但仍要配合真正強的突破與市寬，不是單獨買入訊號。',
+  },
+  flat: {
+    dot: styles.liqDotYellow,
+    badge: '聯儲偏持平',
+    headline: '市場資金環境沒有明顯變好或變差',
+    takeaway: '意思是大環境暫時不幫忙也不拖後腿，選股仍要看市寬、量價和個股結構。',
+  },
+  contracting: {
+    dot: styles.liqDotRed,
+    badge: '聯儲偏收水',
+    headline: '市場資金環境在收緊，股市較容易轉弱',
+    takeaway: '可理解成大環境逆風變多，追高要更小心，尤其不要太相信弱勢反彈。',
+  },
 }
 
 function LiquidityBanner({ note }: { note: LiquidityNote }) {
@@ -293,11 +323,18 @@ function LiquidityBanner({ note }: { note: LiquidityNote }) {
   const sign = note.change4wB >= 0 ? '+' : ''
   return (
     <div className={styles.liqBanner}>
-      <span className={`${styles.liqDot} ${cfg.dot}`} />
-      <span className={styles.liqLabel}>{cfg.label}</span>
-      <span className={styles.liqDetail}>
-        {sign}{note.change4wB}B / 4周 · 淨流動性 {note.netLiquidityB}B · {note.asOf}
-      </span>
+      <div className={styles.liqHeader}>
+        <span className={`${styles.liqDot} ${cfg.dot}`} />
+        <span className={styles.liqLabel}>{cfg.badge}</span>
+      </div>
+      <div className={styles.liqCopy}>
+        <p className={styles.liqEyebrow}>這是什麼：看聯儲最近是在放水、收水，還是大致持平</p>
+        <p className={styles.liqHeadline}>{cfg.headline}</p>
+        <p className={styles.liqTakeaway}>{cfg.takeaway}</p>
+        <p className={styles.liqDetail}>
+          4周變化 {sign}{note.change4wB}B · 淨流動性 {note.netLiquidityB}B · 資料截至 {note.asOf}
+        </p>
+      </div>
     </div>
   )
 }
@@ -374,6 +411,7 @@ export function MarketView() {
   const focusStock = changedStocks.find(stock => STRONG_LABELS.includes(stock.label)) ?? topIdeas[0] ?? snapshot.stocks[0]
   const focusMeta = getStockMeta(focusStock.ticker, focusStock.name)
   const focusNarrative = buildFocusNarrative(focusStock, breadth)
+  const focusQueue = buildMarketQueue(focusStock, breadth)
   const threeThings = buildThreeThings(snapshot.stocks, breadth, sigCounts)
   const heroFacts = buildHeroFacts(snapshot.stocks, breadth, sigCounts)
   const otherIdeas = topIdeas.filter(stock => stock.ticker !== focusStock.ticker)
@@ -470,11 +508,6 @@ export function MarketView() {
       </section>
 
       <IndexChart compact breadthPct={breadth?.pctAboveEma50} rvolLabel={rvolLabel ?? undefined} />
-      <MiniBreadthChart />
-
-      {mode === 'pro' && snap.status === 'ok' && snap.snapshot.liquidityNote && (
-        <LiquidityBanner note={snap.snapshot.liquidityNote} />
-      )}
 
       <div className={styles.storyGrid}>
         <section className={styles.storyCard}>
@@ -525,8 +558,18 @@ export function MarketView() {
               <h4>失效條件</h4>
               <p>{focusNarrative.invalidation}</p>
             </article>
+            <article className={styles.focusNote}>
+              <h4>仍需確認</h4>
+              <p>{focusQueue.verification}</p>
+            </article>
           </div>
         </section>
+
+        {mode === 'pro' && snap.status === 'ok' && snap.snapshot.liquidityNote && (
+          <div className={styles.storyLiquidity}>
+            <LiquidityBanner note={snap.snapshot.liquidityNote} />
+          </div>
+        )}
 
         <aside className={styles.sideRail}>
           <section className={styles.railCard}>
@@ -537,6 +580,7 @@ export function MarketView() {
             <div className={styles.changeList}>
               {(changedStocks.length ? changedStocks : topIdeas.slice(0, 3)).map(stock => {
                 const meta = getStockMeta(stock.ticker, stock.name)
+                const queue = buildMarketQueue(stock, breadth)
                 const statusTone =
                   BEARISH_LABELS.includes(stock.label) ? styles.statusRisk
                   : STRONG_LABELS.includes(stock.label) ? styles.statusPositive
@@ -565,7 +609,8 @@ export function MarketView() {
                           {LABEL_SHORT_MV[stock.label] ?? stock.label}
                         </p>
                       )}
-                      <p>{stock.reason}</p>
+                      <p>{queue.whyNow}</p>
+                      <p className={styles.changeSubtle}>先留意：{queue.watchout}</p>
                     </div>
                     <span className={`${styles.statusPill} ${statusTone}`}>{statusLabel}</span>
                   </button>
@@ -583,6 +628,7 @@ export function MarketView() {
               {discoveryList.map(stock => {
                 const meta = getStockMeta(stock.ticker, stock.name)
                 const isStarred = starred.has(stock.ticker)
+                const queue = buildMarketQueue(stock, breadth)
                 return (
                   <button
                     key={stock.ticker}
@@ -590,7 +636,8 @@ export function MarketView() {
                     onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
                   >
                     <strong>{isStarred ? '⭐ ' : ''}{stock.ticker}</strong>
-                    <p>{meta.descriptionZh}</p>
+                    <p>{queue.whyNow}</p>
+                    <p className={styles.discoverySubtle}>仍需確認：{queue.verification}</p>
                   </button>
                 )
               })}
@@ -598,6 +645,8 @@ export function MarketView() {
           </section>
         </aside>
       </div>
+
+      <MiniBreadthChart />
 
       <SectorHeatMap stocks={snapshot.stocks} />
     </div>

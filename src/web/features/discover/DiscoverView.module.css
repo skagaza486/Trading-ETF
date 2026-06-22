@@ -308,6 +308,19 @@
   color: var(--text-secondary);
 }
 
+.opportunityNarrative {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.opportunityNarrative span {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .opportunityPrice {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -353,6 +366,7 @@
   }
 
   .opportunityMove { grid-column: 1; }
+  .opportunityNarrative { grid-column: 1 / -1; }
   .opportunityPrice { grid-column: 2; grid-row: 1 / span 2; }
   .opportunityRow > :last-child { grid-column: 1 / -1; justify-self: start; }
 }

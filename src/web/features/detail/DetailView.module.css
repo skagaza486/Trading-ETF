@@ -115,6 +115,12 @@
 
 .explainText { font-size: 13px; color: var(--text-primary); line-height: 1.55; }
 
+.narrativeGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
 .disclaimer { font-size: 10px; color: var(--text-muted); }
 
 .newsList {

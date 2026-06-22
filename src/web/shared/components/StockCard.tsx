@@ -4,6 +4,7 @@ import { getStockMeta } from '../i18n/stockNames'
 import { getStockLogoAsset } from '../../../ui/assetRegistry'
 import { Sparkline } from './Sparkline'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
+import { buildWatchout, buildWhyNow } from '../stockNarrative'
 import styles from './StockCard.module.css'
 
 type Props = { stock: StockSnapshotEntry; showMode?: 'simple' | 'pro'; delay?: number }
@@ -20,6 +21,8 @@ export function StockCard({ stock, showMode = 'simple', delay = 0 }: Props) {
   const dayPct = prevClose && prevClose > 0
     ? ((close - prevClose) / prevClose) * 100
     : null
+  const whyNow = buildWhyNow(stock)
+  const watchout = buildWatchout(stock)
 
   const pctFromEma50 = ema50 && ema50 > 0 ? ((close - ema50) / ema50) * 100 : null
   const signalTone = stock.label.startsWith('LONG_')
@@ -50,6 +53,10 @@ export function StockCard({ stock, showMode = 'simple', delay = 0 }: Props) {
           {meta.descriptionZh && (
             <p className={styles.desc}>{meta.descriptionZh}</p>
           )}
+          <div className={styles.narrative}>
+            <p className={styles.whyNow}>為何現在：{whyNow}</p>
+            <p className={styles.watchout}>先留意：{watchout}</p>
+          </div>
         </div>
       </div>
 

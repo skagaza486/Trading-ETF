@@ -13,6 +13,7 @@ import { EtfSignalBadge } from '../../shared/components/EtfSignalBadge'
 import { getStockMeta } from '../../shared/i18n/stockNames'
 import { getStockLogoAsset } from '../../../ui/assetRegistry'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
+import { buildVerificationNote, buildWatchout, buildWhyNow } from '../../shared/stockNarrative'
 import styles from './DetailView.module.css'
 
 const TIMEFRAMES: { id: TimeFrame; label: string }[] = [
@@ -62,6 +63,9 @@ export function DetailView() {
   const meta = getStockMeta(detailTarget.ticker, stock?.name)
   const logo = getStockLogoAsset(detailTarget.ticker)
   const explanation = stock ? (SIGNAL_EXPLANATION[stock.label] ?? '') : ''
+  const whyNow = stock ? buildWhyNow(stock) : ''
+  const watchout = stock ? buildWatchout(stock) : ''
+  const verificationNote = stock ? buildVerificationNote(stock) : ''
 
   const displayName = isEtf ? detailTarget.ticker : meta.nameZh
   const displayDesc = isEtf
@@ -192,6 +196,23 @@ export function DetailView() {
           <div className={styles.explainTitle}>為什麼值得留意？</div>
           <p className={styles.explainText}>{explanation}</p>
           <p className={styles.disclaimer}>研究階段，非買入建議。過去表現不代表將來回報。</p>
+        </div>
+      )}
+
+      {!isEtf && stock && (
+        <div className={styles.narrativeGrid}>
+          <div className={styles.explainCard}>
+            <div className={styles.explainTitle}>今天為何浮上來</div>
+            <p className={styles.explainText}>{whyNow}</p>
+          </div>
+          <div className={styles.explainCard}>
+            <div className={styles.explainTitle}>先留意的風險</div>
+            <p className={styles.explainText}>{watchout}</p>
+          </div>
+          <div className={styles.explainCard}>
+            <div className={styles.explainTitle}>仍需確認什麼</div>
+            <p className={styles.explainText}>{verificationNote}</p>
+          </div>
         </div>
       )}
 

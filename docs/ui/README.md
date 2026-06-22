@@ -8,6 +8,8 @@
   中英命名與 copy key 對照。
 - `FUTU_NAV_REFERENCE.md`
   mobile-first 導航與資訊架構參考。
+- `SERENITY_ANALYSIS_REFERENCE.md`
+  外部事件/AI 投研站拆解，重點記錄可借鑑的 workflow、risk overlay 與不應照抄之處。
 - `UI_QA_FLOW.md`
   實際 UI screening / QA 操作流程。
 - `HEADLESS_UI_SMOKE_TEST_PLAN.md`
