@@ -3,11 +3,19 @@ import type { WatchlistStock } from '../data/watchlist'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type D1Database = any
 
-type FinnhubEarningsResponse = {
-  earningsCalendar?: Array<{
-    date?: string
-    symbol?: string
-  }>
+// SEC EDGAR — free, no API key required. Rate limit: 10 req/s.
+const SEC_USER_AGENT = 'trading-etf-app/1.0 skagaza486@gmail.com'
+
+type SecTickerEntry = { cik_str: number; ticker: string }
+
+type SecSubmissionsResponse = {
+  filings: {
+    recent: {
+      form: string[]
+      filingDate: string[]
+      items: string[]
+    }
+  }
 }
 
 export type HistoricalEarningsPayload = Array<{
@@ -58,40 +66,69 @@ async function mapWithConcurrency<T, R>(
   return results
 }
 
+async function fetchSecCikMap(): Promise<Map<string, number>> {
+  const res = await fetch('https://www.sec.gov/files/company_tickers.json', {
+    headers: { 'User-Agent': SEC_USER_AGENT, Accept: 'application/json' }
+  })
+  if (!res.ok) throw new Error(`SEC CIK map failed: HTTP ${res.status}`)
+  const data = await res.json() as Record<string, SecTickerEntry>
+  const map = new Map<string, number>()
+  for (const entry of Object.values(data)) {
+    if (entry.ticker && entry.cik_str) map.set(entry.ticker.toUpperCase(), entry.cik_str)
+  }
+  return map
+}
+
+async function fetchEarningsByEightK(cik: number, fromMs: number, toMs: number): Promise<string[]> {
+  const cikPadded = String(cik).padStart(10, '0')
+  const res = await fetch(`https://data.sec.gov/submissions/CIK${cikPadded}.json`, {
+    headers: { 'User-Agent': SEC_USER_AGENT, Accept: 'application/json' }
+  })
+  if (!res.ok) return []
+
+  const data = await res.json() as SecSubmissionsResponse
+  const { form, filingDate, items } = data.filings.recent
+  const dates: string[] = []
+
+  for (let i = 0; i < form.length; i++) {
+    if (form[i] === '8-K' && items[i]?.split(',').map(s => s.trim()).includes('2.02')) {
+      const ms = new Date(filingDate[i]).getTime()
+      if (ms >= fromMs && ms <= toMs) dates.push(filingDate[i])
+    }
+  }
+  return dates.sort()
+}
+
+// Replaces Finnhub calendar/earnings. SEC Edgar 8-K item 2.02 filings are the
+// official earnings announcement disclosures — same-day as the press release.
+// apiKey retained for backward-compat but ignored (SEC Edgar is free).
 export async function fetchHistoricalEarningsMapNode(
   symbols: string[],
-  apiKey: string | undefined,
+  _apiKey?: string,
   fromDate = isoDateDaysAgo(365 * 2),
   toDate = new Date().toISOString().slice(0, 10)
 ): Promise<Map<string, string[]>> {
   const uniqueSymbols = [...new Set(symbols)]
-  const emptyMap = new Map(uniqueSymbols.map(symbol => [symbol, [] as string[]]))
+  const emptyMap = new Map(uniqueSymbols.map(s => [s, [] as string[]]))
 
-  if (!apiKey) return emptyMap
+  let cikMap: Map<string, number>
+  try {
+    cikMap = await fetchSecCikMap()
+  } catch (err) {
+    console.warn('[SEC Edgar] CIK map fetch failed:', err instanceof Error ? err.message : String(err))
+    return emptyMap
+  }
 
-  const results = await mapWithConcurrency(uniqueSymbols, 4, async (symbol): Promise<readonly [string, string[]]> => {
-    const url = new URL('https://finnhub.io/api/v1/calendar/earnings')
-    url.searchParams.set('from', fromDate)
-    url.searchParams.set('to', toDate)
-    url.searchParams.set('symbol', symbol)
-    url.searchParams.set('token', apiKey)
+  const fromMs = new Date(fromDate).getTime()
+  const toMs = new Date(toDate).getTime()
 
+  const results = await mapWithConcurrency(uniqueSymbols, 3, async (symbol): Promise<readonly [string, string[]]> => {
+    const cik = cikMap.get(symbol.toUpperCase())
+    if (!cik) return [symbol, []]
+    // Stay under SEC's 10 req/s limit across 3 concurrent workers
+    await new Promise<void>(resolve => setTimeout(resolve, 350))
     try {
-      const response = await fetch(url, {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'Mozilla/5.0'
-        }
-      })
-
-      if (!response.ok) return [symbol, []]
-
-      const payload = await response.json() as FinnhubEarningsResponse
-      const dates = (payload.earningsCalendar ?? [])
-        .filter(entry => entry.symbol === symbol && typeof entry.date === 'string')
-        .map(entry => entry.date as string)
-        .sort()
-
+      const dates = await fetchEarningsByEightK(cik, fromMs, toMs)
       return [symbol, dates]
     } catch {
       return [symbol, []]

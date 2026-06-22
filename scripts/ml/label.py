@@ -47,9 +47,11 @@ def triple_barrier_label(df: pd.DataFrame, k: float = 1.5) -> pd.DataFrame:
 
 
 def feature_cols(df: pd.DataFrame) -> list[str]:
+    # Only at-signal-time features — NO forward returns or MFE/MAE (leakage).
+    # Full feature list lives in feature_schema.json; this is a minimal sanity check.
     candidates = [
-        "rvol", "ret1d", "ret3d", "ret5dVsSpy", "ret10dVsSpy",
-        "mfe5d", "mae5d", "mfe10d", "mae10d", "atrAtSignal",
+        "rvol", "rsi14", "rs_rank", "rs_vs_spy", "clv",
+        "ema50_slope", "atr_at_signal",
     ]
     return [c for c in candidates if c in df.columns]
 

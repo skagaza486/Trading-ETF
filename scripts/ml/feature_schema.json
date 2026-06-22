@@ -1,0 +1,67 @@
+{
+  "_comment": "Frozen SP-3 feature contract. Bump version + re-run build_features.py whenever columns change.",
+  "version": "1.0.0",
+  "created_at": "2026-06-23",
+
+  "leakage_blocklist": [
+    "ret1d", "ret3d", "ret5d", "ret10d",
+    "ret5d_vs_spy", "ret10d_vs_spy",
+    "mfe5d", "mae5d", "mfe10d", "mae10d",
+    "stop_loss_hit"
+  ],
+
+  "features": {
+    "categorical": [
+      { "col": "label",          "values": ["LONG_BREAK", "LONG_VCP", "LONG_BOUNCE"] },
+      { "col": "previous_label", "values": ["LONG_BREAK", "LONG_VCP", "LONG_BOUNCE", "NEUTRAL", "SHORT_BREAK", "OTHER"] },
+      { "col": "regime",         "values": ["BULL", "NEUTRAL", "BEAR", "UNKNOWN"] }
+    ],
+
+    "numeric": [
+      { "col": "rs_rank",           "src": "signals",        "note": "Relative strength rank 0–1" },
+      { "col": "rsi14",             "src": "signals",        "note": "14-period RSI" },
+      { "col": "rvol",              "src": "signals",        "note": "Relative volume vs 20-day avg" },
+      { "col": "rs_vs_spy",         "src": "signals",        "note": "RS vs SPY" },
+      { "col": "clv",               "src": "signals",        "note": "Close location value -1..1" },
+      { "col": "ema50_slope",       "src": "signals",        "note": "EMA50 slope (normalised)" },
+      { "col": "atr_at_signal",     "src": "signals",        "note": "ATR at signal date" },
+
+      { "col": "ema20Slope",        "src": "indicators_json" },
+      { "col": "macdHistogram",     "src": "indicators_json" },
+      { "col": "rvolRecentAvg10",   "src": "indicators_json", "note": "RVOL average over last 10 days" },
+      { "col": "pullbackRvolAvg",   "src": "indicators_json", "note": "RVOL during pullback window" },
+      { "col": "cmf20",             "src": "indicators_json", "note": "Chaikin money flow 20" },
+      { "col": "atrSlope50",        "src": "indicators_json", "note": "ATR slope — volatility expansion/contraction" },
+      { "col": "priorBaseStreak",   "src": "indicators_json", "note": "Number of consecutive base days" },
+      { "col": "rsiSlope3",         "src": "indicators_json", "note": "RSI 3-day slope" },
+      { "col": "adx14",             "src": "indicators_json", "note": "ADX trend strength" },
+      { "col": "udVolRatio50",      "src": "indicators_json", "note": "Up/down volume ratio 50-day" },
+      { "col": "lowRvolDaysInWindow","src": "indicators_json","note": "Low-volume compression days" },
+      { "col": "rsLine",            "src": "indicators_json", "note": "RS line absolute" },
+      { "col": "rsLineEma50",       "src": "indicators_json", "note": "RS line EMA50" }
+    ],
+
+    "boolean": [
+      { "col": "earnings_in_window","src": "signals",        "note": "Earnings event within 5 trading days" },
+      { "col": "breakout20d",       "src": "indicators_json" },
+      { "col": "aboveEma200",       "src": "indicators_json" },
+      { "col": "nearHigh52w",       "src": "indicators_json" },
+      { "col": "recentPullbackNearEma20", "src": "indicators_json" },
+      { "col": "atrCompressing",    "src": "indicators_json" },
+      { "col": "nr7",               "src": "indicators_json", "note": "Narrow range 7 bar" },
+      { "col": "extendedFromPivot", "src": "indicators_json" },
+      { "col": "rsLineAboveEma",    "src": "indicators_json" },
+      { "col": "rsLineNewHigh120d", "src": "indicators_json" }
+    ]
+  },
+
+  "targets": {
+    "regression":      ["ret5d", "ret10d"],
+    "classification":  ["tb_label"],
+    "reference_only":  ["ret1d", "ret3d", "ret5d_vs_spy", "ret10d_vs_spy", "mfe5d", "mae5d"]
+  },
+
+  "pending_hyt015": [
+    "sector", "industry"
+  ]
+}

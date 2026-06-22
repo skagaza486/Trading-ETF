@@ -43,6 +43,16 @@ Always run this before deploying. Zero errors required.
 
 There is an older worker named `tradingetf` (no hyphen) — **do not deploy to it**.
 
+## SignalPilot worker
+
+- Worker name: `signalpilot`
+- URL: https://signalpilot.skagaza486.workers.dev
+- Config: `wrangler.signalpilot.toml`
+- D1 bindings: `trading_etf_db` (read-only) + `signalpilot_db` (read-write, id: `095a9cf7`)
+- KV binding: `SP_CONTROL_KV` (id: `feedaa9c`)
+- Auth: `SP_AUTH_TOKEN` secret (Bearer, constant-time compare, never log/commit)
+- Deploy: `npm run sp:deploy` (typecheck → wrangler deploy --config wrangler.signalpilot.toml)
+
 ## D1 database operations
 
 ```bash
@@ -67,3 +77,38 @@ Always use `--remote` to target production D1. Omit it for local dev.
 - **Research rebuild runner**: `npm run research:rebuild-data -- --universe-file <path>` — orchestrates universe snapshot import, historical signal chunk backfill, optional ETF backfill, then checks `/api/d1/research-health`
 - **Research health endpoint**: `GET /api/d1/research-health` — aggregate counts for signals, earnings-window ratio, and universe-snapshot coverage
 - **Manual snapshot trigger**: `POST /api/admin/run-snapshot` — runs the snapshot job on demand inside the Worker. ⚠️ A single Worker invocation caps at ~43 stocks (Yahoo rate-limits the Worker egress IP); `buildDailySnapshot` fetches the full ~299-stock universe at once, so the manual trigger returns a partial snapshot. For the full universe, rely on the nightly GitHub Actions run or chunk the builder like `runBackfillChunk`.
+
+## Current sprint (as of 2026-06-23)
+
+**Context:** GPT is offline — Claude handles both `trading-etf` and SignalPilot lines.
+
+### What's running autonomously (no action needed)
+
+- `trading-etf` nightly snapshot: GH Actions `snapshot.yml` 21:30 UTC Mon–Fri ✅
+- SignalPilot SP-2 nightly batch: GH Actions `signalpilot-daily.yml` (deployed, accumulating data) ✅
+
+### What was just completed
+
+- SP-4 indicator backfill: 419/422 historical signals now have `rs_rank`, `rsi14`, `rvol`, `rs_vs_spy`, `clv`, `ema50_slope`, `indicators_json` (3 PSTG rows skipped, delisted)
+- SP-0 Auth spine + SP-1 Paper Ledger + SP-2 Rule-Only Shadow: code complete, deployed
+
+### Immediate next actions (priority order)
+
+1. **SP-1 E2E smoke test** — run `SP_AUTH_TOKEN=<token> bash scripts/sp1-smoke-test.sh` to formally close SP-1 exit gate
+2. **HYP-015** — `watchlist_universe_snapshots` has only 2026-06 (1 month); needs 14 more months for SP-4 sector features. Use `npm run research:backfill-universe -- --merge-file <path> --apply` with manual JSON for missing months
+3. **SP-4 first training run** — unblocked once HYP-015 + ≥20 trading days SP-2 data ready:
+
+```bash
+.tools/node-v22.22.3-darwin-arm64/bin/node scripts/ml/export_signals_d1.mjs --out data/signals_full.csv
+python scripts/ml/build_features.py --in data/signals_full.csv --out data/features/
+python scripts/ml/train_lgbm.py --features data/features/features_v1.0.0_<hash>.parquet
+python scripts/ml/baselines.py --features data/features/features_v1.0.0_<hash>.parquet
+python scripts/ml/evaluate.py --oof models/oof_v*.csv --baselines models/baselines_*.json --promote
+```
+
+### Key data health
+
+- `signals` total: ~422 eligible (LONG_BREAK/VCP/BOUNCE with ret5d settled)
+- `indicators_json` coverage: 419/422 ✅
+- `earnings_ratio_pct`: ~3.12% (SEC Edgar, target ~11% — acceptable for training)
+- `universe_snapshot_months`: 1 (needs 14+ for point-in-time sector features)

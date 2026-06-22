@@ -96,34 +96,50 @@ GPT: HYP-013 + HYP-015 ──► SP-3 ─────┘
 - [ ] partial fill / reject / cancel / expired 測試情境（SP-2）
 - [ ] daily reconciliation + NAV/P&L report（SP-2）
 
-### SP-2 — Rule-Only Shadow Portfolio
+### SP-2 — Rule-Only Shadow Portfolio　🟡 程式碼完成，等首次夜跑驗收
 
 **Exit gate：** ≥20 個交易日無帳本或風控錯誤；所有拒絕與成交可解釋。
 
-- [ ] `eligibilityEngine` + `positionSizer` + `tradingRiskEngine` + `exitEngine`（plan §10/§11）
-- [ ] 只有 plan §10 allowlist labels（LONG_BREAK/VCP/BOUNCE）建立 intent
-- [ ] exposure caps / earnings / stale-data guards（EOD 重評估 exit）
-- [ ] 每日自動產候選 + 記錄 rejected reason codes + opportunity cost
-- [ ] strategy / execution / portfolio 三層 attribution
-- [ ] versioned policy 設定檔（不散落 UI）
+- [x] `eligibilityEngine` + `positionSizer` + `tradingRiskEngine` + `exitEngine`（`signalpilot/lib/sp2/`）
+- [x] 只有 plan §10 allowlist labels（LONG_BREAK/VCP/BOUNCE）建立 intent（`sp2/policy.ts`）
+- [x] exposure caps / earnings / stale-data guards（EOD 重評估 exit）
+- [x] 每日自動產候選 + 記錄 rejected reason codes（`candidate_decisions` 表 + `recordDecision()`）
+- [x] versioned policy 設定檔（`SP2_POLICY v1.0.0`，不散落 UI）
+- [x] `POST /api/sp2/batch`（token + replay + kill-switch + audit）、`GET /api/sp2/candidates`、`GET /api/sp2/portfolio`
+- [x] `schema/signalpilot-sp2.sql` 套用（`strategy_daily_snapshots` + `candidate_decisions` + `atr_at_entry`/`sector` columns）
+- [x] GH Actions `signalpilot-daily.yml` + `scripts/trading/sp2DailyBatch.ts`（2026-06-23 部署 f96f0ad1）
+- [ ] strategy / execution / portfolio 三層 attribution（首批資料入庫後補）
+- [ ] **Exit gate 驗收**：≥20 個交易日無帳本或風控錯誤（等每日批次累積）
 
-### SP-3 — Feature Builder + 資料契約凍結　⛔ 依賴 GPT
+### SP-3 — Feature Builder + 資料契約凍結　🟡 部分解鎖（HYP-013 ✅，HYP-015 待補）
 
 **Exit gate：** feature schema 版本化、leakage audit 通過、signal-time features 固化。
 
-- [ ] **⛔ 等 GPT 交付：** HYP-013 earnings 重 backfill + HYP-015 point-in-time universe
-- [ ] `scripts/ml/build_features.py` + versioned feature schema（hash）
-- [ ] leakage allowlist：禁用 ret1d/3d/5d、MFE、MAE、stop result 作 feature
-- [ ] 凍結 next-bar open / spread / slippage / fees 假設
+- [x] ~~HYP-013 earnings~~：SEC Edgar 8-K 替換 Finnhub（3.12% earnings_ratio，275/299 CIKs，2026-06-23）
+- [ ] **⛔ HYP-015 point-in-time universe**：仍缺 14 個月歷史快照（`watchlist_universe_snapshots` 只有 2026-06）— GPT 負責
+- [x] `scripts/ml/feature_schema.json`：frozen feature contract v1.0.0，含 leakage blocklist + 30 at-signal-time features
+- [x] `scripts/ml/build_features.py`：reads signals CSV → expands `indicators_json` → enforces blocklist → outputs versioned parquet + meta sidecar
+- [x] `scripts/ml/leakage_audit.py`：validates any feature file against blocklist（exit 1 on leakage）
+- [x] **leakage fix in `label.py`**：`feature_cols()` was including `ret1d/mfe5d/mae5d` — replaced with at-signal-time only
+- [ ] 凍結 next-bar open / spread / slippage / fees 假設（SP-4 前確認）
+- [ ] sector / industry 欄位（pending HYP-015）
 
-### SP-4 — AI Shadow Mode
+### SP-4 — AI Shadow Mode　🟡 訓練管線完成 + indicator backfill ✅，等 HYP-015 sector features + SP-2 資料累積
 
 **Exit gate：** 通過 model promotion gate（plan §12.4）；shadow inference 可完整重現。
 
-- [ ] LightGBM 訓練 + calibrate + anchored walk-forward（plan §12.3）
-- [ ] 5 條 baseline 比較（plan §12.2）
-- [ ] 每日對所有候選產 shadow inference（不影響交易）
-- [ ] drift / missing-feature / confidence-distribution 監控
+- [x] LightGBM 訓練 + calibrate + anchored walk-forward（`scripts/ml/train_lgbm.py`）
+- [x] 5 條 baseline 比較（`scripts/ml/baselines.py`：B0 always-take / B1 always-pass / B2 prior / B3 logreg / B4 RF）
+- [x] model promotion gate（`scripts/ml/evaluate.py`：AUC/precision/brier vs baselines + last-2-fold check）
+- [x] `POST /api/sp4/shadow`（ingest inferences）、`GET /api/sp4/shadow`（read）、`POST /api/sp4/model`（register）
+- [x] `schema/signalpilot-sp4.sql`：`sp4_model_registry` + `sp4_shadow_inferences`（套用 2026-06-23，14 tables）
+- [x] `scripts/ml/shadow_inference.py`：loads promoted model → scores signals → POSTs to Worker；含 drift alert
+- [x] GH Actions `sp4-shadow` job（`signalpilot-daily.yml`）：runs after sp2-batch；skips if no promotion_*.json
+- [x] ADR-SP-004 決定：offline batch（GH Actions Python）→ Worker endpoint → D1
+- [x] **SP-4 historical indicator backfill（2026-06-23）：** `scripts/backfillSignalIndicators.ts` 已跑；419/422 historical signals 補齊 `rs_rank`, `rsi14`, `rvol`, `rs_vs_spy`, `clv`, `ema50_slope`, `indicators_json`（3 行 PSTG 跳過，已退市）；D1 驗收：`has_indicators=419`
+- [ ] **等資料：** HYP-015 sector features + ≥20 trading days SP-2 data → then train first model
+- [ ] 首次模型訓練 + promote（run_lgbm → baselines → evaluate --promote）
+- [ ] drift / missing-feature / confidence-distribution 監控（框架已內建，待真實資料觀察）
 - [ ] research → shadow 晉級審查
 
 ### SP-5 — AI-Gated Paper Trading

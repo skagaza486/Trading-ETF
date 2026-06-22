@@ -1,0 +1,91 @@
+name: SignalPilot daily batch (SP-2 + SP-4)
+
+# Runs after the snapshot build so today's signals are already in D1.
+# SP-2: exits (time-stop / price-stop) → entries (eligibility → risk → size → fill)
+# SP-4: shadow inference — LightGBM scores today's signals (no trades)
+on:
+  workflow_run:
+    workflows: ['Daily snapshot']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      batch_date:
+        description: 'Override batch date (YYYY-MM-DD). Defaults to today.'
+        required: false
+      skip_sp4:
+        description: 'Skip SP-4 shadow inference (e.g. no promoted model yet)'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: signalpilot-daily
+  cancel-in-progress: false
+
+jobs:
+  sp2-batch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only run on weekdays, and only when triggered by a successful snapshot run.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       contains(fromJson('["Monday","Tuesday","Wednesday","Thursday","Friday"]'),
+                github.event.workflow_run.created_at))
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run SP-2 daily batch
+        env:
+          SP_AUTH_TOKEN: ${{ secrets.SP_AUTH_TOKEN }}
+          SP_WORKER_URL: ${{ secrets.SP_WORKER_URL }}   # optional; defaults to prod worker URL
+          BATCH_DATE: ${{ inputs.batch_date }}           # empty = today
+        run: node --import tsx scripts/trading/sp2DailyBatch.ts
+
+  sp4-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: sp2-batch
+    # Skip if no promoted model exists yet (controlled via workflow_dispatch input or
+    # absence of models/promotion_*.json).  Set skip_sp4=true until first model trains.
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      inputs.skip_sp4 != 'true' ||
+      github.event_name == 'workflow_run'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python ML deps
+        run: pip install -r scripts/ml/requirements.txt
+
+      - name: Check for promoted model
+        id: model_check
+        run: |
+          if ls models/promotion_*.json 1>/dev/null 2>&1; then
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "No promoted model found — skipping SP-4 shadow inference."
+          fi
+
+      - name: Run SP-4 shadow inference
+        if: steps.model_check.outputs.found == 'true'
+        env:
+          SP_AUTH_TOKEN: ${{ secrets.SP_AUTH_TOKEN }}
+          SP_WORKER_URL: ${{ secrets.SP_WORKER_URL }}
+          TRADING_ETF_URL: ${{ secrets.TRADING_ETF_URL }}
+          INFERENCE_DATE: ${{ inputs.batch_date }}
+        run: |
+          DATE=${INFERENCE_DATE:-$(date -u +%Y-%m-%d)}
+          python scripts/ml/shadow_inference.py --date "$DATE"

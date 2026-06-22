@@ -1,8 +1,8 @@
 {
   "snapshots": [
     {
-      "snapshotMonth": "2026-05",
-      "effectiveDate": "2026-05-31",
+      "snapshotMonth": "2025-04",
+      "effectiveDate": "2025-04-30",
       "tickers": [
         {
           "ticker": "AAPL",
@@ -13,6 +13,30 @@
         {
           "ticker": "MSFT",
           "name": "Microsoft",
+          "sector": "Technology",
+          "tier": 1
+        }
+      ]
+    },
+    {
+      "snapshotMonth": "2025-09",
+      "effectiveDate": "2025-09-30",
+      "tickers": [
+        {
+          "ticker": "AAPL",
+          "name": "Apple",
+          "sector": "Technology",
+          "tier": 1
+        },
+        {
+          "ticker": "MSFT",
+          "name": "Microsoft",
+          "sector": "Technology",
+          "tier": 1
+        },
+        {
+          "ticker": "NVDA",
+          "name": "NVIDIA",
           "sector": "Technology",
           "tier": 1
         }

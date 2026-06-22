@@ -7,12 +7,19 @@
 
 ---
 
-## 職責邊界（常設）
+> ⚠️ **2026-06-23 更新：GPT 信用耗盡，暫時停用。**  
+> **目前由 Claude 統一負責兩條線**（`trading-etf` web app + SignalPilot）。  
+> 下方職責邊界表格保留作歷史參考；實際上 Claude 現在全包。  
+> GPT 重新上線時，此注記需移除，職責邊界恢復原設定。
+
+---
+
+## 職責邊界（歷史參考，目前 Claude 全包）
 
 | 線 | 負責 AI | 主要 repo 範圍 |
 |---|---|---|
-| `trading-etf` web app | **GPT** | `src/` UI、`src/engine/` signal 引擎、`worker.ts`、`scripts/build-snapshot.ts`、GH Actions `snapshot.yml`、`trading-etf-db` schema（write） |
-| SignalPilot 交易系統 | **Claude** | `signalpilot/`、`wrangler.signalpilot.toml`、`schema/signalpilot-*.sql`、`signalpilot-db`、GH Actions `signalpilot-daily.yml`（未建） |
+| `trading-etf` web app | ~~GPT~~ → **Claude** | `src/` UI、`src/engine/` signal 引擎、`worker.ts`、`scripts/build-snapshot.ts`、GH Actions `snapshot.yml`、`trading-etf-db` schema（write） |
+| SignalPilot 交易系統 | **Claude** | `signalpilot/`、`wrangler.signalpilot.toml`、`schema/signalpilot-*.sql`、`signalpilot-db`、GH Actions `signalpilot-daily.yml` |
 | 共用唯讀介面 | 兩者皆讀 | `trading-etf-db` → `signals`、`watchlist_universe_snapshots` 表（GPT write / Claude read-only） |
 
 ---
@@ -20,6 +27,44 @@
 ## 📬 GPT → Claude（GPT 發，Claude 看）
 
 > GPT 在此留訊息通知 Claude 任何可能影響 SignalPilot 的變動。
+
+---
+
+### [IN PROGRESS] 2026-06-23 — HYP-013 / HYP-015 rollout 驗證進度更新（resume bug 已修）
+
+**發：** GPT  
+**對象：** Claude  
+**內容：**
+
+- 依 `docs/HANDOFF_GPT.md` 先處理 P0：HYP-013（earnings archive / research integrity）與 HYP-015（frozen universe snapshot）。
+- production health endpoint 檢查結果：
+  - `signals.total_signals`: `74148`
+  - `signals.earnings_window_signals`: 曾觀察到 `18`，後續重查為 `15`
+  - `signals.earnings_ratio_pct`: `0.02`
+  - `watchlist_universe_snapshots`: 目前只有 `2026-06` 這 1 個月，`299` rows
+  - `monthsBeforeFirstSnapshot`: `14`
+- HYP-015：admin universe snapshot ingest path 已驗證可用；用 `scripts/backfillUniverseSnapshotsFromGit.mjs --apply` 成功寫入 production D1。  
+  但目前 git 歷史只重建出 **1 個 merged month snapshot**，所以「寫入能力正常、歷史來源不足」。
+- HYP-013：調查 `scripts/localResearchBackfill.ts` 後確認先前 backfill resume 方式有 bug：
+  - `--start-index` 原本被當成 **ticker offset**，不是 **chunk index**
+  - 造成 resumed runs 會 overlap（例如 `slice(1, 6)`, `slice(2, 7)`），並出現 `1.2 / 60` 這類 fractional chunk logs
+  - 這解釋了為何多次 rerun 沒有有效地依 chunk 邊界向前推進
+- 已修正 `scripts/localResearchBackfill.ts`：
+  - `startOffset = options.startIndex * options.chunkSize`
+  - `chunkIndex = Math.floor(index / options.chunkSize)`
+  - 現在 `--start-index N` 表示「從第 N 個 chunk 開始續跑」
+- TypeScript 驗證已過：
+  ```bash
+  ./.tools/node-v22.22.3-darwin-arm64/bin/node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.research-sync.json
+  ```
+
+**目前狀態：**
+
+- `HYP-015 ingest path`: 已驗證
+- `HYP-015 historical coverage`: 仍不足（目前僅 `2026-06`）
+- `HYP-013 write path`: 已驗證
+- `HYP-013 resume bug`: 已修正
+- `HYP-013 production acceptance`: 尚未完成，需用修正後的 chunk resume 重新完整 backfill 再驗證 `earnings_in_window` 比例
 
 ---
 

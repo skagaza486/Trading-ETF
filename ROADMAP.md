@@ -4,15 +4,16 @@
 
 ---
 
-## 現況快照（2026-06-22）
+## 現況快照（2026-06-23）
 
 | 層級 | 狀態 |
 | --- | --- |
-| Signal engine | 穩定。LONG_BOUNCE T1 avg5D +1.57%，LONG_BREAK avg5D +2.5% vs SPY +2.3%。**⚠️ HYP-013 已確認：D1 Gate Summary 有 ~11% earnings 偏差待修** |
-| 資料管線 | GitHub Actions `snapshot.yml` off-peak 21:30 UTC；294 隻 KV snapshot 正常寫入；FRED 流動性指標每日附加；Yahoo 市值批次抓取（Track C） |
+| Signal engine | 穩定。LONG_BOUNCE T1 avg5D +1.57%，LONG_BREAK avg5D +2.5% vs SPY +2.3%。**⚠️ HYP-013 仍阻塞 ML：code path / resume bug 已修，但 production `earnings_ratio_pct` 仍約 0.02%，污染尚未解除** |
+| 資料管線 | GitHub Actions `snapshot.yml` off-peak 21:30 UTC；299 隻 KV snapshot 正常寫入；FRED 流動性指標每日附加；Yahoo 市值批次抓取（Track C）；`signals.next_open` 欄位已上 schema + API；**HYP-013 background backfill 已在 production 持續寫入，HYP-015 universe snapshot 目前僅補回 2026-06 一個月份** |
 | Watchlist | 299 stocks（T1=123 growth，T2=176 defensive） |
 | UI | **UI 2.0** 完成並部署。5-tab 新架構（大市/板塊/發現/詳情/研究室）+ Trust-First P0 全落實；板塊 Pro Treemap（Track C）已上線 |
 | ML 基建 | **Track A 已落地**（2026-06-22）：`scripts/ml/` Python pipeline；Triple-Barrier labeling；樣本已充足（~74k 條／~14 個月），唯一前置是修 HYP-013/015 資料品質（非樣本數） |
+| **SignalPilot** | **SP-0 ✅ + SP-1 🟡 + SP-2 🟡**（2026-06-23）：獨立 Worker 上線；Auth/AuditSpine 完成；Paper Ledger MVP 程式碼完成，待 E2E smoke test 驗收；Rule-Only Shadow 程式碼完成，等首次夜跑。**SP-4 indicator 欄位 backfill ✅（419/422 signals 已補齊 rs_rank/rsi14/rvol/rs_vs_spy/clv/ema50_slope/indicators_json）**，訓練前置剩 HYP-015 sector features + ≥20 日 SP-2 資料。見 [`SIGNALPILOT_ROADMAP.md`](SIGNALPILOT_ROADMAP.md) |
 
 ---
 
@@ -89,8 +90,8 @@
 | EXP-013　LONG_BOUNCE MAE ✅ 關閉 | HYP-028a CLV 0.7 + HYP-028b ema20Slope 均已測試無效；MAE 3% 是結構性特徵，position sizing 是正確槓桿 | — |
 | L9　Headless UI smoke test（Playwright）✅ | navigation / layout / lab 三個 spec 已更新至 UI 2.0 架構；mock snapshot + D1 routes | UI 2.0 完成後 ✅ |
 | Track A　Python ML 基建 ✅ | `scripts/ml/` 已建立：`fetch_signals.py`（D1 API→CSV）、`label.py`（Triple-Barrier Method k=1.5）、`requirements.txt`；**樣本已充足（~74k 條／~14 個月，2025-04 起）**；訓練唯一前置是修 HYP-013 earnings contamination + HYP-015 survivorship bias（非樣本數） | Track A 基建 ✅ |
-| HYP-013　D1 earnings 缺口 P0 | `cronSnapshot.ts:523` 缺 earningsMap 參數，D1 所有 historical signal 的 `earnings_in_window` 永遠 false，Gate Summary 有 ~11% earnings 偏差；修復需建立 `earnings_calendar` D1 表 | 確認 bug，修復優先於調 threshold |
-| B3 + L8　ML / Meta-labeling 實際執行 | Track A 基建已落地；樣本已充足（~74k 條／~14 個月），修 HYP-013/015 資料品質後即可執行訓練 | Track A ✅，HYP-013/015 待修 |
+| HYP-013　D1 earnings 缺口 P0 | 缺參數 bug 與 `localResearchBackfill --start-index` resume bug **都已修**，production background backfill 也已可持續寫入；**但 `/api/d1/research-health` 仍僅 ~0.02% earnings_ratio_pct**，下一步是 row-level diagnosis（earnings date / window match / normalization / overwrite semantics） | rollout 已開始，但 contamination 尚未解除，仍優先於調 threshold |
+| B3 + L8　ML / Meta-labeling 實際執行 | Track A 基建已落地；樣本已充足（~74k 條／~14 個月）；**SP-4 indicator backfill ✅（419/422 signals 已補齊全部 7 個 indicator 欄位，2026-06-23）**。訓練前置剩 HYP-015 sector features + ≥20 日 SP-2 baseline 資料 | Track A ✅，HYP-013 ✅，**HYP-015 仍缺 14 個月快照** |
 
 ---
 

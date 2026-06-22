@@ -131,6 +131,59 @@ function monthKey(date) {
   return date.slice(0, 7)
 }
 
+function compareMonths(left, right) {
+  return left.localeCompare(right)
+}
+
+function incrementMonth(snapshotMonth) {
+  const [yearText, monthText] = snapshotMonth.split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const next = new Date(Date.UTC(year, month, 1))
+  return next.toISOString().slice(0, 7)
+}
+
+function monthEndDate(snapshotMonth) {
+  const [yearText, monthText] = snapshotMonth.split('-')
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const end = new Date(Date.UTC(year, month, 0))
+  return end.toISOString().slice(0, 10)
+}
+
+function cloneTickers(tickers) {
+  return tickers.map(stock => ({ ...stock }))
+}
+
+function expandMonthlyCarryForward(snapshots) {
+  if (snapshots.length <= 1) return snapshots
+
+  const expanded = []
+  for (let index = 0; index < snapshots.length; index += 1) {
+    const current = snapshots[index]
+    expanded.push({
+      snapshotMonth: current.snapshotMonth,
+      effectiveDate: current.effectiveDate,
+      tickers: cloneTickers(current.tickers),
+    })
+
+    const next = snapshots[index + 1]
+    if (!next) continue
+
+    let fillMonth = incrementMonth(current.snapshotMonth)
+    while (compareMonths(fillMonth, next.snapshotMonth) < 0) {
+      expanded.push({
+        snapshotMonth: fillMonth,
+        effectiveDate: monthEndDate(fillMonth),
+        tickers: cloneTickers(current.tickers),
+      })
+      fillMonth = incrementMonth(fillMonth)
+    }
+  }
+
+  return normalizeSnapshots(expanded)
+}
+
 function buildSnapshotsFromGitHistory(commits) {
   const snapshotsByMonth = new Map()
 
@@ -191,7 +244,10 @@ async function main() {
     snapshots = mergeSnapshots(snapshots, manualSnapshots)
   }
 
-  console.log(`Found ${commits.length} watchlist commits + ${manualSnapshotCount} manual snapshots -> ${snapshots.length} merged month snapshots`)
+  const sparseCount = snapshots.length
+  snapshots = expandMonthlyCarryForward(snapshots)
+
+  console.log(`Found ${commits.length} watchlist commits + ${manualSnapshotCount} manual snapshots -> ${sparseCount} sparse month snapshots -> ${snapshots.length} expanded month snapshots`)
   for (const snapshot of snapshots) {
     console.log(`${snapshot.snapshotMonth}  effective=${snapshot.effectiveDate}  tickers=${snapshot.tickers.length}`)
   }

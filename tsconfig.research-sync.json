@@ -14,6 +14,7 @@
     "scripts/syncSignalImprovement.ts",
     "scripts/researchAgent.ts",
     "scripts/localResearchBackfill.ts",
+    "scripts/backfillSignalIndicators.ts",
     "src/data/**/*.ts",
     "src/engine/**/*.ts",
     "src/services/marketData/**/*.ts",

@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { stockWatchlist } from '../src/data/watchlist.js'
@@ -15,11 +15,11 @@ const HISTORY_RANGE = '2y'
 const SIGNAL_BARS = 250
 const SQL_CHUNK_SIZE = 500
 
-type FinnhubEarningsResponse = {
-  earningsCalendar?: Array<{
-    date?: string
-    symbol?: string
-  }>
+// SEC EDGAR — free, no API key required. Rate limit: 10 req/s.
+const SEC_USER_AGENT = 'trading-etf-app/1.0 skagaza486@gmail.com'
+type SecTickerEntry = { cik_str: number; ticker: string }
+type SecSubmissionsResponse = {
+  filings: { recent: { form: string[]; filingDate: string[]; items: string[] } }
 }
 
 type CliOptions = {
@@ -44,23 +44,6 @@ function parseArgs(argv: string[]): CliOptions {
   return { chunkSize, startIndex }
 }
 
-async function readEnvLocal(): Promise<Record<string, string>> {
-  try {
-    const raw = await readFile('.env.local', 'utf8')
-    return raw.split('\n').reduce<Record<string, string>>((env, line) => {
-      const trimmed = line.trim()
-      if (!trimmed || trimmed.startsWith('#')) return env
-      const separator = trimmed.indexOf('=')
-      if (separator === -1) return env
-      const key = trimmed.slice(0, separator).trim()
-      const value = trimmed.slice(separator + 1).trim().replace(/^['"]|['"]$/g, '')
-      env[key] = value
-      return env
-    }, {})
-  } catch {
-    return {}
-  }
-}
 
 async function mapWithConcurrency<T, R>(
   items: T[],
@@ -89,33 +72,79 @@ function isoDateDaysAgo(daysAgo: number): string {
   return date.toISOString().slice(0, 10)
 }
 
-async function fetchHistoricalEarningsMapNode(symbols: string[], apiKey: string): Promise<Map<string, string[]>> {
+async function fetchSecCikMap(): Promise<Map<string, number>> {
+  const res = await fetch('https://www.sec.gov/files/company_tickers.json', {
+    headers: { 'User-Agent': SEC_USER_AGENT, Accept: 'application/json' }
+  })
+  if (!res.ok) throw new Error(`SEC CIK map failed: HTTP ${res.status}`)
+  const data = await res.json() as Record<string, SecTickerEntry>
+  const map = new Map<string, number>()
+  for (const entry of Object.values(data)) {
+    if (entry.ticker && entry.cik_str) map.set(entry.ticker.toUpperCase(), entry.cik_str)
+  }
+  return map
+}
+
+async function fetchEarningsByEightK(cik: number, fromMs: number, toMs: number): Promise<string[]> {
+  const cikPadded = String(cik).padStart(10, '0')
+  const res = await fetch(`https://data.sec.gov/submissions/CIK${cikPadded}.json`, {
+    headers: { 'User-Agent': SEC_USER_AGENT, Accept: 'application/json' }
+  })
+  if (!res.ok) return []
+
+  const data = await res.json() as SecSubmissionsResponse
+  const { form, filingDate, items } = data.filings.recent
+  const dates: string[] = []
+  for (let i = 0; i < form.length; i++) {
+    if (form[i] === '8-K' && items[i]?.split(',').map(s => s.trim()).includes('2.02')) {
+      const ms = new Date(filingDate[i]).getTime()
+      if (ms >= fromMs && ms <= toMs) dates.push(filingDate[i])
+    }
+  }
+  return dates.sort()
+}
+
+// SEC Edgar 8-K item 2.02 = "Results of Operations" — filed same day as earnings.
+// Replaces Finnhub calendar/earnings which returned errors for 239/299 symbols.
+// _apiKey retained for call-site compat but ignored.
+async function fetchHistoricalEarningsMapNode(symbols: string[], _apiKey?: string): Promise<Map<string, string[]>> {
   const uniqueSymbols = [...new Set(symbols)]
-  const fromDate = isoDateDaysAgo(365 * 2)
-  const toDate = new Date().toISOString().slice(0, 10)
+  const fromMs = new Date(isoDateDaysAgo(365 * 2)).getTime()
+  const toMs = Date.now()
+  const emptyMap = new Map(uniqueSymbols.map(s => [s, [] as string[]]))
 
-  const results = await mapWithConcurrency(uniqueSymbols, 4, async (symbol): Promise<readonly [string, string[]]> => {
-    const url = new URL('https://finnhub.io/api/v1/calendar/earnings')
-    url.searchParams.set('from', fromDate)
-    url.searchParams.set('to', toDate)
-    url.searchParams.set('symbol', symbol)
-    url.searchParams.set('token', apiKey)
+  let cikMap: Map<string, number>
+  try {
+    console.log('[SEC Edgar] Fetching CIK map…')
+    cikMap = await fetchSecCikMap()
+    console.log(`[SEC Edgar] CIK map loaded: ${cikMap.size} entries`)
+  } catch (err) {
+    console.error('[SEC Edgar] CIK map fetch failed:', err instanceof Error ? err.message : String(err))
+    return emptyMap
+  }
 
+  const stats = { found: 0, missing: 0, withDates: 0, totalDates: 0 }
+  const results = await mapWithConcurrency(uniqueSymbols, 3, async (symbol): Promise<readonly [string, string[]]> => {
+    const cik = cikMap.get(symbol.toUpperCase())
+    if (!cik) { stats.missing += 1; return [symbol, []] }
+    stats.found += 1
+    // Stay under SEC's 10 req/s limit (3 workers × ~3 req/s each = ~9 req/s)
+    await new Promise<void>(resolve => setTimeout(resolve, 350))
     try {
-      const response = await fetch(url, {
-        headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0' }
-      })
-      if (!response.ok) return [symbol, []]
-      const payload = await response.json() as FinnhubEarningsResponse
-      const dates = (payload.earningsCalendar ?? [])
-        .filter(entry => entry.symbol === symbol && typeof entry.date === 'string')
-        .map(entry => entry.date as string)
-        .sort()
+      const dates = await fetchEarningsByEightK(cik, fromMs, toMs)
+      if (dates.length > 0) { stats.withDates += 1; stats.totalDates += dates.length }
       return [symbol, dates]
     } catch {
       return [symbol, []]
     }
   })
+
+  console.log(`\n=== SEC Edgar Earnings Diagnostics ===`)
+  console.log(`Total symbols: ${uniqueSymbols.length}`)
+  console.log(`CIK resolved: ${stats.found} | No CIK: ${stats.missing}`)
+  console.log(`With earnings dates: ${stats.withDates} (total ${stats.totalDates} dates)`)
+  console.log(`Avg dates/symbol (resolved): ${stats.withDates > 0 ? (stats.totalDates / stats.withDates).toFixed(1) : 0}`)
+  console.log(`========================================\n`)
 
   return new Map(results)
 }
@@ -246,13 +275,9 @@ async function processChunk(
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2))
-  const envLocal = await readEnvLocal()
-  const finnhubApiKey = process.env.FINNHUB_API_KEY ?? envLocal.FINNHUB_API_KEY
-  if (!finnhubApiKey) throw new Error('FINNHUB_API_KEY is required in .env.local or env')
-
   const watchlistTickers = stockWatchlist.map(stock => stock.ticker)
-  console.log(`Fetching 2y earnings archive for ${watchlistTickers.length} tickers…`)
-  const earningsMap = await fetchHistoricalEarningsMapNode(watchlistTickers, finnhubApiKey)
+  console.log(`Fetching 2y earnings archive (SEC Edgar) for ${watchlistTickers.length} tickers…`)
+  const earningsMap = await fetchHistoricalEarningsMapNode(watchlistTickers)
   const earningsStatements = buildEarningsStatements(earningsMap)
   const earningsFiles = await writeSqlChunks('earnings-calendar', earningsStatements)
   for (const file of earningsFiles) {
@@ -263,10 +288,13 @@ async function main(): Promise<void> {
   const benchmarkHistories = await fetchHistories(STOCK_BENCHMARK_TICKERS)
 
   let totalRecords = 0
-  for (let index = options.startIndex; index < watchlistTickers.length; index += options.chunkSize) {
+  const totalChunks = Math.ceil(watchlistTickers.length / options.chunkSize)
+  const startOffset = options.startIndex * options.chunkSize
+
+  for (let index = startOffset; index < watchlistTickers.length; index += options.chunkSize) {
     const tickers = watchlistTickers.slice(index, index + options.chunkSize)
-    const chunkIndex = index / options.chunkSize
-    console.log(`Processing local chunk ${chunkIndex + 1} / ${Math.ceil(watchlistTickers.length / options.chunkSize)} -> ${tickers.join(', ')}`)
+    const chunkIndex = Math.floor(index / options.chunkSize)
+    console.log(`Processing local chunk ${chunkIndex + 1} / ${totalChunks} -> ${tickers.join(', ')}`)
     const records = await processChunk(chunkIndex, tickers, benchmarkHistories, earningsMap)
     totalRecords += records
     console.log(`Chunk ${chunkIndex + 1}: wrote ${records} records (running total ${totalRecords})`)
