@@ -11,6 +11,8 @@
  * Run: SP_AUTH_TOKEN=… node --import tsx scripts/trading/sp2DailyBatch.ts
  */
 
+export {}
+
 const SP_WORKER_URL = process.env.SP_WORKER_URL
   || 'https://signalpilot.skagaza486.workers.dev'
 const SP_AUTH_TOKEN = process.env.SP_AUTH_TOKEN
@@ -66,8 +68,12 @@ async function main(): Promise<void> {
   }
   console.log(`Entries rejected: ${rejected.length}`)
   if (rejected.length > 0) {
-    const byCode = Map.groupBy(rejected, r => r.code ?? 'UNKNOWN')
-    for (const [code, group] of byCode) {
+    const byCode = rejected.reduce<Record<string, typeof rejected>>((acc, r) => {
+      const key = r.code ?? 'UNKNOWN'
+      ;(acc[key] ??= []).push(r)
+      return acc
+    }, {})
+    for (const [code, group] of Object.entries(byCode)) {
       console.log(`  - ${code}: ${group.map(r => r.ticker).join(', ')}`)
     }
   }

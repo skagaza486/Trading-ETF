@@ -1,3 +1,5 @@
+export {}
+
 type ValidationRow = {
   ticker: string
   bars_returned: number
