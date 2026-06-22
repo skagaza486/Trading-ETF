@@ -12,7 +12,6 @@ import {
   type SectorLeadership,
 } from '../../shared/market/sectorLeadership'
 import styles from './SectorsView.module.css'
-import { SectorTreemap } from './SectorTreemap'
 
 function sectorVerdict(sector: SectorLeadership) {
   const ratio = sector.bullish / sector.count
@@ -152,16 +151,6 @@ export function SectorsView() {
         </div>
       </section>
 
-      {mode === 'pro' && sectors.length > 0 && (
-        <section className={styles.treemapCard}>
-          <div className={styles.treemapHeader}>
-            <span className={styles.sectionEyebrow}>市值地圖</span>
-            <h2>板塊市值分布</h2>
-          </div>
-          <SectorTreemap sectors={sectors} />
-        </section>
-      )}
-
       <h2 className={styles.heading}>板塊強弱</h2>
       <p className={styles.sub}>綜合看漲廣度、有效訊號數與 RS 排序 · 點板塊展開成份股</p>
 
@@ -243,23 +232,23 @@ function RotationQuadrant({
   focusSector: SectorLeadership | undefined
   onSelect: (sector: string) => void
 }) {
-  const rsValues = sectors.map(sector => sector.avgRs)
-  const improveValues = sectors.map(sector => getCurrentThrust(sector))
-  const countValues = sectors.map(sector => sector.count)
-  const rsMin = Math.min(...rsValues)
-  const rsMax = Math.max(...rsValues)
-  const improveMin = Math.min(...improveValues)
-  const improveMax = Math.max(...improveValues)
-  const countMin = Math.min(...countValues)
-  const countMax = Math.max(...countValues)
-  const rsRange = Math.max(12, rsMax - rsMin)
-  const improveRange = Math.max(8, improveMax - improveMin)
-  const countRange = Math.max(1, countMax - countMin)
+  const rsValues = sectors.map(s => s.trajectory20d.at(-1)?.rs ?? s.avgRs)
+  const thrustValues = sectors.map(s => s.trajectory20d.at(-1)?.thrust ?? getCurrentThrust(s))
+  const maxAbsThrust = Math.max(4, ...thrustValues.map(value => Math.abs(value)))
+  const thrustScale = Math.max(6, Math.ceil(maxAbsThrust / 2) * 2)
 
-  const getLeft = (value: number) => 14 + (((value - rsMin) / rsRange) * 72)
-  const getTop = (value: number) => 16 + ((1 - ((value - improveMin) / improveRange)) * 64)
-  const getSize = (count: number) => 34 + (((count - countMin) / countRange) * 22)
+  // Use semantic anchors instead of sample min/max:
+  // RS 50 = center line, thrust 0% = center line.
+  const getLeft = (value: number) => 6 + ((Math.max(0, Math.min(100, value)) / 100) * 88)
+  const getTop = (value: number) => {
+    const clamped = Math.max(-thrustScale, Math.min(thrustScale, value))
+    return 50 - ((clamped / thrustScale) * 42)
+  }
   const focusHistory = focusSector?.trajectory20d ?? []
+  const laidOutPoints = useMemo(
+    () => layoutQuadrantPoints(sectors, getLeft, getTop, selected),
+    [sectors, selected, thrustScale]
+  )
 
   return (
     <div className={styles.rotationPanel}>
@@ -268,41 +257,22 @@ function RotationQuadrant({
           <span className={styles.sectionEyebrow}>板塊輪動象限</span>
           <h2>強度 × 近期推進速度</h2>
         </div>
-        <p>橫軸：相對強度 RS，由弱到強　縱軸：近 5 日推進率，由走弱到回暖</p>
+        <p>右邊代表 RS &gt; 50，左邊代表 RS &lt; 50；上面代表近 5 日推進為正，下面代表為負。</p>
       </div>
       <div className={styles.rotationWorkspace}>
         <div className={styles.quadrant}>
-          <span className={`${styles.quadrantLabel} ${styles.qTopLeft}`}>弱勢但轉強</span>
-          <span className={`${styles.quadrantLabel} ${styles.qTopRight}`}>強勢續強</span>
-          <span className={`${styles.quadrantLabel} ${styles.qBottomLeft}`}>弱勢轉弱</span>
-          <span className={`${styles.quadrantLabel} ${styles.qBottomRight}`}>強勢降溫</span>
-          <span className={`${styles.axisEdge} ${styles.axisTop}`}>推進加快</span>
-          <span className={`${styles.axisEdge} ${styles.axisBottom}`}>回撤增加</span>
-          <span className={`${styles.axisEdge} ${styles.axisLeft}`}>RS 較弱</span>
-          <span className={`${styles.axisEdge} ${styles.axisRight}`}>RS 較強</span>
-          {focusHistory.length >= 2 && (
-            <svg viewBox="0 0 100 100" className={styles.rotationTrail}>
-              <path
-                d={buildTrajectoryPath(focusHistory, rsMin, rsRange, improveMin, improveRange)}
-                className={styles.rotationTrailPath}
-              />
-            </svg>
-          )}
-          {sectors.map(sector => {
+          <span className={`${styles.quadrantLabel} ${styles.qTopLeft}`}>轉強候選</span>
+          <span className={`${styles.quadrantLabel} ${styles.qTopRight}`}>領先區</span>
+          <span className={`${styles.quadrantLabel} ${styles.qBottomLeft}`}>觀察 / 避開</span>
+          <span className={`${styles.quadrantLabel} ${styles.qBottomRight}`}>熱度回落</span>
+          {laidOutPoints.map(point => {
+            const sector = point.sector
             const currentPoint = sector.trajectory20d.at(-1)
-            const left = getLeft(currentPoint?.rs ?? sector.avgRs)
-            const top = getTop(currentPoint?.thrust ?? getCurrentThrust(sector))
-            const size = getSize(sector.count)
             return (
               <button
                 key={sector.sectorZh}
                 className={`${styles.rotationPoint} ${selected === sector.sectorZh ? styles.rotationSelected : ''}`}
-                style={{
-                  left: `${left}%`,
-                  top: `${top}%`,
-                  minWidth: `${size}px`,
-                  height: `${Math.max(28, size - 8)}px`,
-                }}
+                style={{ left: `${point.left}%`, top: `${point.top}%` }}
                 title={`${sector.sectorZh}：RS ${Math.round(currentPoint?.rs ?? sector.avgRs)}，近 5 日推進 ${formatSigned(currentPoint?.thrust ?? getCurrentThrust(sector))}%`}
                 onClick={() => onSelect(sector.sectorZh)}
               >
@@ -319,28 +289,23 @@ function RotationQuadrant({
                 <h3>{focusSector.sectorZh}</h3>
               </div>
               <span className={`${styles.rotationState} ${(focusHistory.at(-1)?.thrust ?? getCurrentThrust(focusSector)) >= 0 ? styles.stateUp : styles.stateDown}`}>
-                {(focusHistory.at(-1)?.thrust ?? getCurrentThrust(focusSector)) >= 0 ? '轉強中' : '降溫中'}
+                {(focusHistory.at(-1)?.thrust ?? getCurrentThrust(focusSector)) >= 0 ? '資金回流' : '熱度回落'}
               </span>
             </div>
 
             <div className={styles.rotationMetrics}>
-              <Metric label="板塊規模" value={`${focusSector.count} 檔`} />
-              <Metric label="強度" value={`RS ${Math.round(focusHistory.at(-1)?.rs ?? focusSector.avgRs)}`} />
-              <Metric label="推進" value={`${formatSigned(focusHistory.at(-1)?.thrust ?? getCurrentThrust(focusSector))}%`} tone={(focusHistory.at(-1)?.thrust ?? getCurrentThrust(focusSector)) >= 0 ? 'gain' : 'loss'} />
+              <Metric label="覆蓋股票" value={`${focusSector.count} 檔`} />
+              <Metric label="相對強度" value={`RS ${Math.round(focusHistory.at(-1)?.rs ?? focusSector.avgRs)}`} />
+              <Metric label="近 5 日推進" value={`${formatSigned(focusHistory.at(-1)?.thrust ?? getCurrentThrust(focusSector))}%`} tone={(focusHistory.at(-1)?.thrust ?? getCurrentThrust(focusSector)) >= 0 ? 'gain' : 'loss'} />
               <Metric label="代表股" value={focusSector.leaders.map(stock => stock.ticker).join(' · ')} />
             </div>
 
-            <div className={styles.rotationTrendCard}>
-              <div>
-                <strong>近 20 日板塊軌跡</strong>
-                <span>取板塊內可用收盤資料的平均變化</span>
-              </div>
-              <SectorTrendSparkline sector={focusSector} />
-            </div>
           </div>
         )}
       </div>
-      <p className={styles.rotationNote}>桌面會固定顯示右側研究面板；圖上的淡線代表目前焦點板塊近 20 日在象限中的移動路徑。縱軸使用價格推進率，所以更接近「資金有沒有往上推」。</p>
+      <div className={styles.rotationFooter}>
+        <p className={styles.rotationNote}>右上角通常是第一優先；左上角則是第二優先觀察名單。</p>
+      </div>
     </div>
   )
 }
@@ -368,58 +333,6 @@ function BullBar({ ratio }: { ratio: number }) {
   )
 }
 
-function SectorTrendSparkline({ sector }: { sector: SectorLeadership }) {
-  const values = sector.trend20d.length > 1 ? sector.trend20d : buildSectorTrendValues(sector)
-  if (values.length < 2) return <span className={styles.rotationTrendEmpty}>資料不足</span>
-
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const range = Math.max(1, max - min)
-  const width = 132
-  const height = 42
-  const step = width / Math.max(1, values.length - 1)
-  const points = values.map((value, index) => {
-    const x = index * step
-    const y = height - (((value - min) / range) * height)
-    return [x, y] as const
-  })
-  const line = points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
-  const area = `${line} L ${width} ${height} L 0 ${height} Z`
-  const change = values.at(-1)! - values[0]!
-
-  return (
-    <div className={styles.rotationTrend}>
-      <svg viewBox={`0 0 ${width} ${height}`} className={styles.rotationSpark}>
-        <path d={area} className={styles.rotationArea} />
-        <path d={line} className={styles.rotationLine} />
-      </svg>
-      <span className={`${styles.rotationTrendValue} ${change >= 0 ? styles.bull : styles.bear}`}>
-        {change >= 0 ? '+' : ''}{change.toFixed(1)}%
-      </span>
-    </div>
-  )
-}
-
-function buildSectorTrendValues(sector: SectorLeadership) {
-  const buckets = new Map<number, number[]>()
-
-  for (const stock of sector.stocks) {
-    const series = [...(stock.recentClose ?? [])].reverse()
-    if (series.length < 2) continue
-    const base = series[0]
-    if (!base || !Number.isFinite(base)) continue
-    series.forEach((close, index) => {
-      const pct = ((close - base) / base) * 100
-      const existing = buckets.get(index) ?? []
-      existing.push(pct)
-      buckets.set(index, existing)
-    })
-  }
-
-  return Array.from(buckets.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([, samples]) => samples.reduce((sum, value) => sum + value, 0) / samples.length)
-}
 
 function getCurrentThrust(sector: SectorLeadership) {
   return sector.trajectory20d.at(-1)?.thrust ?? sector.improvementScore
@@ -429,18 +342,81 @@ function formatSigned(value: number) {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}`
 }
 
-function buildTrajectoryPath(
-  points: SectorLeadership['trajectory20d'],
-  rsMin: number,
-  rsRange: number,
-  thrustMin: number,
-  thrustRange: number
-) {
-  return points
-    .map((point, index) => {
-      const x = 14 + (((point.rs - rsMin) / rsRange) * 72)
-      const y = 16 + ((1 - ((point.thrust - thrustMin) / thrustRange)) * 64)
-      return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
+type LaidOutQuadrantPoint = {
+  sector: SectorLeadership
+  desiredLeft: number
+  desiredTop: number
+  left: number
+  top: number
+}
+
+function layoutQuadrantPoints(
+  sectors: SectorLeadership[],
+  getLeft: (value: number) => number,
+  getTop: (value: number) => number,
+  selected: string | null
+): LaidOutQuadrantPoint[] {
+  const points = sectors
+    .map(sector => {
+      const currentPoint = sector.trajectory20d.at(-1)
+      const desiredLeft = getLeft(currentPoint?.rs ?? sector.avgRs)
+      const desiredTop = getTop(currentPoint?.thrust ?? getCurrentThrust(sector))
+      return {
+        sector,
+        desiredLeft,
+        desiredTop,
+        left: desiredLeft,
+        top: desiredTop,
+      }
     })
-    .join(' ')
+    .sort((a, b) => {
+      const aSelected = a.sector.sectorZh === selected ? 1 : 0
+      const bSelected = b.sector.sectorZh === selected ? 1 : 0
+      if (aSelected !== bSelected) return bSelected - aSelected
+      return b.sector.leadershipScore - a.sector.leadershipScore
+    })
+
+  const minDistance = 8.8
+  const leftMin = 7
+  const leftMax = 93
+  const topMin = 11
+  const topMax = 89
+
+  for (let iter = 0; iter < 90; iter += 1) {
+    for (let i = 0; i < points.length; i += 1) {
+      for (let j = i + 1; j < points.length; j += 1) {
+        const a = points[i]
+        const b = points[j]
+        let dx = b.left - a.left
+        let dy = b.top - a.top
+        let dist = Math.hypot(dx, dy)
+
+        if (dist === 0) {
+          dx = ((j - i) % 2 === 0 ? 1 : -1) * 0.01
+          dy = ((j - i) % 3 === 0 ? 1 : -1) * 0.01
+          dist = Math.hypot(dx, dy)
+        }
+
+        if (dist >= minDistance) continue
+
+        const push = (minDistance - dist) / 2
+        const ux = dx / dist
+        const uy = dy / dist
+
+        a.left -= ux * push
+        a.top -= uy * push
+        b.left += ux * push
+        b.top += uy * push
+      }
+    }
+
+    for (const point of points) {
+      point.left += (point.desiredLeft - point.left) * 0.08
+      point.top += (point.desiredTop - point.top) * 0.08
+      point.left = Math.max(leftMin, Math.min(leftMax, point.left))
+      point.top = Math.max(topMin, Math.min(topMax, point.top))
+    }
+  }
+
+  return points
 }

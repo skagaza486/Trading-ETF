@@ -126,10 +126,18 @@ function computeSectorSnapshots(
     groups.get(meta.sectorZh)!.histories.push(history)
   }
 
+  // Build raw per-sector trajectories first, then rank cross-sector per day
+  const rawTrajectories = new Map<string, Array<{ lookback20: number; thrust5: number }>>()
+  for (const [sectorZh, group] of groups) {
+    const raw = buildRawSectorTrajectory20d(group.histories)
+    if (raw.length > 0) rawTrajectories.set(sectorZh, raw)
+  }
+  const crossSectorTraj = buildCrossSectorTrajectories(rawTrajectories)
+
   const sectorEntries = Array.from(groups.entries()).map(([sectorZh, group]) => {
     const histories = group.histories
     const trend20d = buildSectorTrend20d(histories)
-    const trajectory20d = buildSectorTrajectory20d(histories)
+    const trajectory20d = crossSectorTraj.get(sectorZh) ?? []
     return {
       sectorZh,
       sector: group.sector,
@@ -162,7 +170,7 @@ function buildSectorTrend20d(histories: TickerHistory[]): number[] {
     .map(([, values]) => values.reduce((sum, value) => sum + value, 0) / values.length)
 }
 
-function buildSectorTrajectory20d(histories: TickerHistory[]): SectorSnapshotEntry['trajectory20d'] {
+function buildRawSectorTrajectory20d(histories: TickerHistory[]): Array<{ lookback20: number; thrust5: number }> {
   const sectorReturns: Array<Array<{ lookback20: number; thrust5: number }>> = []
 
   for (const history of histories) {
@@ -195,12 +203,37 @@ function buildSectorTrajectory20d(histories: TickerHistory[]): SectorSnapshotEnt
       thrust5: sample.reduce((sum, value) => sum + value.thrust5, 0) / sample.length,
     })
   }
+  return aggregate
+}
 
-  const universe20d = aggregate.map(point => point.lookback20)
-  return aggregate.map(point => ({
-    rs: percentileRank(point.lookback20, universe20d),
-    thrust: point.thrust5,
-  }))
+// Rank each sector's 20-day lookback against ALL other sectors on the same day
+// so the X-axis reflects cross-sector relative strength, not intra-sector oscillation.
+function buildCrossSectorTrajectories(
+  rawTrajectories: Map<string, Array<{ lookback20: number; thrust5: number }>>
+): Map<string, SectorSnapshotEntry['trajectory20d']> {
+  const result = new Map<string, SectorSnapshotEntry['trajectory20d']>()
+  for (const key of rawTrajectories.keys()) result.set(key, [])
+
+  if (rawTrajectories.size === 0) return result
+
+  const maxLen = Math.max(...[...rawTrajectories.values()].map(t => t.length))
+
+  for (let dayIdx = 0; dayIdx < maxLen; dayIdx++) {
+    const dayPoints: Array<{ sectorZh: string; lookback20: number; thrust5: number }> = []
+    for (const [sectorZh, traj] of rawTrajectories) {
+      const point = traj[dayIdx]
+      if (point) dayPoints.push({ sectorZh, ...point })
+    }
+    const allLookbacks = dayPoints.map(d => d.lookback20)
+    for (const { sectorZh, lookback20, thrust5 } of dayPoints) {
+      result.get(sectorZh)!.push({
+        rs: percentileRank(lookback20, allLookbacks),
+        thrust: thrust5,
+      })
+    }
+  }
+
+  return result
 }
 
 export async function writeSignalsToD1(db: D1Database, snapshot: DailySnapshot): Promise<void> {

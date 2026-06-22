@@ -6,20 +6,20 @@
 
 /* ── Hero Card ── */
 .summaryCard {
-  padding: 18px;
+  padding: 14px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
   margin-bottom: 4px;
 }
 
 .summaryBlock {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .heroEyebrow {
@@ -32,18 +32,18 @@
 .heroMain {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .heroName {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
 .heroPct {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   margin-left: auto;
@@ -53,7 +53,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .heroUp   { color: var(--color-gain); font-weight: 600; }
@@ -62,29 +62,29 @@
 .heroDivider { color: var(--text-muted); }
 
 .heroSecond {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .heroVerdict {
   color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .heroStats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 2px;
+  gap: 6px;
+  margin-top: 0;
 }
 
 .metric {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
+  gap: 2px;
+  padding: 8px 10px;
   border: 1px solid var(--border-faint);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.02);
@@ -94,7 +94,7 @@
 
 .metric strong {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -123,7 +123,7 @@
 
 .rotationWorkspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(250px, 0.9fr);
+  grid-template-columns: minmax(0, 2fr) minmax(130px, 0.45fr);
   gap: 12px;
   align-items: stretch;
 }
@@ -168,7 +168,7 @@
 
 .quadrant {
   position: relative;
-  height: 280px;
+  height: 340px;
   overflow: hidden;
   border: 1px solid var(--border-faint);
   border-radius: 14px;
@@ -182,31 +182,16 @@
     var(--bg-base);
 }
 
-.rotationTrail {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.rotationTrailPath {
-  fill: none;
-  stroke: color-mix(in srgb, var(--accent) 72%, white);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 4 4;
-  opacity: 0.85;
-}
-
 .quadrantLabel {
   position: absolute;
   z-index: 1;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   pointer-events: none;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(8, 13, 20, 0.48);
+  backdrop-filter: blur(6px);
 }
 
 .qTopLeft { top: 12px; left: 14px; color: color-mix(in srgb, var(--accent) 75%, white); }
@@ -233,12 +218,12 @@
   position: absolute;
   z-index: 2;
   transform: translate(-50%, -50%);
-  min-width: 42px;
-  height: 28px;
-  padding: 0 8px;
+  min-width: 28px;
+  height: 20px;
+  padding: 0 5px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-subtle));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-card) 84%, var(--accent-dim));
+  background: color-mix(in srgb, var(--bg-card) 90%, var(--accent-dim));
   color: var(--text-primary);
   font-family: inherit;
   font-size: 10px;
@@ -262,11 +247,35 @@
   line-height: 1.45;
 }
 
+.rotationFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rotationToggle {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent-dim) 50%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rotationToggle:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-subtle));
+}
+
 .rotationDetail {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid var(--border-faint);
   border-radius: 14px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent-dim) 82%, transparent), var(--bg-elevated));
@@ -289,8 +298,8 @@
 
 .rotationDetailTop h3 {
   color: var(--text-primary);
-  font-size: 18px;
-  letter-spacing: -0.02em;
+  font-size: 14px;
+  letter-spacing: -0.01em;
 }
 
 .rotationState {
@@ -312,8 +321,8 @@
 
 .rotationMetrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 6px;
 }
 
 .rotationTrendCard {
@@ -623,17 +632,49 @@
     grid-template-columns: 1fr;
   }
 
-  .quadrant { height: 240px; }
-  .rotationPoint { min-width: 32px; padding: 0 5px; font-size: 9px; }
+  .quadrant { height: 260px; }
+  .rotationPoint { min-width: 24px; height: 18px; padding: 0 4px; font-size: 9px; }
 
-  .rotationDetailTop,
-  .rotationTrendCard {
+  .rotationDetailTop {
     align-items: flex-start;
     flex-direction: column;
+    gap: 8px;
   }
 
   .rotationMetrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .rotationDetail {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .rotationDetailTop h3 {
+    font-size: 13px;
+  }
+
+  .rotationState {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .rotationMetrics .metric {
+    padding: 8px 10px;
+  }
+
+  .rotationMetrics .metric strong {
+    font-size: 12px;
+  }
+
+  .rotationMetrics .metric:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .rotationFooter {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .exposureSummary {
@@ -658,24 +699,4 @@
   .stockRs { display: none; }
   .stockRow { flex-wrap: wrap; }
   .sname { min-width: 100px; }
-}
-
-/* ── Sector Treemap (Pro mode) ────────────────────────────────────── */
-.treemapCard {
-  padding: 17px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 18px;
-  background: var(--bg-card);
-}
-
-.treemapHeader {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 14px;
-}
-
-.treemapHeader h2 {
-  font-size: 18px;
-  letter-spacing: -0.02em;
 }
