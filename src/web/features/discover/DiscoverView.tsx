@@ -290,45 +290,47 @@ export function DiscoverView() {
           {summary.topSector && ` · ${summary.topSector}最多`}
         </div>
       )}
-      <div className={styles.searchWrap}>
-        <div className={styles.searchInner}>
-          <input
-            className={styles.search}
-            placeholder={assetType === 'stocks' ? '搜尋 ticker 或名稱…' : '搜尋 ETF ticker…'}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className={styles.clearBtn} onClick={() => setSearch('')}>✕</button>
-          )}
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrap}>
+          <div className={styles.searchInner}>
+            <input
+              className={styles.search}
+              placeholder={assetType === 'stocks' ? '搜尋 ticker 或名稱…' : '搜尋 ETF ticker…'}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className={styles.clearBtn} onClick={() => setSearch('')}>✕</button>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div className={styles.typeToggle}>
-        <button
-          className={assetType === 'stocks' ? styles.typeActive : styles.typeBtn}
-          onClick={() => { setAssetType('stocks'); setFilter('all'); setEtfCategory(null) }}
-        >
-          <span className={styles.typeIcon}>◉</span>
-          <span>股票</span>
-          <span className={styles.typeCount}>{snap.status === 'ok' ? snap.snapshot.stocks.length : 0}</span>
-        </button>
-        <button
-          className={assetType === 'etf' ? styles.typeActive : styles.typeBtn}
-          onClick={() => { setAssetType('etf'); setFilter('all'); setEtfCategory(null) }}
-        >
-          <span className={styles.typeIcon}>◇</span>
-          <span>ETF</span>
-          <span className={styles.typeCount}>{etfState.status === 'ok' ? etfState.entries.length : 0}</span>
-        </button>
-        <button
-          className={assetType === 'changes' ? styles.typeActive : styles.typeBtn}
-          onClick={() => { setAssetType('changes'); setFilter('all'); setEtfCategory(null) }}
-        >
-          <span className={styles.typeIcon}>↗</span>
-          <span>機會佇列</span>
-          {changedStocks.length > 0 && <span className={styles.changeCount}>{changedStocks.length}</span>}
-        </button>
+        <div className={styles.typeToggle}>
+          <button
+            className={assetType === 'stocks' ? styles.typeActive : styles.typeBtn}
+            onClick={() => { setAssetType('stocks'); setFilter('all'); setEtfCategory(null) }}
+          >
+            <span className={styles.typeIcon}>◉</span>
+            <span>股票</span>
+            <span className={styles.typeCount}>{snap.status === 'ok' ? snap.snapshot.stocks.length : 0}</span>
+          </button>
+          <button
+            className={assetType === 'etf' ? styles.typeActive : styles.typeBtn}
+            onClick={() => { setAssetType('etf'); setFilter('all'); setEtfCategory(null) }}
+          >
+            <span className={styles.typeIcon}>◇</span>
+            <span>ETF</span>
+            <span className={styles.typeCount}>{etfState.status === 'ok' ? etfState.entries.length : 0}</span>
+          </button>
+          <button
+            className={assetType === 'changes' ? styles.typeActive : styles.typeBtn}
+            onClick={() => { setAssetType('changes'); setFilter('all'); setEtfCategory(null) }}
+          >
+            <span className={styles.typeIcon}>↗</span>
+            <span>機會佇列</span>
+            {changedStocks.length > 0 && <span className={styles.changeCount}>{changedStocks.length}</span>}
+          </button>
+        </div>
       </div>
 
       {assetType !== 'changes' && (

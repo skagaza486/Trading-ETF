@@ -5,15 +5,21 @@
 }
 
 /* ── Hero Card ── */
-.heroCard {
+.summaryCard {
   padding: 18px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   margin-bottom: 4px;
+}
+
+.summaryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .heroEyebrow {
@@ -95,43 +101,31 @@
 .metric strong.gain { color: var(--color-gain); }
 .metric strong.loss { color: var(--color-loss); }
 
-.marketMap {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  background: var(--border-faint);
-}
-
-.marketMap > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 13px 14px;
-  background: var(--bg-card);
-}
-
-.mapValue {
-  color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.mapLabel {
-  color: var(--text-muted);
-  font-size: 10px;
-  line-height: 1.35;
-}
-
-.rotationCard,
-.exposureCard {
+.insightCard {
   padding: 17px;
   border: 1px solid var(--border-subtle);
   border-radius: 18px;
   background: var(--bg-card);
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 18px;
+}
+
+.rotationPanel,
+.exposurePanel {
+  min-width: 0;
+}
+
+.rotationPanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.exposurePanel {
+  display: flex;
+  flex-direction: column;
+  padding-left: 18px;
+  border-left: 1px solid var(--border-faint);
 }
 
 .rotationHeader,
@@ -459,14 +453,25 @@
 .stockRs { color: var(--text-muted); }
 
 @media (max-width: 640px) {
-  .heroStats,
-  .marketMap {
-    grid-template-columns: 1fr;
+  .summaryCard {
+    gap: 12px;
   }
 
-  .marketMap > div {
-    flex-direction: row;
-    align-items: baseline;
+  .heroStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .insightCard {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .exposurePanel {
+    padding-left: 0;
+    padding-top: 14px;
+    border-left: none;
+    border-top: 1px solid var(--border-faint);
   }
 
   .rotationHeader,

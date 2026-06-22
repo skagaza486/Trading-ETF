@@ -10,6 +10,7 @@ import { MiniBreadthChart } from './MiniBreadthChart'
 import { SectorHeatMap } from './SectorHeatMap'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import { getStockMeta } from '../../shared/i18n/stockNames'
+import { buildSectorLeadership } from '../../shared/market/sectorLeadership'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import styles from './MarketView.module.css'
@@ -85,26 +86,8 @@ function computeBreadth(stocks: StockSnapshotEntry[]) {
   }
 }
 
-const SECTOR_BULL_LABELS: StockSignalLabel[] = ['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE', 'LONG_BASE']
-
 function buildSectorLeader(stocks: StockSnapshotEntry[]) {
-  const map = new Map<string, { total: number; bullish: number }>()
-  for (const stock of stocks) {
-    const sector = getStockMeta(stock.ticker, stock.name).sectorZh
-    const row = map.get(sector) ?? { total: 0, bullish: 0 }
-    row.total += 1
-    if (SECTOR_BULL_LABELS.includes(stock.label)) row.bullish += 1
-    map.set(sector, row)
-  }
-
-  return Array.from(map.entries())
-    .filter(([, value]) => value.total >= 3)
-    .map(([sectorZh, value]) => ({
-      sectorZh,
-      total: value.total,
-      bullishPct: Math.round((value.bullish / value.total) * 100),
-    }))
-    .sort((a, b) => b.bullishPct - a.bullishPct)[0] ?? null
+  return buildSectorLeadership(stocks)[0] ?? null
 }
 
 function buildHeroSummary(regime: string, breadth: ReturnType<typeof computeBreadth> | null, signalCounts: Record<string, number> | null) {
@@ -179,7 +162,7 @@ function buildHeroFacts(
     },
     {
       label: '領先板塊',
-      value: leader ? `${leader.sectorZh} ${leader.bullishPct}%` : '未明',
+      value: leader ? `${leader.sectorZh} ${Math.round(leader.bullishPct)}%` : '未明',
       note: leader ? '今天最值得先看這個方向' : '暫未見明顯領先群組',
       priority: 'secondary',
       tone: leader && leader.bullishPct >= 55 ? 'gain' : 'muted',
@@ -222,9 +205,9 @@ function buildThreeThings(
   const second: StoryItem = leader
     ? {
         title: `${leader.sectorZh}最有帶頭感`,
-        note: `${leader.bullishPct}% 成份股維持偏強，若今天要先看一個方向，這個板塊最值得優先觀察。`,
+        note: `${Math.round(leader.bullishPct)}% 成份股維持偏強，並有 ${leader.bullish} 個有效訊號；若今天要先看一個方向，這個板塊最值得優先觀察。`,
         tone: leader.bullishPct >= 55 ? 'positive' : 'neutral',
-        stat: `${leader.total} 檔在監測名單`,
+        stat: `${leader.count} 檔在監測名單`,
       }
     : {
         title: '板塊領先仍未清晰',
