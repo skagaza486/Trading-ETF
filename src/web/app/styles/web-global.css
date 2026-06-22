@@ -1,43 +1,43 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap');
 
 /* ════════════════════════════════════════════════════════════════════
-   DESIGN SYSTEM — "Market Compass"
-   深青綠基底 + 薄荷綠主色，保留高對比和金融產品可信感。
+   DESIGN SYSTEM — "Calm Fintech"
+   中性深炭灰底 + 冷靜藍主色，紅綠只留漲跌與信號。
    詳見 DESIGN_SYSTEM.md。
    ════════════════════════════════════════════════════════════════════ */
 :root {
-  --bg-base:      #071115;
-  --bg-surface:   #0a171b;
-  --bg-elevated:  #102026;
-  --bg-overlay:   #13272c;
-  --bg-card:      #0d1a1f;
+  --bg-base:      #0A0C10;
+  --bg-surface:   #11141A;
+  --bg-elevated:  #161A21;
+  --bg-overlay:   #1B2027;
+  --bg-card:      #12151B;
 
-  --border-faint:  rgba(204, 239, 225, 0.08);
-  --border-subtle: rgba(204, 239, 225, 0.14);
-  --border-medium: rgba(204, 239, 225, 0.22);
+  --border-faint:  rgba(255, 255, 255, 0.06);
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-medium: rgba(255, 255, 255, 0.16);
 
-  --text-primary:   #eef8f3;
-  --text-secondary: #a8c0b7;
-  --text-muted:     #6f877f;
-  --text-label:     #86a097;
+  --text-primary:   #F3F5F8;
+  --text-secondary: #9BA6B4;
+  --text-muted:     #616B79;
+  --text-label:     #7A8794;
 
-  --accent:      #78efc1;
-  --accent-2:    #a7f6da;
-  --accent-dim:  rgba(120, 239, 193, 0.14);
+  --accent:      #4C9DF7;
+  --accent-2:    #7BBDFF;
+  --accent-dim:  rgba(76, 157, 247, 0.12);
 
-  --color-gain:    #44d79a;
-  --color-loss:    #ed746f;
-  --color-warn:    #efbe62;
-  --color-neutral: #a8c0b7;
+  --color-gain:    #2FD183;
+  --color-loss:    #F2606A;
+  --color-warn:    #F5B544;
+  --color-neutral: #9BA6B4;
 
-  --pill-green-bg:  rgba(68, 215, 154, 0.14);
-  --pill-green-fg:  #83efbf;
-  --pill-yellow-bg: rgba(239, 190, 98, 0.14);
-  --pill-yellow-fg: #f5cb7e;
-  --pill-grey-bg:   rgba(168, 192, 183, 0.14);
-  --pill-grey-fg:   #c4d8d1;
-  --pill-red-bg:    rgba(237, 116, 111, 0.14);
-  --pill-red-fg:    #f4a09c;
+  --pill-green-bg:  rgba(47, 209, 131, 0.14);
+  --pill-green-fg:  #5FE4A5;
+  --pill-yellow-bg: rgba(245, 181, 68, 0.14);
+  --pill-yellow-fg: #F5CB7E;
+  --pill-grey-bg:   rgba(155, 166, 180, 0.14);
+  --pill-grey-fg:   #B8C6D4;
+  --pill-red-bg:    rgba(242, 96, 106, 0.14);
+  --pill-red-fg:    #F49098;
 
   --r-sm: 6px;
   --r-md: 10px;
@@ -79,9 +79,8 @@ html, body, #root {
 
 body {
   background:
-    radial-gradient(circle at top left, rgba(120, 239, 193, 0.08), transparent 24%),
-    radial-gradient(circle at top right, rgba(79, 155, 132, 0.08), transparent 26%),
-    linear-gradient(180deg, #071115 0%, #081318 100%);
+    radial-gradient(circle at top left, rgba(76, 157, 247, 0.04), transparent 24%),
+    linear-gradient(180deg, #0A0C10 0%, #0C0F14 100%);
 }
 
 ::-webkit-scrollbar { width: 4px; }

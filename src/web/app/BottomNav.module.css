@@ -56,8 +56,8 @@
   position: absolute;
   inset: 4px 8px;
   border-radius: 16px;
-  background: rgba(120, 239, 193, 0.1);
-  border: 1px solid rgba(120, 239, 193, 0.12);
+  background: rgba(76, 157, 247, 0.10);
+  border: 1px solid rgba(76, 157, 247, 0.15);
 }
 
 .itemActive .label,
@@ -71,5 +71,5 @@
 }
 
 .itemActive .icon {
-  filter: drop-shadow(0 0 8px rgba(120, 239, 193, 0.35));
+  filter: drop-shadow(0 0 6px rgba(76, 157, 247, 0.28));
 }

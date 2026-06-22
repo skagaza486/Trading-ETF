@@ -1,5 +1,16 @@
 .view { display: flex; flex-direction: column; gap: 12px; }
 
+.summaryStrip {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+.upgradeCount {
+  color: var(--color-gain);
+  font-weight: 600;
+}
+
 .searchWrap {
   position: sticky; top: calc(var(--topbar-h));
   z-index: 10;

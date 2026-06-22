@@ -15,6 +15,7 @@ type SectorSummary = {
   bullish: number
   bearish: number
   avgRs: number
+  topTicker: string
   stocks: StockSnapshotEntry[]
 }
 
@@ -36,7 +37,8 @@ function buildSectors(stocks: StockSnapshotEntry[]): SectorSummary[] {
     const bearish = ss.filter(s => BEAR_LABELS.has(s.label)).length
     const rsValues = ss.map(s => s.rsRank ?? 50)
     const avgRs = rsValues.reduce((a, b) => a + b, 0) / rsValues.length
-    summaries.push({ sectorZh, sector, count: ss.length, bullish, bearish, avgRs, stocks: ss })
+    const topTicker = [...ss].sort((a, b) => (b.rsRank ?? 0) - (a.rsRank ?? 0))[0]?.ticker ?? ''
+    summaries.push({ sectorZh, sector, count: ss.length, bullish, bearish, avgRs, topTicker, stocks: ss })
   }
 
   // Sort by bullish ratio desc, then avgRs
@@ -62,8 +64,38 @@ export function SectorsView() {
   if (snap.status === 'loading') return <LoadingScreen message="載入板塊資料…" />
   if (snap.status === 'error')   return <ErrorScreen message={snap.message} />
 
+  const hero = sectors[0]
+  const second = sectors[1]
+
   return (
     <div className={styles.view}>
+      {hero && (
+        <section className={styles.heroCard}>
+          <span className={styles.heroEyebrow}>今日板塊焦點</span>
+          <div className={styles.heroMain}>
+            <StrengthDot ratio={hero.bullish / hero.count} />
+            <h2 className={styles.heroName}>{hero.sectorZh}</h2>
+            <span className={`${styles.heroPct} ${hero.bullish / hero.count >= 0.5 ? styles.bull : styles.bear}`}>
+              {Math.round(hero.bullish / hero.count * 100)}%
+            </span>
+          </div>
+          <div className={styles.heroMeta}>
+            <span className={styles.heroUp}>{hero.bullish} 看漲</span>
+            <span className={styles.heroDivider}>·</span>
+            <span className={styles.heroDown}>{hero.bearish} 偏弱</span>
+            <span className={styles.heroDivider}>·</span>
+            <span className={styles.heroTotal}>{hero.count} 檔</span>
+          </div>
+          {(second || hero.topTicker) && (
+            <p className={styles.heroSecond}>
+              {second && `次強：${second.sectorZh} ${Math.round(second.bullish / second.count * 100)}%`}
+              {second && hero.topTicker && '　'}
+              {hero.topTicker && `代表股 ${hero.topTicker}`}
+            </p>
+          )}
+        </section>
+      )}
+
       <h2 className={styles.heading}>板塊強弱</h2>
       <p className={styles.sub}>按看漲比率排序 · 點板塊展開成份股</p>
 
@@ -78,7 +110,12 @@ export function SectorsView() {
               onClick={() => setExpanded(isExpanded ? null : sec.sectorZh)}
             >
               <StrengthDot ratio={bullRatio} />
-              <span className={styles.sectorName}>{sec.sectorZh}</span>
+              <div className={styles.sectorInfo}>
+                <span className={styles.sectorName}>{sec.sectorZh}</span>
+                <span className={styles.sectorCount}>
+                  {sec.bullish}↑ {sec.bearish}↓ · {sec.count}檔{sec.topTicker ? ` · ${sec.topTicker}` : ''}
+                </span>
+              </div>
               <div className={styles.bars}>
                 <BullBar ratio={bullRatio} />
               </div>

@@ -45,8 +45,8 @@
   border: 1px solid var(--border-subtle);
   padding: 18px;
   background:
-    radial-gradient(circle at top right, rgba(120, 239, 193, 0.12), transparent 28%),
-    linear-gradient(180deg, rgba(13, 29, 31, 0.96), rgba(10, 23, 27, 0.96));
+    radial-gradient(circle at top right, rgba(76, 157, 247, 0.06), transparent 28%),
+    linear-gradient(180deg, rgba(18, 21, 27, 0.96), rgba(14, 17, 22, 0.96));
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
@@ -111,7 +111,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #3fd396 0%, #8ef4c8 68%, #efbe62 100%);
+  background: linear-gradient(90deg, var(--color-gain) 0%, #5FE4A5 68%, var(--color-warn) 100%);
 }
 
 .heroScale {
@@ -149,9 +149,9 @@
   font-weight: 600;
   padding: 4px 9px;
   border-radius: 999px;
-  background: rgba(68, 215, 154, 0.1);
-  border: 1px solid rgba(68, 215, 154, 0.18);
-  color: var(--accent-2);
+  background: var(--accent-dim);
+  border: 1px solid rgba(76, 157, 247, 0.20);
+  color: var(--accent);
 }
 
 .sigLabel {
@@ -255,9 +255,9 @@
   min-height: 32px;
   padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid rgba(120, 239, 193, 0.18);
-  background: rgba(120, 239, 193, 0.08);
-  color: var(--accent-2);
+  border: 1px solid rgba(76, 157, 247, 0.20);
+  background: var(--accent-dim);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 600;
 }

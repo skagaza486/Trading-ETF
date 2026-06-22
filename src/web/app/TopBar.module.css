@@ -80,7 +80,7 @@
 }
 
 .toggleActive {
-  color: #062016;
+  color: #fff;
   background: var(--accent);
   font-weight: 600;
   border-radius: 999px;

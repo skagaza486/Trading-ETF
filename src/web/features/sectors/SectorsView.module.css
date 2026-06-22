@@ -4,6 +4,64 @@
   gap: 10px;
 }
 
+/* ── Hero Card ── */
+.heroCard {
+  padding: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.heroEyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.heroMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.heroName {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.heroPct {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.heroMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.heroUp   { color: var(--color-gain); font-weight: 600; }
+.heroDown { color: var(--color-loss); font-weight: 600; }
+.heroTotal { color: var(--text-secondary); }
+.heroDivider { color: var(--text-muted); }
+
+.heroSecond {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Heading ── */
 .heading {
   font-size: 22px;
   font-weight: 700;
@@ -37,11 +95,23 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.sectorInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 56px;
+}
+
 .sectorName {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-  min-width: 48px;
+}
+
+.sectorCount {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .bars {

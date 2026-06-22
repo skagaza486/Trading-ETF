@@ -79,6 +79,29 @@ function filterEtfs(etfs: EtfSignalEntry[], f: Filter): EtfSignalEntry[] {
   }
 }
 
+function buildSummary(stocks: StockSnapshotEntry[]) {
+  const total = stocks.length
+  const upgrades = stocks.filter(s =>
+    s.previousLabel !== undefined &&
+    s.previousLabel !== s.label &&
+    BULL_SET.has(s.label) &&
+    !BULL_SET.has(s.previousLabel!)
+  ).length
+  const sectorMap = new Map<string, number>()
+  for (const s of stocks) {
+    if (BULL_SET.has(s.label)) {
+      const meta = getStockMeta(s.ticker, s.name)
+      sectorMap.set(meta.sectorZh, (sectorMap.get(meta.sectorZh) ?? 0) + 1)
+    }
+  }
+  let topSector = ''
+  let topCount = 0
+  for (const [sector, count] of sectorMap) {
+    if (count > topCount) { topCount = count; topSector = sector }
+  }
+  return { total, upgrades, topSector }
+}
+
 export function DiscoverView() {
   const { mode, scope } = useApp()
   const snap = useSnapshot()
@@ -144,6 +167,11 @@ export function DiscoverView() {
     return stocks
   }, [snap, search])
 
+  const summary = useMemo(() => {
+    if (snap.status !== 'ok') return null
+    return buildSummary(snap.snapshot.stocks)
+  }, [snap])
+
   const isLoading = assetType === 'etf'
     ? etfState.status === 'loading'
     : snap.status === 'loading'
@@ -166,6 +194,15 @@ export function DiscoverView() {
 
   return (
     <div className={styles.view}>
+      {summary && (
+        <div className={styles.summaryStrip}>
+          今日 {summary.total} 檔
+          {summary.upgrades > 0 && (
+            <> · <span className={styles.upgradeCount}>{summary.upgrades} 項轉強</span></>
+          )}
+          {summary.topSector && ` · ${summary.topSector}最多`}
+        </div>
+      )}
       <div className={styles.searchWrap}>
         <div className={styles.searchInner}>
           <input
