@@ -22,10 +22,15 @@ export function StockCard({ stock, showMode = 'simple', delay = 0 }: Props) {
     : null
 
   const pctFromEma50 = ema50 && ema50 > 0 ? ((close - ema50) / ema50) * 100 : null
+  const signalTone = stock.label.startsWith('LONG_')
+    ? styles.signalBull
+    : stock.label.startsWith('SHORT_') || stock.label === 'AVOID_CHOP'
+      ? styles.signalBear
+      : styles.signalWatch
 
   return (
     <button
-      className={styles.card}
+      className={`${styles.card} ${signalTone}`}
       style={{ '--card-delay': `${delay}s` } as React.CSSProperties}
       onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
     >

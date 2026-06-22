@@ -436,14 +436,38 @@ async function handleETFSignalsRead(env: Env, url: URL): Promise<Response> {
     : 'WHERE week_ending_date >= ?'
   const params = ticker ? [since, ticker] : [since]
 
-  const query = `SELECT ticker, week_ending_date, label, indicators_json, regime, close_at_signal, prev_close, recent_close_json, ret1w, ret4w
-                 FROM etf_signals ${baseWhere}
-                 ORDER BY week_ending_date DESC, ticker
-                 LIMIT 5000`
+  let results: Record<string, unknown>[]
+  let priceContextAvailable = true
 
-  const { results } = await env.trading_etf_db.prepare(query).bind(...params).all()
+  try {
+    const query = `SELECT ticker, week_ending_date, label, indicators_json, regime, close_at_signal, prev_close, recent_close_json, ret1w, ret4w
+                   FROM etf_signals ${baseWhere}
+                   ORDER BY week_ending_date DESC, ticker
+                   LIMIT 5000`
+    const response = await env.trading_etf_db.prepare(query).bind(...params).all()
+    results = response.results as Record<string, unknown>[]
+  } catch (error) {
+    // Keep the endpoint usable while the additive price-context migration rolls out.
+    const message = error instanceof Error ? error.message : String(error)
+    if (!message.includes('prev_close') && !message.includes('recent_close_json')) {
+      return jsonError(`ETF signals query failed: ${message}`, 500)
+    }
 
-  const rows: ETFSignalRow[] = (results as Record<string, unknown>[]).map(row => ({
+    priceContextAvailable = false
+    const legacyQuery = `SELECT ticker, week_ending_date, label, indicators_json, regime, close_at_signal, ret1w, ret4w
+                         FROM etf_signals ${baseWhere}
+                         ORDER BY week_ending_date DESC, ticker
+                         LIMIT 5000`
+    try {
+      const response = await env.trading_etf_db.prepare(legacyQuery).bind(...params).all()
+      results = response.results as Record<string, unknown>[]
+    } catch (legacyError) {
+      const legacyMessage = legacyError instanceof Error ? legacyError.message : String(legacyError)
+      return jsonError(`ETF signals query failed: ${legacyMessage}`, 500)
+    }
+  }
+
+  const rows: ETFSignalRow[] = results.map(row => ({
     ticker: row.ticker as string,
     weekEndingDate: row.week_ending_date as string,
     label: row.label as ETFSignalRow['label'],
@@ -456,7 +480,7 @@ async function handleETFSignalsRead(env: Env, url: URL): Promise<Response> {
     ret4w: row.ret4w as number | null,
   }))
 
-  return new Response(JSON.stringify({ since, ticker, count: rows.length, rows }), {
+  return new Response(JSON.stringify({ since, ticker, count: rows.length, priceContextAvailable, rows }), {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',

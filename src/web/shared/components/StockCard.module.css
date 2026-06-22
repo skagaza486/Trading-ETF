@@ -10,8 +10,24 @@
   -webkit-tap-highlight-color: transparent;
   animation: fade-up var(--dur) var(--ease) both;
   animation-delay: var(--card-delay, 0s);
+  position: relative;
+  overflow: hidden;
 }
 .card:hover { border-color: var(--border-subtle); background: var(--bg-elevated); }
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 12px auto 12px 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--text-muted);
+  opacity: 0.45;
+}
+
+.signalBull::before { background: var(--color-gain); opacity: 0.8; }
+.signalBear::before { background: var(--color-loss); opacity: 0.8; }
+.signalWatch::before { background: var(--color-warn); opacity: 0.65; }
 
 .top { display: flex; gap: 12px; align-items: flex-start; }
 
@@ -54,9 +70,32 @@
 }
 
 .priceRow { display: flex; align-items: baseline; gap: 8px; }
-.price    { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.gain     { font-size: 11px; color: var(--color-gain); font-variant-numeric: tabular-nums; }
-.loss     { font-size: 11px; color: var(--color-loss); font-variant-numeric: tabular-nums; }
+.price {
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.gain,
+.loss {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.gain {
+  color: var(--color-gain);
+  background: color-mix(in srgb, var(--color-gain) 11%, transparent);
+}
+
+.loss {
+  color: var(--color-loss);
+  background: color-mix(in srgb, var(--color-loss) 11%, transparent);
+}
 
 .secondaryStat {
   font-size: 10px;

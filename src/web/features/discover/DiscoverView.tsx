@@ -32,6 +32,14 @@ const etfCategoryMap = new Map(etfUniverse.map(e => [e.ticker, e.category]))
 
 type AssetType = 'stocks' | 'etf' | 'changes'
 type Filter = 'all' | 'starred' | 'bullish' | 'watchlist' | 'bearish'
+type OpportunityKind = 'new' | 'continuing' | 'waiting' | 'risk'
+
+type OpportunityGroup = {
+  kind: OpportunityKind
+  title: string
+  description: string
+  stocks: StockSnapshotEntry[]
+}
 
 const BULL_SET = new Set<StockSignalLabel>(['LONG_BREAK','LONG_VCP','LONG_BOUNCE','LONG_BASE','WATCH'])
 const BEAR_SET = new Set<StockSignalLabel>(['SHORT_BREAK','SHORT_BASE','SHORT_WATCH','AVOID_CHOP'])
@@ -106,6 +114,38 @@ function buildSummary(stocks: StockSnapshotEntry[]) {
   return { total, upgrades, topSector }
 }
 
+function buildOpportunityGroups(stocks: StockSnapshotEntry[]): OpportunityGroup[] {
+  const isNewStrength = (stock: StockSnapshotEntry) =>
+    stock.previousLabel !== undefined &&
+    stock.previousLabel !== stock.label &&
+    BULLISH_STOCK.includes(stock.label) &&
+    !BULL_SET.has(stock.previousLabel)
+
+  const byRs = (a: StockSnapshotEntry, b: StockSnapshotEntry) => (b.rsRank ?? 0) - (a.rsRank ?? 0)
+  const newStrength = stocks.filter(isNewStrength).sort(byRs)
+  const continuing = stocks
+    .filter(stock => BULLISH_STOCK.includes(stock.label) && !isNewStrength(stock))
+    .sort(byRs)
+  const waiting = stocks
+    .filter(stock => WATCHLIST_STOCK.includes(stock.label))
+    .sort(byRs)
+  const risk = stocks
+    .filter(stock => BEARISH_STOCK.includes(stock.label))
+    .sort((a, b) => {
+      const aChanged = a.previousLabel !== undefined && a.previousLabel !== a.label ? 1 : 0
+      const bChanged = b.previousLabel !== undefined && b.previousLabel !== b.label ? 1 : 0
+      if (aChanged !== bChanged) return bChanged - aChanged
+      return (a.rsRank ?? 0) - (b.rsRank ?? 0)
+    })
+
+  return [
+    { kind: 'new', title: '剛轉強', description: '今日首次進入強勢訊號，最值得先看原因', stocks: newStrength },
+    { kind: 'continuing', title: '延續中', description: '強勢結構仍在，留意是否過度追高', stocks: continuing },
+    { kind: 'waiting', title: '等待確認', description: '接近機會，但尚欠突破或量能確認', stocks: waiting },
+    { kind: 'risk', title: '風險升高', description: '弱勢或剛轉差，優先檢查自選與持倉', stocks: risk },
+  ]
+}
+
 export function DiscoverView() {
   const { mode, scope } = useApp()
   const snap = useSnapshot()
@@ -177,6 +217,19 @@ export function DiscoverView() {
     return stocks
   }, [snap, search])
 
+  const opportunityGroups = useMemo(() => {
+    if (snap.status !== 'ok') return []
+    const groups = buildOpportunityGroups(snap.snapshot.stocks)
+    if (!search) return groups
+    const q = search.toUpperCase()
+    return groups.map(group => ({
+      ...group,
+      stocks: group.stocks.filter(stock =>
+        stock.ticker.includes(q) || stock.name.toUpperCase().includes(q)
+      ),
+    }))
+  }, [snap, search])
+
   const summary = useMemo(() => {
     if (snap.status !== 'ok') return null
     return buildSummary(snap.snapshot.stocks)
@@ -224,7 +277,7 @@ export function DiscoverView() {
 
   const count = assetType === 'stocks' ? displayedStocks.length
     : assetType === 'etf' ? displayedEtfs.length
-    : changedStocks.length
+    : opportunityGroups.reduce((sum, group) => sum + group.stocks.length, 0)
 
   return (
     <div className={styles.view}>
@@ -256,19 +309,25 @@ export function DiscoverView() {
           className={assetType === 'stocks' ? styles.typeActive : styles.typeBtn}
           onClick={() => { setAssetType('stocks'); setFilter('all'); setEtfCategory(null) }}
         >
-          股票
+          <span className={styles.typeIcon}>◉</span>
+          <span>股票</span>
+          <span className={styles.typeCount}>{snap.status === 'ok' ? snap.snapshot.stocks.length : 0}</span>
         </button>
         <button
           className={assetType === 'etf' ? styles.typeActive : styles.typeBtn}
           onClick={() => { setAssetType('etf'); setFilter('all'); setEtfCategory(null) }}
         >
-          ETF
+          <span className={styles.typeIcon}>◇</span>
+          <span>ETF</span>
+          <span className={styles.typeCount}>{etfState.status === 'ok' ? etfState.entries.length : 0}</span>
         </button>
         <button
           className={assetType === 'changes' ? styles.typeActive : styles.typeBtn}
           onClick={() => { setAssetType('changes'); setFilter('all'); setEtfCategory(null) }}
         >
-          今日動向
+          <span className={styles.typeIcon}>↗</span>
+          <span>機會佇列</span>
+          {changedStocks.length > 0 && <span className={styles.changeCount}>{changedStocks.length}</span>}
         </button>
       </div>
 
@@ -309,7 +368,7 @@ export function DiscoverView() {
         </div>
       )}
 
-      <div className={styles.count}>{count} 項</div>
+      {assetType !== 'changes' && <div className={styles.count}>{count} 項</div>}
 
       <div className={styles.list}>
         {count === 0 ? (
@@ -323,10 +382,81 @@ export function DiscoverView() {
           ? displayedStocks.map((s, i) => <StockCard key={s.ticker} stock={s} showMode={mode} delay={i * 0.04} />)
           : assetType === 'etf'
           ? displayedEtfs.map(e => <EtfCard key={e.ticker} etf={e} showMode={mode} />)
-          : changedStocks.map(s => <ChangeRow key={s.ticker} stock={s} />)
+          : <OpportunityQueue groups={opportunityGroups} />
         }
       </div>
     </div>
+  )
+}
+
+function OpportunityQueue({ groups }: { groups: OpportunityGroup[] }) {
+  return (
+    <div className={styles.queue}>
+      <div className={styles.queueIntro}>
+        <div>
+          <span className={styles.queueEyebrow}>今日研究順序</span>
+          <h2>先看變化，再看延續</h2>
+        </div>
+        <p>訊號是研究起點，不是買賣指令。</p>
+      </div>
+
+      {groups.map(group => (
+        <section key={group.kind} className={`${styles.queueGroup} ${styles[`queue_${group.kind}`]}`}>
+          <header className={styles.queueHeader}>
+            <div>
+              <h3>{group.title}</h3>
+              <p>{group.description}</p>
+            </div>
+            <span className={styles.queueCount}>{group.stocks.length}</span>
+          </header>
+          {group.stocks.length === 0 ? (
+            <div className={styles.queueEmpty}>今天沒有符合項目</div>
+          ) : (
+            <div className={styles.queueRows}>
+              {group.stocks.slice(0, 8).map(stock => (
+                <OpportunityRow key={stock.ticker} stock={stock} />
+              ))}
+              {group.stocks.length > 8 && (
+                <div className={styles.queueMore}>另有 {group.stocks.length - 8} 檔，使用上方篩選繼續查看</div>
+              )}
+            </div>
+          )}
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function OpportunityRow({ stock }: { stock: StockSnapshotEntry }) {
+  const { openDetail } = useApp()
+  const meta = getStockMeta(stock.ticker, stock.name)
+  const dayPct = stock.prevClose && stock.prevClose > 0
+    ? ((stock.indicators.close - stock.prevClose) / stock.prevClose) * 100
+    : null
+  const changed = stock.previousLabel !== undefined && stock.previousLabel !== stock.label
+
+  return (
+    <button
+      className={styles.opportunityRow}
+      onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
+    >
+      <div className={styles.opportunityIdentity}>
+        <strong>{stock.ticker}</strong>
+        <span>{meta.nameZh}</span>
+      </div>
+      <div className={styles.opportunityMove}>
+        {changed
+          ? `${LABEL_SHORT[stock.previousLabel ?? ''] ?? stock.previousLabel} → ${LABEL_SHORT[stock.label] ?? stock.label}`
+          : `RS ${stock.rsRank ?? '—'}`}
+      </div>
+      <div className={styles.opportunityPrice}>
+        <strong>${stock.indicators.close.toFixed(2)}</strong>
+        <span className={dayPct === null ? undefined : dayPct >= 0 ? styles.arrowUp : styles.arrowDown}>
+          {dayPct === null ? '今日 —' : `${dayPct >= 0 ? '+' : ''}${dayPct.toFixed(1)}%`}
+        </span>
+      </div>
+      <SignalBadge label={stock.label} />
+    </button>
   )
 }
 

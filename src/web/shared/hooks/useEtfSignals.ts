@@ -33,8 +33,20 @@ export function useEtfSignals(): State {
   useEffect(() => {
     let cancelled = false
 
-    fetch('/api/d1/etf-signals?weeks=2')
-      .then(r => r.json())
+    fetch('/api/d1/etf-signals?weeks=4')
+      .then(async response => {
+        const contentType = response.headers.get('content-type') ?? ''
+        if (!response.ok || !contentType.includes('application/json')) {
+          const detail = await response.text()
+          const cleanDetail = detail.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+          throw new Error(
+            response.status >= 500
+              ? 'ETF 資料服務暫時異常，請稍後再試'
+              : cleanDetail || `ETF 資料讀取失敗 (${response.status})`
+          )
+        }
+        return response.json()
+      })
       .then((data: { rows?: unknown[]; error?: string }) => {
         if (cancelled) return
         if (data.error || !Array.isArray(data.rows)) {
