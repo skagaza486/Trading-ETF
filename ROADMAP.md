@@ -8,10 +8,11 @@
 
 | 層級 | 狀態 |
 | --- | --- |
-| Signal engine | 穩定。LONG_BOUNCE T1 avg5D +1.57%，LONG_BREAK avg5D +2.5% vs SPY +2.3% |
-| 資料管線 | GitHub Actions `snapshot.yml` off-peak 21:30 UTC；294 隻 KV snapshot 正常寫入；`POST /api/admin/ingest-snapshot` 備援 |
+| Signal engine | 穩定。LONG_BOUNCE T1 avg5D +1.57%，LONG_BREAK avg5D +2.5% vs SPY +2.3%。**⚠️ HYP-013 已確認：D1 Gate Summary 有 ~11% earnings 偏差待修** |
+| 資料管線 | GitHub Actions `snapshot.yml` off-peak 21:30 UTC；294 隻 KV snapshot 正常寫入；FRED 流動性指標每日附加；Yahoo 市值批次抓取（Track C） |
 | Watchlist | 299 stocks（T1=123 growth，T2=176 defensive） |
-| UI | **UI 2.0** 完成並部署。5-tab 新架構（大市/板塊/發現/詳情/研究室）+ Trust-First P0 全落實 |
+| UI | **UI 2.0** 完成並部署。5-tab 新架構（大市/板塊/發現/詳情/研究室）+ Trust-First P0 全落實；板塊 Pro Treemap（Track C）已上線 |
+| ML 基建 | **Track A 已落地**（2026-06-22）：`scripts/ml/` Python pipeline；Triple-Barrier labeling；unblock 2026-07-19 |
 
 ---
 
@@ -87,7 +88,9 @@
 | ADX　HYP-022 | 在非牛市或更長時間跨度重新評估區分力 | 需要更多樣本 |
 | EXP-013　LONG_BOUNCE MAE ✅ 關閉 | HYP-028a CLV 0.7 + HYP-028b ema20Slope 均已測試無效；MAE 3% 是結構性特徵，position sizing 是正確槓桿 | — |
 | L9　Headless UI smoke test（Playwright）✅ | navigation / layout / lab 三個 spec 已更新至 UI 2.0 架構；mock snapshot + D1 routes | UI 2.0 完成後 ✅ |
-| B3 + L8　Python ML backend + Meta-labeling | B3 基建（Python 環境、data pipeline、schema 對齊）可現在準備；實際 ML 訓練等 D1 資料積累。**unblock：2026-07-19**（D1 上線 2026-06-19 滿 30 天） | R7 ✅，D1 上線 2026-06-19 |
+| Track A　Python ML 基建 ✅ | `scripts/ml/` 已建立：`fetch_signals.py`（D1 API→CSV）、`label.py`（Triple-Barrier Method k=1.5）、`requirements.txt`；**實際訓練 unblock：2026-07-19**；注意：訓練前需先修 HYP-013 earnings contamination + HYP-015 survivorship bias | Track A 基建 ✅ |
+| HYP-013　D1 earnings 缺口 P0 | `cronSnapshot.ts:523` 缺 earningsMap 參數，D1 所有 historical signal 的 `earnings_in_window` 永遠 false，Gate Summary 有 ~11% earnings 偏差；修復需建立 `earnings_calendar` D1 表 | 確認 bug，修復優先於調 threshold |
+| B3 + L8　ML / Meta-labeling 實際執行 | Track A 基建已落地；等 D1 ≥ 30 天 + HYP-013/015 修復後可執行訓練 | Track A ✅，HYP-013/015 待修 |
 
 ---
 
@@ -190,3 +193,26 @@
 - `trading_etf_db` D1 binding 部署
 - signals 表寫入，/api/d1/signals 運作
 - cron 以 129/130 成功率驗證（1 Yahoo timeout，正常）
+
+### Phase 4 Track B + C + A（2026-06-22 完成）— 管線升級 + Pro Treemap + ML 基建
+
+**Track B — FRED 流動性管道：**
+
+- `scripts/fredLiquidity.ts` — 抓 WALCL/WTREGEN/RRPONTSYD，計算 4w slope
+- `scripts/build-snapshot.ts` — FRED + snapshot 並行 build，liquidity note 附入 DailySnapshot
+- `.github/workflows/snapshot.yml` — `FRED_API_KEY` secret；已驗證：`FRED liquidity: flat (-76B / 4w, asOf 2026-06-17)`
+
+**Track C — 板塊 Pro Treemap：**
+
+- `scripts/yahooMarketCap.ts` — Yahoo `/v8/finance/quote` 批次抓市值（80 tickers/req）
+- `src/types/snapshot.ts` — `StockSnapshotEntry.marketCap?: number` 新增欄位
+- `scripts/build-snapshot.ts` — snapshot build 後附加市值；Worker-cron snapshot 不含（降級為等寬）
+- `src/web/features/sectors/SectorTreemap.tsx` + `SectorTreemap.module.css` — CSS flex tile，格子寬度 ∝ 市值；Pro mode 專屬
+- `src/web/features/sectors/SectorsView.tsx` — Pro mode 插入 treemap section
+
+**Track A — Python ML 基建：**
+
+- `scripts/ml/requirements.txt` — pandas / numpy / scikit-learn / joblib
+- `scripts/ml/fetch_signals.py` — 從 `/api/d1/signals` 抓 settled signals → `data/signals.csv`
+- `scripts/ml/label.py` — Triple-Barrier Method（k=1.5，mfe5d/mae5d/atrAtSignal）→ `data/labeled.csv`
+- **⚠️ 實際訓練 unblock：2026-07-19**；訓練前需先修 HYP-013 + HYP-015

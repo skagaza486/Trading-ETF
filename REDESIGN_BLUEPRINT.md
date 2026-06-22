@@ -660,9 +660,9 @@ Worker cron（保留做 fallback + settle/gate/ETF）
 
 #### P3 深度（信任與閉環完成後）
 
-- ⬜ 板塊 Pro Treemap（面積=市值，需 Finnhub 市值欄）
+- ✅ **板塊 Pro Treemap（Track C，2026-06-22）**：`SectorTreemap.tsx` CSS flex tile，寬度 ∝ 市值；用 Yahoo `/v8/finance/quote` 而非 Finnhub（`scripts/yahooMarketCap.ts`）；Worker-cron snapshot 無市值時降級為等寬；點格子 → `openDetail({ticker, name})`
 - ⬜ 港股接入（`.HK` watchlist + 第二 cron + D1 market 維度）
-- ⬜ B3 + L8 ML / Meta-labeling（unblock 2026-07-19，D1 滿 30 天）
+- ⬜ B3 + L8 ML / Meta-labeling — Track A 基建已落地（2026-06-22）；unblock 2026-07-19；訓練前需修 HYP-013/015
 
 ### 16.4 技術快速索引
 

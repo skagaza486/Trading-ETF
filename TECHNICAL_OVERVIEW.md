@@ -25,11 +25,6 @@
 ```
 /
 ├── src/
-│   ├── App.tsx                        # Single root component; all pages, state, data-fetch
-│   ├── main.tsx                       # React mount
-│   ├── data/
-│   │   ├── etfUniverse.ts             # ETF master list (~50 ETFs with metadata)
-│   │   └── watchlist.ts               # Stock watchlist (299 tickers, tier 1/2)
 │   ├── engine/                        # Pure computation — no React, no fetch
 │   │   ├── indicatorEngine.ts         # EMA, RSI, MACD, CMF, OBV, RVOL, CLV, ATR
 │   │   ├── marketRegime.ts            # SPY/QQQ/VIX/RSP → RegimeClass + proxyWeakBreadth
@@ -38,8 +33,11 @@
 │   │   ├── etfReplayEngine.ts         # Rolling 26-week ETF replay
 │   │   ├── signalClassifier.ts        # Stock signal gate logic → StockSignalLabel
 │   │   ├── stockScreenerEngine.ts     # Per-ticker daily indicator compute → StockSignal
-│   │   ├── stockResearchEngine.ts     # Forward-return record helpers (used by cron)
-│   │   └── researchGate.ts            # Seven-gate statistical validation
+│   │   ├── stockResearchEngine.ts     # Forward-return record helpers + buildHistoricalSignals
+│   │   └── researchGate.ts            # Seven-gate statistical validation + rolling robustness
+│   ├── data/
+│   │   ├── etfUniverse.ts             # ETF master list (~50 ETFs with metadata)
+│   │   └── watchlist.ts               # Stock watchlist (299 tickers, tier 1/2)
 │   ├── services/marketData/
 │   │   ├── yahooFinanceProvider.ts    # Fetch OHLCV bars via /api/yahoo proxy
 │   │   ├── snapshotProvider.ts        # Fetch KV snapshot from /api/snapshot/latest
@@ -47,27 +45,44 @@
 │   │   ├── normalizeMarketData.ts     # Raw Yahoo JSON → TickerHistory
 │   │   └── marketDataCache.ts         # In-memory cache for current session
 │   ├── worker/
-│   │   └── cronSnapshot.ts            # Cron logic: fetch 299 stocks, classify, write KV+D1
+│   │   └── cronSnapshot.ts            # Cron: fetch 299 stocks, classify, write KV+D1; backfill endpoint
 │   ├── types/
 │   │   ├── signal.ts                  # ETFLabel, StockSignalLabel, indicator snapshots
 │   │   ├── indicator.ts               # OHLCVBar, TickerHistory
 │   │   ├── market.ts                  # RegimeClass, RegimeInputs, MarketRegime
 │   │   ├── research.ts                # ForwardReturnRecord
-│   │   ├── snapshot.ts                # DailySnapshot, StockSnapshotEntry
+│   │   ├── snapshot.ts                # DailySnapshot, StockSnapshotEntry (incl. marketCap?, liquidityNote)
 │   │   └── replay.ts                  # ETFReplayWeek
 │   ├── ui/
 │   │   └── labelDisplay.ts            # Label → Chinese text, emoji, plain reason
-│   └── styles/
-│       ├── global.css                 # Design tokens, reset, body
-│       └── dashboard.css              # All component styles + responsive breakpoints
+│   └── web/                           # UI 2.0 greenfield (5-tab architecture)
+│       ├── features/
+│       │   ├── market/                # MarketView — weather card, index strip, story grid
+│       │   ├── sectors/
+│       │   │   ├── SectorsView.tsx    # Sector leadership + treemap container
+│       │   │   ├── SectorTreemap.tsx  # Pro-only: CSS flex treemap, tile width ∝ marketCap
+│       │   │   └── *.module.css
+│       │   ├── discover/              # DiscoverView — stock/ETF cards with sparklines
+│       │   ├── detail/                # DetailView — stock detail, Finnhub news, earnings
+│       │   └── lab/                   # LabView — Quant Lab (gate summary, robustness, perf-by-period)
+│       ├── shared/hooks/              # useSnapshot, useEtfSignals, usePerfByPeriod, …
+│       └── app/                       # AppContext (openDetail, uiMode, marketScope)
+├── scripts/
+│   ├── build-snapshot.ts              # GH Actions runner: snapshot + FRED liquidity + Yahoo market caps → POST ingest
+│   ├── fredLiquidity.ts               # FRED WALCL/WTREGEN/RRPONTSYD → LiquidityNote (slope ±100B)
+│   ├── yahooMarketCap.ts              # Yahoo /v8/finance/quote batch fetch (80 tickers/req) → Map<ticker,cap>
+│   ├── researchAgent.ts               # CLI: fetch histories + historical earnings → buildHistoricalSignals → D1
+│   └── ml/
+│       ├── requirements.txt           # pandas, numpy, scikit-learn, joblib
+│       ├── fetch_signals.py           # Pull settled D1 signals → data/signals.csv
+│       └── label.py                   # Triple-Barrier Method (k=1.5) → data/labeled.csv (tb_label col)
 ├── schema/
 │   ├── d1-init.sql                    # D1 table definitions (signals, gate_snapshots)
 │   └── d1-migrate-b2.sql              # Migration: add 15 forward-return columns to signals
-├── docs/
-│   ├── README.md                      # 補充文檔索引
-│   └── ui/                            # UI 1.1 設計、命名與 QA 流程
 ├── tests/
-│   └── ui/                            # Playwright UI smoke tests
+│   └── ui/                            # Playwright smoke tests (navigation / layout / lab)
+├── .github/workflows/
+│   └── snapshot.yml                   # Cron 21:30 UTC Mon–Fri; secrets: INGEST_TOKEN, FRED_API_KEY
 ├── worker.ts                          # Cloudflare Worker entry (cron + API routes + assets)
 ├── wrangler.toml                      # Cloudflare config (KV, D1, cron schedule)
 ├── vite.config.ts                     # Dev-server proxy for Yahoo / Finnhub
@@ -80,17 +95,18 @@
 
 ### Stocks tab (pure renderer — reads KV snapshot)
 
-```
-Cron (Worker, 21:30 UTC Mon–Fri)
-  → fetch 299 stocks + benchmarks from Yahoo Finance
-  → stockScreenerEngine: compute indicators per stock
-  → marketRegime: compute RegimeClass + proxyWeakBreadth
-  → cross-sectional RS rank
-  → signalClassifier: compute label per stock
-  → write KV: snapshot:latest (36h TTL)
-  → write D1 signals table: label + indicators per ticker per date
-  → settleForwardReturns: update ret5d/ret10d/etc for signals from past 15 days
-  → writeGateSnapshotsToD1: gate aggregate rows
+```text
+GitHub Actions (primary, Node, 21:30 UTC Mon–Fri)
+  scripts/build-snapshot.ts
+  → buildDailySnapshot (concurrency=3, retries=4) — fetch 299 stocks
+  → fetchFredLiquidity (WALCL/WTREGEN/RRPONTSYD → LiquidityNote)   [parallel]
+  → fetchYahooMarketCaps (Yahoo /v8/finance/quote, 80/batch)        [sequential after]
+  → POST /api/admin/ingest-snapshot (Bearer INGEST_TOKEN)
+       → Worker: KV put + writeSignalsToD1 + settleForwardReturns
+
+Worker Cron (fallback, 21:30 UTC Mon–Fri — fires if GH Actions missed)
+  → same fetch pipeline (no FRED, no market caps — subrequest limited)
+  → write KV + D1 directly via bindings
 
 Browser (Stocks tab)
   → GET /api/snapshot/latest → read KV → StockSnapshotEntry[]
@@ -461,6 +477,8 @@ type StockSnapshotEntry = {
 - **Structure + Trigger design:** As of 2026-06-18, all entry signals require both a structural condition (trend alignment, above EMA200) and a trigger condition (breakout, bounce, compression). WATCH is a universe filter only and is not gate-evaluated.
 - **Research phase:** Gates still building sample size with new label taxonomy. The app is a signal generator and backtesting workspace, not a validated trading system.
 - **Safe-haven override:** GLD, IAU, SGOV, SHY, IEF, TLT, BIL, TIP are immune to regime downgrades in the ETF engine.
+- **HYP-013 — D1 earnings contamination (confirmed bug):** `cronSnapshot.ts` backfill path calls `buildHistoricalSignals` without the `historicalEarningsMap` parameter, so all historical D1 signals have `earnings_in_window = false`. Approximately 11% of signals occur near earnings windows and are not flagged. Gate Summary statistics have a known optimistic bias until this is fixed. See `SIGNAL_IMPROVEMENT.md` HYP-013.
+- **Market cap data:** `StockSnapshotEntry.marketCap` is only populated by GitHub Actions builds (via `scripts/yahooMarketCap.ts`). Worker-cron snapshots lack market cap data; the Sector Treemap gracefully degrades to equal-width tiles.
 
 ---
 
@@ -470,24 +488,22 @@ type StockSnapshotEntry = {
 
 | Phase | Status | Summary |
 |---|---|---|
-| B1 — KV + Cron | ✅ Complete (2026-06-19) | 299 stocks classified daily by cron; KV snapshot; browser is pure renderer |
+| B1 — KV + Cron | ✅ Complete (2026-06-19) | 299 stocks classified daily; KV snapshot; browser is pure renderer |
 | B2 — D1 signals | ✅ Complete (2026-06-19) | Forward returns settled server-side; Verify tab reads D1; 2yr backfill done |
-| B3 — Python ML | Planned (unblock 2026-07-19) | LightGBM meta-labeling; requires D1 data ≥ 30 days and Python backend |
+| Track B — FRED liquidity | ✅ Complete (2026-06-22) | `fredLiquidity.ts` → `LiquidityNote` in DailySnapshot; GH Actions verified |
+| Track C — Sector Treemap | ✅ Complete (2026-06-22) | `SectorTreemap.tsx` Pro-only CSS flex treemap; `yahooMarketCap.ts` batch fetch |
+| Track A — Python ML infra | ✅ Infrastructure done (2026-06-22) | `scripts/ml/`: fetch_signals.py + label.py (Triple-Barrier); training unblocks 2026-07-19 |
+| B3 — ML training | ⏳ Unblock 2026-07-19 | Requires: D1 ≥ 30 days + **HYP-013 earnings fix** + **HYP-015 universe snapshot** |
 
-### Next: B3 — Python Research Backend
+### Pre-conditions Before ML Training
 
-Separate service (local dev or Railway free tier). Consumes D1 signals via `/api/d1/signals`, trains LightGBM Meta-Labeling model.
+Before running `scripts/ml/label.py` and training LightGBM:
 
-```text
-FastAPI
-  /train   → reads signals from D1, trains LightGBM Meta-Labeling model
-  /predict → accepts indicator snapshot, returns take/skip probability
-```
+1. **HYP-013 fix:** Add `earnings_calendar` D1 table; pass historical earnings map to `buildHistoricalSignals` in backfill path so ~11% of mislabeled signals are corrected.
+2. **HYP-015:** Establish frozen monthly universe snapshots to eliminate selection bias in training data.
 
-SPA calls `/predict` after primary signal classification to apply secondary ML filter.
-
-**Unblock date:** 2026-07-19 (D1 live 30 days, sufficient sample for initial model).
+Until these are resolved, training data has known systematic biases that a stronger model will amplify rather than correct.
 
 ---
 
-Last updated: 2026-06-19 (B1+B2 complete; cloud architecture live; 299 stocks; cron 21:30 UTC Mon–Fri; D1 signals + forward returns + backfill)
+Last updated: 2026-06-22 (Track A+B+C complete; GH Actions primary pipeline; 299 stocks; FRED liquidity; Sector Treemap Pro; Python ML infra ready)
