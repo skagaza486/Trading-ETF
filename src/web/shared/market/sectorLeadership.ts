@@ -1,4 +1,4 @@
-import type { StockSnapshotEntry } from '../../../types/snapshot'
+import type { SectorSnapshotEntry, StockSnapshotEntry } from '../../../types/snapshot'
 import { getStockMeta } from '../i18n/stockNames'
 
 export type SectorLeadership = {
@@ -17,6 +17,8 @@ export type SectorLeadership = {
   topTicker: string
   leaders: StockSnapshotEntry[]
   stocks: StockSnapshotEntry[]
+  trend20d: number[]
+  trajectory20d: SectorSnapshotEntry['trajectory20d']
 }
 
 const BULL_LABELS = new Set(['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE', 'LONG_BASE'])
@@ -29,8 +31,9 @@ export function getStockDayPct(stock: StockSnapshotEntry) {
     : null
 }
 
-export function buildSectorLeadership(stocks: StockSnapshotEntry[]): SectorLeadership[] {
+export function buildSectorLeadership(stocks: StockSnapshotEntry[], sectorSnapshots: SectorSnapshotEntry[] = []): SectorLeadership[] {
   const groups = new Map<string, { sector: string; stocks: StockSnapshotEntry[] }>()
+  const sectorSnapshotMap = new Map(sectorSnapshots.map(sector => [sector.sectorZh, sector]))
 
   for (const stock of stocks) {
     const sectorZh = getStockMeta(stock.ticker, stock.name).sectorZh
@@ -64,6 +67,7 @@ export function buildSectorLeadership(stocks: StockSnapshotEntry[]): SectorLeade
       const leaders = [...sectorStocks]
         .sort((a, b) => (b.rsRank ?? 0) - (a.rsRank ?? 0))
         .slice(0, 3)
+      const snapshot = sectorSnapshotMap.get(sectorZh)
 
       // Density remains primary, while signal count prevents one-stock sectors
       // from being overstated and RS breaks otherwise similar groups.
@@ -85,6 +89,8 @@ export function buildSectorLeadership(stocks: StockSnapshotEntry[]): SectorLeade
         topTicker: leaders[0]?.ticker ?? '',
         leaders,
         stocks: sectorStocks,
+        trend20d: snapshot?.trend20d ?? [],
+        trajectory20d: snapshot?.trajectory20d ?? [],
       }
     })
     .sort((a, b) => b.leadershipScore - a.leadershipScore)

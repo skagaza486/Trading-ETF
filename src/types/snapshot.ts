@@ -17,10 +17,24 @@ export type StockSnapshotEntry = {
   rsRank: number | null  // percentile 0–100 of 126d return vs snapshot universe
 }
 
+export type SectorTrajectoryPoint = {
+  rs: number
+  thrust: number
+}
+
+export type SectorSnapshotEntry = {
+  sectorZh: string
+  sector: string
+  count: number
+  trend20d: number[]
+  trajectory20d: SectorTrajectoryPoint[]
+}
+
 export type DailySnapshot = {
   generatedAt: string    // ISO datetime
   date: string           // YYYY-MM-DD signal date
   regime: RegimeClass
   proxyWeakBreadth: boolean
   stocks: StockSnapshotEntry[]
+  sectors?: SectorSnapshotEntry[]
 }

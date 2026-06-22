@@ -121,6 +121,13 @@
   flex-direction: column;
 }
 
+.rotationWorkspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(250px, 0.9fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
 .exposurePanel {
   display: flex;
   flex-direction: column;
@@ -168,52 +175,70 @@
   background:
     linear-gradient(to right, transparent calc(50% - 0.5px), var(--border-subtle) 50%, transparent calc(50% + 0.5px)),
     linear-gradient(to bottom, transparent calc(50% - 0.5px), var(--border-subtle) 50%, transparent calc(50% + 0.5px)),
-    radial-gradient(circle at 75% 25%, color-mix(in srgb, var(--color-gain) 9%, transparent), transparent 42%),
-    radial-gradient(circle at 25% 75%, color-mix(in srgb, var(--color-loss) 7%, transparent), transparent 42%),
+    radial-gradient(circle at 76% 24%, color-mix(in srgb, var(--color-gain) 10%, transparent), transparent 45%),
+    radial-gradient(circle at 24% 24%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 44%),
+    radial-gradient(circle at 24% 76%, color-mix(in srgb, var(--color-loss) 7%, transparent), transparent 44%),
+    radial-gradient(circle at 76% 76%, color-mix(in srgb, var(--color-warn) 8%, transparent), transparent 44%),
     var(--bg-base);
+}
+
+.rotationTrail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.rotationTrailPath {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 72%, white);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 4 4;
+  opacity: 0.85;
 }
 
 .quadrantLabel {
   position: absolute;
   z-index: 1;
-  color: var(--text-muted);
   font-size: 10px;
+  font-weight: 700;
   pointer-events: none;
 }
 
-.qTopLeft { top: 12px; left: 14px; }
+.qTopLeft { top: 12px; left: 14px; color: color-mix(in srgb, var(--accent) 75%, white); }
 .qTopRight { top: 12px; right: 14px; color: var(--color-gain); }
 .qBottomLeft { bottom: 12px; left: 14px; color: var(--color-loss); }
-.qBottomRight { right: 14px; bottom: 12px; }
+.qBottomRight { right: 14px; bottom: 12px; color: var(--color-warn); }
 
-.axisX,
-.axisY {
+.axisEdge {
   position: absolute;
   z-index: 1;
   color: var(--text-muted);
   font-size: 9px;
-  opacity: 0.7;
+  opacity: 0.78;
   pointer-events: none;
+  letter-spacing: 0.02em;
 }
 
-.axisX { right: 8px; top: calc(50% + 6px); }
-.axisY {
-  top: 8px;
-  left: calc(50% + 7px);
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-}
+.axisTop { top: 8px; left: 50%; transform: translateX(-50%); }
+.axisBottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.axisLeft { left: 10px; top: 50%; transform: translateY(-50%); }
+.axisRight { right: 10px; top: 50%; transform: translateY(-50%); }
 
 .rotationPoint {
   position: absolute;
   z-index: 2;
-  transform: translate(-50%, 50%);
-  min-width: 38px;
-  height: 26px;
-  padding: 0 7px;
+  transform: translate(-50%, -50%);
+  min-width: 42px;
+  height: 28px;
+  padding: 0 8px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-subtle));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent-dim) 85%, var(--bg-card));
+  background: color-mix(in srgb, var(--bg-card) 84%, var(--accent-dim));
   color: var(--text-primary);
   font-family: inherit;
   font-size: 10px;
@@ -225,7 +250,7 @@
 
 .rotationPoint:hover,
 .rotationSelected {
-  transform: translate(-50%, 50%) scale(1.12);
+  transform: translate(-50%, -50%) scale(1.12);
   border-color: var(--accent);
   background: var(--accent);
   color: var(--bg-base);
@@ -235,6 +260,119 @@
 .rotationNote {
   margin-top: 9px;
   line-height: 1.45;
+}
+
+.rotationDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-faint);
+  border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-dim) 82%, transparent), var(--bg-elevated));
+}
+
+.rotationDetailTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rotationDetailEyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.rotationDetailTop h3 {
+  color: var(--text-primary);
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.rotationState {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.stateUp {
+  background: color-mix(in srgb, var(--color-gain) 16%, transparent);
+  color: var(--color-gain);
+}
+
+.stateDown {
+  background: color-mix(in srgb, var(--color-loss) 16%, transparent);
+  color: var(--color-loss);
+}
+
+.rotationMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rotationTrendCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-faint);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rotationTrendCard strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.rotationTrendCard span {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.rotationTrend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rotationSpark {
+  width: 132px;
+  height: 42px;
+  overflow: visible;
+}
+
+.rotationLine {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rotationArea {
+  fill: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.rotationTrendValue {
+  min-width: 40px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rotationTrendEmpty {
+  color: var(--text-muted);
+  font-size: 11px;
 }
 
 .exposureSummary {
@@ -481,8 +619,22 @@
     gap: 6px;
   }
 
+  .rotationWorkspace {
+    grid-template-columns: 1fr;
+  }
+
   .quadrant { height: 240px; }
   .rotationPoint { min-width: 32px; padding: 0 5px; font-size: 9px; }
+
+  .rotationDetailTop,
+  .rotationTrendCard {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rotationMetrics {
+    grid-template-columns: 1fr;
+  }
 
   .exposureSummary {
     grid-template-columns: 1fr;

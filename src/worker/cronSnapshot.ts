@@ -20,7 +20,8 @@ import { latestBar } from '../engine/historyUtils'
 import type { TickerHistory } from '../types/indicator'
 import type { ForwardReturnRecord } from '../types/research'
 import type { LabelGateResult } from '../engine/researchGate'
-import type { DailySnapshot, StockSnapshotEntry } from '../types/snapshot'
+import type { DailySnapshot, SectorSnapshotEntry, StockSnapshotEntry } from '../types/snapshot'
+import { getStockMeta } from '../web/shared/i18n/stockNames'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type D1Database = any
@@ -103,6 +104,103 @@ function buildSnapshotPriceFields(history: TickerHistory): Pick<StockSnapshotEnt
     .reverse()
 
   return { prevClose, recentClose }
+}
+
+function percentileRank(value: number, universe: number[]): number {
+  if (universe.length === 0) return 50
+  const below = universe.filter(item => item < value).length
+  return Math.round((below / universe.length) * 100)
+}
+
+function computeSectorSnapshots(
+  stocks: typeof stockWatchlist,
+  stockHistories: Record<string, TickerHistory>
+): SectorSnapshotEntry[] {
+  const groups = new Map<string, { sector: string; histories: TickerHistory[] }>()
+
+  for (const stock of stocks) {
+    const history = stockHistories[stock.ticker]
+    if (!history) continue
+    const meta = getStockMeta(stock.ticker, stock.name)
+    if (!groups.has(meta.sectorZh)) groups.set(meta.sectorZh, { sector: stock.sector, histories: [] })
+    groups.get(meta.sectorZh)!.histories.push(history)
+  }
+
+  const sectorEntries = Array.from(groups.entries()).map(([sectorZh, group]) => {
+    const histories = group.histories
+    const trend20d = buildSectorTrend20d(histories)
+    const trajectory20d = buildSectorTrajectory20d(histories)
+    return {
+      sectorZh,
+      sector: group.sector,
+      count: histories.length,
+      trend20d,
+      trajectory20d,
+    }
+  })
+
+  return sectorEntries
+}
+
+function buildSectorTrend20d(histories: TickerHistory[]): number[] {
+  const buckets = new Map<number, number[]>()
+
+  for (const history of histories) {
+    const closes = history.bars.slice(-20).map(bar => bar.close)
+    if (closes.length < 2) continue
+    const base = closes[0]
+    if (!Number.isFinite(base) || base === 0) continue
+    closes.forEach((close, index) => {
+      const values = buckets.get(index) ?? []
+      values.push(((close - base) / base) * 100)
+      buckets.set(index, values)
+    })
+  }
+
+  return Array.from(buckets.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([, values]) => values.reduce((sum, value) => sum + value, 0) / values.length)
+}
+
+function buildSectorTrajectory20d(histories: TickerHistory[]): SectorSnapshotEntry['trajectory20d'] {
+  const sectorReturns: Array<Array<{ lookback20: number; thrust5: number }>> = []
+
+  for (const history of histories) {
+    const bars = history.bars
+    const perStock: Array<{ lookback20: number; thrust5: number }> = []
+    for (let index = Math.max(20, bars.length - 20); index < bars.length; index++) {
+      const current = bars[index]?.close
+      const close20 = bars[index - 20]?.close
+      const close5 = bars[index - 5]?.close
+      if (!current || !close20 || !close5) continue
+      perStock.push({
+        lookback20: ((current - close20) / close20) * 100,
+        thrust5: ((current - close5) / close5) * 100,
+      })
+    }
+    if (perStock.length > 0) sectorReturns.push(perStock)
+  }
+
+  if (sectorReturns.length === 0) return []
+
+  const sampleCount = Math.max(...sectorReturns.map(series => series.length))
+  const aggregate: Array<{ lookback20: number; thrust5: number }> = []
+  for (let index = 0; index < sampleCount; index++) {
+    const sample = sectorReturns
+      .map(series => series[index])
+      .filter((value): value is { lookback20: number; thrust5: number } => Boolean(value))
+    if (sample.length === 0) continue
+    aggregate.push({
+      lookback20: sample.reduce((sum, value) => sum + value.lookback20, 0) / sample.length,
+      thrust5: sample.reduce((sum, value) => sum + value.thrust5, 0) / sample.length,
+    })
+  }
+
+  const universe20d = aggregate.map(point => point.lookback20)
+  return aggregate.map(point => ({
+    rs: percentileRank(point.lookback20, universe20d),
+    thrust: point.thrust5,
+  }))
 }
 
 export async function writeSignalsToD1(db: D1Database, snapshot: DailySnapshot): Promise<void> {
@@ -379,7 +477,8 @@ export async function buildDailySnapshot(opts: BuildSnapshotOptions = {}): Promi
     date: signalDate,
     regime,
     proxyWeakBreadth,
-    stocks
+    stocks,
+    sectors: computeSectorSnapshots(stockWatchlist, stockHistories),
   }
 
   return { snapshot, stockHistories, benchmarks }
