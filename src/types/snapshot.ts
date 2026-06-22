@@ -15,6 +15,7 @@ export type StockSnapshotEntry = {
   earningsWithinWindow: boolean
   reason: string
   rsRank: number | null  // percentile 0–100 of 126d return vs snapshot universe
+  marketCap?: number     // USD market cap from Yahoo quote; absent from Worker-cron snapshots
 }
 
 export type SectorTrajectoryPoint = {

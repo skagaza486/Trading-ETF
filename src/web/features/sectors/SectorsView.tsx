@@ -12,6 +12,7 @@ import {
   type SectorLeadership,
 } from '../../shared/market/sectorLeadership'
 import styles from './SectorsView.module.css'
+import { SectorTreemap } from './SectorTreemap'
 
 function sectorVerdict(sector: SectorLeadership) {
   const ratio = sector.bullish / sector.count
@@ -150,6 +151,16 @@ export function SectorsView() {
           )}
         </div>
       </section>
+
+      {mode === 'pro' && sectors.length > 0 && (
+        <section className={styles.treemapCard}>
+          <div className={styles.treemapHeader}>
+            <span className={styles.sectionEyebrow}>市值地圖</span>
+            <h2>板塊市值分布</h2>
+          </div>
+          <SectorTreemap sectors={sectors} />
+        </section>
+      )}
 
       <h2 className={styles.heading}>板塊強弱</h2>
       <p className={styles.sub}>綜合看漲廣度、有效訊號數與 RS 排序 · 點板塊展開成份股</p>

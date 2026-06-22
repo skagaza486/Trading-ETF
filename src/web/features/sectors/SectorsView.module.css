@@ -659,3 +659,23 @@
   .stockRow { flex-wrap: wrap; }
   .sname { min-width: 100px; }
 }
+
+/* ── Sector Treemap (Pro mode) ────────────────────────────────────── */
+.treemapCard {
+  padding: 17px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px;
+  background: var(--bg-card);
+}
+
+.treemapHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.treemapHeader h2 {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}

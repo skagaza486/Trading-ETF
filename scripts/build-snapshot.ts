@@ -11,6 +11,7 @@
  */
 import { buildDailySnapshot } from '../src/worker/cronSnapshot'
 import { fetchFredLiquidity } from './fredLiquidity'
+import { fetchYahooMarketCaps } from './yahooMarketCap'
 
 const INGEST_URL = process.env.INGEST_URL
   || 'https://trading-etf.skagaza486.workers.dev/api/admin/ingest-snapshot'
@@ -38,6 +39,17 @@ async function main(): Promise<void> {
   } else {
     console.log('FRED liquidity: skipped (no key or fetch failed)')
   }
+
+  // Fetch market caps from Yahoo for Sector Treemap (Pro mode UI only)
+  const tickers = snapshot.stocks.map(s => s.ticker)
+  console.log(`Fetching market caps for ${tickers.length} tickers…`)
+  const marketCaps = await fetchYahooMarketCaps(tickers)
+  let capCount = 0
+  for (const stock of snapshot.stocks) {
+    const cap = marketCaps.get(stock.ticker)
+    if (cap) { stock.marketCap = cap; capCount++ }
+  }
+  console.log(`Market caps attached: ${capCount}/${tickers.length}`)
   console.log(`Built snapshot: date=${snapshot.date}, stocks=${snapshot.stocks.length}`)
   const sample = snapshot.stocks[0]
   if (sample) {

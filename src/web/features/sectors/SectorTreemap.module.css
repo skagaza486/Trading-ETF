@@ -1,0 +1,123 @@
+.treemap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.legendNote {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.sectorRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectorLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectorName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sectorCount {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.tilesRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 3px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.tile {
+  flex-shrink: 0;
+  min-width: 24px;
+  height: 44px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  overflow: hidden;
+  padding: 0 3px;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.tile:hover {
+  opacity: 0.85;
+  transform: scaleY(1.04);
+  z-index: 1;
+}
+
+.tileBull {
+  background: rgba(62, 207, 142, 0.18);
+  border-color: rgba(62, 207, 142, 0.30);
+}
+
+.tileNeutral {
+  background: rgba(76, 157, 247, 0.12);
+  border-color: rgba(76, 157, 247, 0.20);
+}
+
+.tileBear {
+  background: rgba(248, 82, 82, 0.14);
+  border-color: rgba(248, 82, 82, 0.25);
+}
+
+.tileTicker {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.tileCap {
+  font-size: 8px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.noCapNote {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin: 0;
+}
