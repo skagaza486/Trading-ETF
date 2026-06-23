@@ -87,6 +87,7 @@ export async function runDailyBatch(
   const exitRecords: ExitRecord[] = []
   let realizedPnlCents = 0
   const workingLots = [...openLots] // mutable copy updated as exits are processed
+  const exitedTodayTickers = new Set<string>() // prevent same-day re-entry after exit
 
   for (const lot of openLots) {
     const priceRow = await env.TRADING_ETF_DB_RO.prepare(`
@@ -105,12 +106,15 @@ export async function runDailyBatch(
     const pnlCents = grossCents - lot.total_cost_cents
 
     const intentId = crypto.randomUUID()
-    await env.SIGNALPILOT_DB.prepare(`
+    const exitIntentResult = await env.SIGNALPILOT_DB.prepare(`
       INSERT OR IGNORE INTO trade_intents
         (id, account_id, ticker, direction, signal_date, signal_label, source_signal_id,
          target_notional_cents, eligibility_status, rejection_reason, created_at, created_by)
       VALUES (?, ?, ?, 'SELL', ?, 'EXIT', NULL, ?, 'APPROVED', ?, ?, 'sp2-batch')
     `).bind(intentId, accountId, lot.ticker, batchDate, lot.total_cost_cents, trigger, now).run()
+
+    // UNIQUE conflict: this exit was already recorded in a prior partial run — skip.
+    if (exitIntentResult.meta.changes === 0) continue
 
     const orderId = crypto.randomUUID()
     await env.SIGNALPILOT_DB.prepare(`
@@ -146,6 +150,7 @@ export async function runDailyBatch(
     openTickers.delete(lot.ticker)
     const idx = workingLots.findIndex(l => l.ticker === lot.ticker)
     if (idx >= 0) workingLots.splice(idx, 1)
+    exitedTodayTickers.add(lot.ticker)
     realizedPnlCents += pnlCents
     navCents = navCents - lot.total_cost_cents + grossCents
 
@@ -161,6 +166,18 @@ export async function runDailyBatch(
   let newPositionsToday = 0
 
   for (const signal of signals) {
+    if (exitedTodayTickers.has(signal.ticker)) {
+      await recordDecision(env.SIGNALPILOT_DB, {
+        batchDate, accountId, signal, decision: 'REJECTED',
+        layer: 'ELIGIBILITY', code: 'EXITED_SAME_DAY', intentId: null, policyVersion: policy.version, now,
+      })
+      entryRecords.push({
+        ticker: signal.ticker, signalLabel: signal.label, signalDate: signal.signal_date,
+        decision: 'REJECTED', layer: 'ELIGIBILITY', code: 'EXITED_SAME_DAY',
+      })
+      continue
+    }
+
     const elig = checkEligibility(signal, openTickers, batchDate, policy)
     if (!elig.eligible) {
       await recordDecision(env.SIGNALPILOT_DB, {
@@ -217,13 +234,23 @@ export async function runDailyBatch(
     }
 
     const intentId = crypto.randomUUID()
-    await env.SIGNALPILOT_DB.prepare(`
+    const intentResult = await env.SIGNALPILOT_DB.prepare(`
       INSERT OR IGNORE INTO trade_intents
         (id, account_id, ticker, direction, signal_date, signal_label, source_signal_id,
          target_notional_cents, eligibility_status, rejection_reason, created_at, created_by)
       VALUES (?, ?, ?, 'LONG', ?, ?, ?, ?, 'APPROVED', NULL, ?, 'sp2-batch')
     `).bind(intentId, accountId, signal.ticker, signal.signal_date, signal.label,
        signal.rowid, TARGET_NOTIONAL_CENTS, now).run()
+
+    // UNIQUE constraint conflict (e.g. prior partial run already inserted this intent).
+    // Skip downstream inserts — position state already exists in DB.
+    if (intentResult.meta.changes === 0) {
+      entryRecords.push({
+        ticker: signal.ticker, signalLabel: signal.label, signalDate: signal.signal_date,
+        decision: 'REJECTED', layer: 'ELIGIBILITY', code: 'DUPLICATE_INTENT',
+      })
+      continue
+    }
 
     const orderId = crypto.randomUUID()
     await env.SIGNALPILOT_DB.prepare(`

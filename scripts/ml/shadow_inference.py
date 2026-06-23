@@ -27,6 +27,8 @@ Usage:
     TRADING_ETF_URL — optional, defaults to production URL
 """
 
+from __future__ import annotations
+
 import argparse
 import glob
 import hashlib
@@ -121,7 +123,7 @@ def fetch_today_signals(date: str) -> pd.DataFrame:
 
 def build_inference_features(df_signals: pd.DataFrame, feat_cols: list[str]) -> np.ndarray:
     schema = json.loads(SCHEMA_PATH.read_text())
-    features_df, _, _ = build(df_signals, schema)
+    features_df, _ = build(df_signals, schema)
     available = [c for c in feat_cols if c in features_df.columns]
     missing   = [c for c in feat_cols if c not in features_df.columns]
     if missing:

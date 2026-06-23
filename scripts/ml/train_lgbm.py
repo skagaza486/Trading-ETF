@@ -69,17 +69,18 @@ def load_data(feat_path: pathlib.Path, tgt_path: pathlib.Path, tb_k: float
     feats = pd.read_parquet(feat_path) if feat_path.suffix == ".parquet" else pd.read_csv(feat_path)
     tgts  = pd.read_parquet(tgt_path)  if tgt_path.suffix  == ".parquet" else pd.read_csv(tgt_path)
 
-    df = pd.concat([feats, tgts], axis=1)
-
-    leaked = set(df.columns) & blocklist
+    # Leakage check: only feats, not tgts (tgts legitimately carry ret5d/ret10d/mfe/mae)
+    leaked = set(feats.columns) & blocklist
     if leaked:
         sys.exit(f"[FAIL] Leakage columns in features: {leaked}. Run leakage_audit.py first.")
+
+    df = pd.concat([feats, tgts], axis=1)
 
     # Build binary meta-label: 1 = upper barrier (TAKE), 0 = PASS
     if "tb_label" not in df.columns:
         if "mfe5d" not in df.columns or "atr_at_signal" not in df.columns:
             sys.exit("Need tb_label or (mfe5d + mae5d + atr_at_signal) to build target. Run label.py first.")
-        # Re-derive triple barrier
+        # Re-derive triple barrier from mfe/mae already in tgts
         from label import triple_barrier_label  # type: ignore[import]
         df = triple_barrier_label(df, k=tb_k)
 

@@ -47,7 +47,7 @@ function rowToCsv(row, headers) {
 const args = parseArgs(process.argv.slice(2))
 const labelFilter = args.allLabels ? '' : `AND label IN (${args.labels.map(l => `'${l}'`).join(',')})`
 
-const COLS = 'ticker, signal_date, label, previous_label, regime, rs_rank, rsi14, rvol, rs_vs_spy, clv, ema50_slope, atr_at_signal, earnings_in_window, indicators_json, ret1d, ret3d, ret5d, ret10d, ret5d_vs_spy, ret10d_vs_spy, mfe5d, mae5d, mfe10d, mae10d, stop_loss_hit'
+const COLS = 'ticker, signal_date, label, previous_label, regime, rs_rank, rsi14, rvol, rs_vs_spy, clv, ema50_slope, atr_at_signal, close_at_signal, earnings_in_window, indicators_json, ret1d, ret3d, ret5d, ret10d, ret5d_vs_spy, ret10d_vs_spy, mfe5d, mae5d, mfe10d, mae10d, stop_loss_hit'
 
 let allRows = []
 let offset = 0

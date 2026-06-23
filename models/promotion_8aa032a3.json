@@ -1,0 +1,24 @@
+{
+  "promoted_at": "2026-06-23T02:22:42Z",
+  "model_run_id": "8aa032a3",
+  "baselines_run": "e14f18b3",
+  "schema_version": "1.0.0",
+  "oof_metrics": {
+    "n": 153,
+    "take_rate": 0.4248,
+    "base_rate": 0.4248,
+    "auc": 0.5794,
+    "avg_prec": 0.4772,
+    "brier": 0.2441,
+    "log_loss": 0.6804,
+    "precision": 0.4615,
+    "recall": 0.4615
+  },
+  "gate_passed": [
+    "AUC 0.5794 vs LogReg 0.4960 (+0.02)",
+    "Precision 0.4615 vs AlwaysTake 0.4248 (+0.02)",
+    "AvgPrec 0.4772 vs AlwaysTake 0.4248",
+    "Brier 0.2441 < AlwaysTake 0.5752"
+  ],
+  "notes": "Sector/industry features absent until HYP-015 delivered."
+}

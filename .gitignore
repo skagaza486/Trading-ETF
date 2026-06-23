@@ -7,3 +7,11 @@ playwright-report/
 *.local
 .DS_Store
 .wrangler/
+
+# ML training data (raw/intermediate — not needed in CI)
+data/
+
+# ML models — track promotion records, meta, and pkl; ignore OOF/fold/baseline dumps
+models/baselines_*.json
+models/oof_*.csv
+models/folds_*.json

@@ -79,9 +79,11 @@ def fit_predict_sklearn(
     y_tr: np.ndarray,
     X_te: np.ndarray,
 ) -> np.ndarray:
+    from sklearn.impute import SimpleImputer
     pipe = Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf",    model_cls(**model_kwargs)),
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler",  StandardScaler()),
+        ("clf",     model_cls(**model_kwargs)),
     ])
     pipe.fit(X_tr, y_tr)
     return pipe.predict_proba(X_te)[:, 1]

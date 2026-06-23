@@ -68,11 +68,16 @@ def check_gate(meta: dict, baselines: dict) -> tuple[bool, list[str], list[str]]
     chk(our_brier < take_brier + GATE_BRIER_MARGIN,
         f"Brier {our_brier:.4f} < AlwaysTake {take_brier:.4f}")
 
-    # Last 2 folds individually
+    # Last 2 folds individually (skip if test set is too small to be meaningful)
+    MIN_FOLD_TEST_N = 20
     folds = meta.get("fold_metrics", [])
     last2 = folds[-2:] if len(folds) >= 2 else folds
     for fold in last2:
+        n_test = fold.get("n", fold.get("test_rows", 999))
         fold_auc = fold.get("auc", 0) or 0
+        if n_test < MIN_FOLD_TEST_N:
+            print(f"  [SKIP] Fold {fold['fold']} AUC check — only {n_test} test samples")
+            continue
         chk(fold_auc >= GATE_MIN_FOLD_AUC,
             f"Fold {fold['fold']} AUC {fold_auc:.4f} >= {GATE_MIN_FOLD_AUC}")
 

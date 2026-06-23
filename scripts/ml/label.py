@@ -26,7 +26,14 @@ import numpy as np
 
 def triple_barrier_label(df: pd.DataFrame, k: float = 1.5) -> pd.DataFrame:
     df = df.copy()
-    atr = df["atrAtSignal"].fillna(0)
+    # mfe5d / mae5d are fractional returns (e.g. 0.05 = 5%).
+    # atr_at_signal is in dollar terms → convert to fraction using close_at_signal.
+    atr_dollars = df["atrAtSignal"].fillna(0) if "atrAtSignal" in df.columns else df["atr_at_signal"].fillna(0)
+    if "close_at_signal" in df.columns:
+        close = df["close_at_signal"].replace(0, float("nan"))
+        atr = (atr_dollars / close).fillna(0)
+    else:
+        atr = atr_dollars  # legacy: assume same units (will warn caller)
     mfe = df["mfe5d"].fillna(0)
     mae = df["mae5d"].fillna(0)   # already negative in the API
 
@@ -71,7 +78,9 @@ def main():
 
     df = pd.read_csv(src, parse_dates=["signal_date"])
 
-    required = ["mfe5d", "mae5d", "atrAtSignal"]
+    required = ["mfe5d", "mae5d"]
+    if "atrAtSignal" not in df.columns and "atr_at_signal" not in df.columns:
+        required.append("atrAtSignal")  # will trigger missing error with helpful name
     missing = [c for c in required if c not in df.columns]
     if missing:
         print(f"Missing columns for labeling: {missing}", file=sys.stderr)
