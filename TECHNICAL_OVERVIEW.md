@@ -78,13 +78,35 @@
 │       └── label.py                   # Triple-Barrier Method (k=1.5) → data/labeled.csv (tb_label col)
 ├── schema/
 │   ├── d1-init.sql                    # D1 table definitions (signals, gate_snapshots)
-│   └── d1-migrate-b2.sql              # Migration: add 15 forward-return columns to signals
+│   ├── d1-migrate-b2.sql              # Migration: add 15 forward-return columns to signals
+│   ├── d1-migrate-r9-research-data.sql # Migration: watchlist_universe_snapshots table
+│   ├── d1-migrate-r10-next-open.sql   # Migration: signals.next_open REAL column
+│   ├── signalpilot-init.sql           # SignalPilot SP-0: audit_log + control_flags
+│   └── signalpilot-sp1.sql            # SignalPilot SP-1: accounts/intents/orders/fills/cash_ledger/lots/events/recon
+├── signalpilot/                       # SignalPilot — independent control-plane Worker
+│   ├── worker.ts                      # Entry + router (SP-0 auth/kill-switch + SP-1 trade routes)
+│   ├── env.d.ts                       # Merges SP_AUTH_TOKEN into Env
+│   ├── lib/
+│   │   ├── auth.ts                    # Bearer-token verify (constant-time) + replay guard
+│   │   ├── audit.ts                   # Append-only hash-chained audit_log
+│   │   ├── killSwitch.ts              # trading_disabled flag; D1 truth + KV mirror; fail-closed
+│   │   ├── http.ts                    # json/error helpers, requestId, sha256
+│   │   ├── brokers/paper.ts           # PaperBrokerAdapter: next_open fill + 10bps slippage
+│   │   └── sp1/
+│   │       ├── types.ts               # PAPER_ACCOUNT_ID, TARGET_NOTIONAL_CENTS, interfaces
+│   │       ├── eligibility.ts         # checkEligibility stub (label + earnings + price guards)
+│   │       ├── ledger.ts              # append-only cash_ledger; getBalance O(1)
+│   │       ├── positions.ts           # FIFO position lots; getOpenPositions
+│   │       └── intentFlow.ts          # runIntent: signal → eligibility → fill → ledger → audit
+│   └── README.md                      # Provisioning steps + smoke test
 ├── tests/
 │   └── ui/                            # Playwright smoke tests (navigation / layout / lab)
 ├── .github/workflows/
 │   └── snapshot.yml                   # Cron 21:30 UTC Mon–Fri; secrets: INGEST_TOKEN, FRED_API_KEY
 ├── worker.ts                          # Cloudflare Worker entry (API routes + assets; dead scheduled() handler)
 ├── wrangler.toml                      # Cloudflare config (KV, D1; no cron — see snapshot.yml)
+├── wrangler.signalpilot.toml          # SignalPilot Worker config (signalpilot-db + SP_CONTROL_KV)
+├── tsconfig.signalpilot.json          # SignalPilot TypeScript config
 ├── vite.config.ts                     # Dev-server proxy for Yahoo / Finnhub
 └── .env.local                         # FINNHUB_API_KEY (gitignored)
 ```
@@ -486,7 +508,73 @@ type StockSnapshotEntry = {
 
 ---
 
-## 20. Architecture Status
+## 20. SignalPilot — Trading Execution System
+
+SignalPilot is a **separate control-plane Worker** (`signalpilot`) distinct from the public `trading-etf` Worker (ADR-SP-000). It shares the `trading-etf-db` as a **read-only** data source and owns a separate `signalpilot-db` for all write operations.
+
+**Live URL:** `https://signalpilot.skagaza486.workers.dev`
+
+### Architecture Boundaries
+
+| Dimension | Decision |
+|---|---|
+| Git repo | Same monorepo (`signalpilot/` subdir); shares `src/engine/signalClassifier.ts` types as library |
+| Worker | **Separate `signalpilot` Worker** — independent auth, secrets, deploy config |
+| D1 — read signals | `TRADING_ETF_DB_RO` binding → `trading-etf-db` (SELECT only, code discipline) |
+| D1 — write trades | `SIGNALPILOT_DB` binding → `signalpilot-db` (095a9cf7) |
+| KV | `SP_CONTROL_KV` (feedaa9c) — nonce store + kill-switch mirror |
+
+### SP-0 Auth & Audit Spine (deployed 2026-06-23)
+
+Every mutation must pass three sequential gates:
+
+1. **Token gate** (`lib/auth.ts`): `Authorization: Bearer <SP_AUTH_TOKEN>` — constant-time compare
+2. **Replay guard** (`lib/auth.ts`): `X-SP-Timestamp` (±120s window) + `X-SP-Nonce` (single-use, stored in KV)
+3. **Kill switch** (`lib/killSwitch.ts`): `trading_disabled` flag — D1 truth + KV mirror; **fail-closed** (default disabled)
+
+All state changes write an append-only, hash-chained row to `audit_log`. Chain integrity is verifiable at `GET /api/audit`.
+
+### SP-1 Paper Ledger MVP (deployed 2026-06-23)
+
+| Table | Purpose |
+|---|---|
+| `accounts` | Account registry (seed: `paper-001`, $100,000 USD) |
+| `trade_intents` | All order attempts — APPROVED or REJECTED with reason; UNIQUE (account_id, ticker, signal_date) |
+| `broker_orders` | Broker-level orders (paper adapter: immediately FILLED) |
+| `order_events` | State transitions per order |
+| `fills` | Immutable fill records; all amounts in **integer cents**; `price_source` = `next_open` or `close_fallback` |
+| `cash_ledger` | Append-only; stores `running_balance_cents` for O(1) reads |
+| `position_lots` | FIFO lots (ADR-SP-003); `closed_qty` tracks partial exits |
+| `reconciliation` | Daily NAV/P&L snapshots (SP-2) |
+
+**SP-1 Endpoints:**
+
+| Method · Path | Auth | Notes |
+|---|---|---|
+| `GET /api/sp1/account` | token | Cash balance in cents + USD |
+| `GET /api/sp1/positions` | token | Aggregated open positions (HAVING SUM net_qty > 0) |
+| `GET /api/sp1/ledger?limit=N` | token | Cash ledger entries (default 50, max 200) |
+| `POST /api/sp1/intent` | token + replay + kill-switch | signal → eligibility → fill → ledger; idempotent |
+
+**Position sizing:** $1,000 target notional; `qty = Math.floor(100_000 / fill_price_cents)`. Rejected as `POSITION_TOO_SMALL` if qty = 0.
+
+**Fill price:** `next_open` (preferred) or `close_at_signal` (fallback) × `(1 + 10bps)`. `price_source` stored in fill record.
+
+**Eligibility stub (SP-1):** label ∈ `{LONG_BREAK, LONG_VCP, LONG_BOUNCE}` AND `earnings_in_window ≠ 1` AND `close_at_signal IS NOT NULL`.
+
+### SignalPilot Roadmap Summary
+
+| Phase | Status |
+|---|---|
+| SP-0 Auth & Audit Spine | ✅ Complete (2026-06-23) |
+| SP-1 Paper Ledger MVP | 🟡 Code complete (2026-06-23); E2E smoke test pending |
+| SP-2 Rule-Only Shadow Portfolio | ⏳ Next |
+| SP-3 Feature Builder | ⛔ Blocked on GPT (HYP-013 + HYP-015) |
+| SP-4–SP-8 | See `SIGNALPILOT_ROADMAP.md` |
+
+---
+
+## 21. Architecture Status
 
 | Phase | Status | Summary |
 |---|---|---|
@@ -496,6 +584,8 @@ type StockSnapshotEntry = {
 | Track C — Sector Treemap | ✅ Complete (2026-06-22) | `SectorTreemap.tsx` Pro-only CSS flex treemap; `yahooMarketCap.ts` batch fetch |
 | Track A — Python ML infra | ✅ Infrastructure done (2026-06-22) | `scripts/ml/`: fetch_signals.py + label.py (Triple-Barrier); sample volume already sufficient (~74k rows / ~14 months) |
 | B3 — ML training | ⏳ Blocked on data quality | Sample count is NOT the blocker (~74k rows since 2025-04). Requires only: **HYP-013 earnings fix** + **HYP-015 universe snapshot** |
+| **SP-0** — Auth & Audit Spine | ✅ Complete (2026-06-23) | SignalPilot Worker live; token auth + replay guard + kill switch + hash-chained audit |
+| **SP-1** — Paper Ledger MVP | 🟡 Code complete (2026-06-23) | 8-table schema deployed; POST /api/sp1/intent end-to-end; E2E smoke test pending |
 
 ### Pre-conditions Before ML Training
 
@@ -508,4 +598,4 @@ Until these are resolved, training data has known systematic biases that a stron
 
 ---
 
-Last updated: 2026-06-22 (Track A+B+C complete; GH Actions primary pipeline; 299 stocks; FRED liquidity; Sector Treemap Pro; Python ML infra ready)
+Last updated: 2026-06-23 (SP-0 + SP-1 SignalPilot Paper Ledger deployed; Track A+B+C complete; 299 stocks; FRED liquidity; Sector Treemap Pro; Python ML infra ready)

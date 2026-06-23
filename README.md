@@ -16,11 +16,13 @@ node node_modules/.bin/vite         # dev server at localhost:5173
 
 ## Repo Map
 
-根目錄保留三份主文檔：
+根目錄保留主文檔：
 
 - `ROADMAP.md` — 產品與研究優先級，作為目前階段的規劃主入口。
 - `SIGNAL_IMPROVEMENT.md` — signal 研究、gate 驗證、假設與實驗紀錄的唯一主文件。
 - `TECHNICAL_OVERVIEW.md` — 現行系統架構、資料流、engine 分工與執行方式。
+- `SIGNALPILOT_ROADMAP.md` — SignalPilot 交易執行系統里程碑（SP-0 至 SP-8）。
+- `SIGNALPILOT_AI_TRADING_PLAN.md` — SignalPilot 完整設計規格與決策理由。
 
 輔助文檔集中於 `docs/`：
 
@@ -36,10 +38,12 @@ node node_modules/.bin/vite         # dev server at localhost:5173
 
 - `src/` — React UI、純計算 engine、型別、樣式與資料定義。
 - `src/worker/cronSnapshot.ts` — 每日 snapshot 邏輯：fetch 299 stocks，分類，寫 KV + D1（production 由 GitHub Actions 跑，非 Worker cron）。
-- `schema/` — D1 schema 及 migration SQL。
+- `schema/` — D1 schema 及 migration SQL（含 `signalpilot-*.sql`）。
 - `scripts/` — 研究 agent、同步工具等離線工具。
 - `tests/ui/` — Playwright UI smoke tests（layout / navigation / Quant Lab）。
 - `worker.ts` — Cloudflare Worker 入口：API routes + static assets（含一個已停用、不會觸發的 `scheduled()` handler）。
+- `signalpilot/` — **SignalPilot 交易系統**（獨立 Worker）：SP-0 Auth & Audit Spine + SP-1 Paper Ledger MVP。
+- `wrangler.signalpilot.toml` — SignalPilot Worker 部署設定（獨立 `signalpilot-db` + `SP_CONTROL_KV`）。
 
 ## Common Commands
 
@@ -58,8 +62,13 @@ vite build                                  # Production build → dist/
 # 部署（必須先 build）
 vite build && wrangler deploy               # Build + deploy to trading-etf worker
 
+# SignalPilot（獨立 Worker）
+node node_modules/.bin/tsc --noEmit --project tsconfig.signalpilot.json  # SP typecheck
+node node_modules/.bin/wrangler deploy --config wrangler.signalpilot.toml  # SP deploy
+
 # D1 查詢
 wrangler d1 execute trading-etf-db --remote --command "SELECT COUNT(*) FROM signals"
+wrangler d1 execute signalpilot-db --remote --config wrangler.signalpilot.toml --command "SELECT * FROM accounts"
 
 # UI QA（Playwright smoke tests）
 node node_modules/.bin/playwright test      # headless，CI 用
