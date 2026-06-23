@@ -1,0 +1,1 @@
+export { IndexDetail } from './IndexDetail'
