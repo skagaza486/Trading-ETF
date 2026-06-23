@@ -18,10 +18,11 @@ import type { ETFRecommendation, RegimeClass, ResearchFlag, StockSignalLabel } f
 import { getETFLabelDisplay, getResearchFlagDisplay, getStockLabelDisplay } from './ui/labelDisplay'
 import { getStockLogoAsset, getUiAsset } from './ui/assetRegistry'
 import type { ETFCategory } from './types/etf'
+import PortfolioView from './web/features/portfolio/PortfolioView'
 import './styles/dashboard.css'
 import './styles/global.css'
 
-type TabId = 'Dashboard' | 'Stocks' | 'ETFs' | 'Quant Lab'
+type TabId = 'Dashboard' | 'Stocks' | 'ETFs' | 'Quant Lab' | 'Portfolio'
 type QuantLabSubTab = 'ETF Replay' | 'Stock Replay' | 'Stock Research'
 type StockSortKey = 'signal_strength' | 'rs_rank' | 'recent_change' | 'ticker'
 type StockTierFilter = 'ALL' | 'T1' | 'T2'
@@ -121,7 +122,7 @@ type ResearchFlagSummary = {
 
 type StockSectionKey = 'top' | 'review' | 'all' | 'entry' | 'setup' | 'neutral'
 
-const tabs: TabId[] = ['Dashboard', 'Stocks', 'ETFs', 'Quant Lab']
+const tabs: TabId[] = ['Dashboard', 'Stocks', 'ETFs', 'Portfolio', 'Quant Lab']
 const QUANT_SUBTAB_LABELS: Record<QuantLabSubTab, string> = {
   'ETF Replay': 'ETF Check',
   'Stock Replay': 'Stock Check',
@@ -166,6 +167,14 @@ const TAB_META: Record<TabId, {
     helper: '回看、驗證與規則證明。',
     navMark: 'V',
     navIcon: 'icon-verify'
+  },
+  Portfolio: {
+    navLabelEn: 'Portfolio',
+    navLabelZh: '組合',
+    headerTitle: 'Portfolio / 組合',
+    helper: '持倉監控與每週決策記錄。',
+    navMark: 'P',
+    navIcon: 'icon-stocks'
   }
 }
 const BENCHMARK_TICKERS = ['SPY', 'QQQ', '^VIX', 'RSP']
@@ -837,6 +846,12 @@ function pageIntro(activeTab: TabId, stockState: StockState): { title: string; h
         helper: TAB_META['Quant Lab'].helper,
         subnote: 'Replay · Validation · Seven Gates'
       }
+    case 'Portfolio':
+      return {
+        title: TAB_META.Portfolio.headerTitle,
+        helper: TAB_META.Portfolio.helper,
+        subnote: 'Monitoring · Decision · Journal'
+      }
   }
 }
 
@@ -888,6 +903,8 @@ function buildHeroMetrics(input: {
         { label: 'Pass Labels', value: String(passedLabels), note: '通過七關卡', tone: 'gain' },
         { label: 'Long Excess 5D', value: formatPercent(longExcess5d), note: '升勢超額回報', tone: 'violet' }
       ]
+    case 'Portfolio':
+      return []
   }
 }
 
@@ -2925,6 +2942,9 @@ export default function App() {
               })()}
             </section>
           </>
+
+        ) : activeTab === 'Portfolio' ? (
+          <PortfolioView />
 
         ) : (
           <section className="panel wide">

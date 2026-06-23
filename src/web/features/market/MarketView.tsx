@@ -394,7 +394,12 @@ function SignalTrackRecord() {
           </div>
           <div className={styles.trackStat}>
             <span>勝率</span>
-            <strong>{winRate !== null ? `${winRate.toFixed(0)}%` : '—'}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+              <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                <div style={{ width: `${winRate ?? 0}%`, height: '100%', borderRadius: 3, background: (winRate ?? 0) >= 50 ? 'var(--color-gain)' : 'var(--color-loss)' }} />
+              </div>
+              <strong>{winRate !== null ? `${winRate.toFixed(0)}%` : '—'}</strong>
+            </div>
           </div>
           <div className={styles.trackStat}>
             <span>平均 5 日</span>
@@ -522,7 +527,15 @@ export function MarketView() {
               <strong>{hero.confidence} / 100</strong>
             </div>
             <div className={styles.heroProgress}>
-              <span style={{ width: `${hero.confidence}%` }} />
+              <svg width="48" height="48" viewBox="0 0 48 48" style={{ display: 'block' }}>
+                <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+                <circle cx="24" cy="24" r="20" fill="none"
+                  stroke={hero.confidence >= 60 ? 'var(--color-gain)' : hero.confidence >= 40 ? 'var(--color-warn)' : 'var(--color-loss)'}
+                  strokeWidth="4" strokeDasharray={`${(hero.confidence / 100) * 125.6} 125.6`}
+                  strokeLinecap="round" transform="rotate(-90 24 24)" style={{ transition: 'stroke-dasharray 0.5s' }} />
+                <text x="24" y="24" textAnchor="middle" dominantBaseline="central"
+                  fill="var(--text-primary)" fontSize="14" fontWeight="700">{hero.confidence}</text>
+              </svg>
             </div>
             <div className={styles.heroScale}>
               <span>保守</span>

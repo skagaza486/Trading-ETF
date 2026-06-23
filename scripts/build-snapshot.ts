@@ -9,7 +9,9 @@
  *
  * Run:  INGEST_TOKEN=… node --import tsx scripts/build-snapshot.ts
  */
-import { buildDailySnapshot } from '../src/worker/cronSnapshot'
+import { buildDailySnapshot, buildSettlementRecords } from '../src/worker/cronSnapshot'
+import type { TickerHistory } from '../src/types/indicator'
+import type { ForwardReturnRecord } from '../src/types/research'
 import { stockWatchlist } from '../src/data/watchlist'
 import { fetchHistoricalEarningsMapNode, serializeHistoricalEarningsMap } from '../src/worker/researchData'
 import { fetchFredLiquidity } from './fredLiquidity'
@@ -27,6 +29,37 @@ const MIN_STOCKS = Number(process.env.MIN_STOCKS ?? 100)
 // anything whose signal changed today. Keeps us well under the free-tier quota.
 const BULLISH = new Set(['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE', 'LONG_BASE', 'WATCH'])
 
+// Settle forward returns OFF-Worker: fetch the unsettled signal stubs from D1, then compute their
+// returns here in Node using the 2y histories already in memory. Fixes the gap where the nightly
+// ingest never settled (settlement previously only ran in the rate-limited manual/backfill path).
+async function computeSettledReturns(
+  stockHistories: Record<string, TickerHistory>,
+  benchmarks: Record<string, TickerHistory>
+): Promise<ForwardReturnRecord[]> {
+  const base = new URL(INGEST_URL).origin
+  try {
+    const res = await fetch(`${base}/api/admin/unsettled-signals?days=730`, {
+      headers: { Authorization: `Bearer ${INGEST_TOKEN}` },
+    })
+    if (!res.ok) {
+      console.error(`Unsettled-signals fetch failed ${res.status}: ${await res.text()}`)
+      return []
+    }
+    const body = await res.json() as { signals: Array<Record<string, unknown>> }
+    const rows = body.signals ?? []
+    if (rows.length === 0) return []
+    const allHistories = { ...benchmarks, ...stockHistories }
+    const records = buildSettlementRecords(rows, allHistories, allHistories['SPY'])
+      // Keep only rows that actually settled at least one new return value.
+      .filter(r => r.ret5d !== null || r.ret1m !== null)
+    console.log(`Settle: ${rows.length} unsettled signals → ${records.length} computed (of ${Object.keys(stockHistories).length} tickers in memory)`)
+    return records
+  } catch (err) {
+    console.error('Settle step failed (non-fatal):', err instanceof Error ? err.message : String(err))
+    return []
+  }
+}
+
 async function main(): Promise<void> {
   if (!INGEST_TOKEN) {
     console.error('Missing INGEST_TOKEN env var')
@@ -34,7 +67,7 @@ async function main(): Promise<void> {
   }
 
   console.log('Building snapshot (patient fetch: concurrency=3, retries=4)…')
-  const [{ snapshot }, liquidityNote] = await Promise.all([
+  const [{ snapshot, stockHistories, benchmarks }, liquidityNote] = await Promise.all([
     buildDailySnapshot({
       stockConcurrency: 3,
       tuning: { retries: 4, retryDelayMs: 1500, batchDelayMs: 900 },
@@ -96,12 +129,17 @@ async function main(): Promise<void> {
   const earningsRows = historicalEarningsPayload.reduce((sum, item) => sum + item.dates.length, 0)
   console.log(`Historical earnings archive attached: ${historicalEarningsPayload.length} tickers / ${earningsRows} rows`)
 
+  // Compute settled forward returns (short + medium term) for older signals, off-Worker.
+  const settledReturns = await computeSettledReturns(stockHistories, benchmarks)
+  console.log(`Settle: attaching ${settledReturns.length} settled return records to ingest`)
+
   const res = await fetch(INGEST_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${INGEST_TOKEN}` },
     body: JSON.stringify({
       snapshot,
-      historicalEarnings: historicalEarningsPayload
+      historicalEarnings: historicalEarningsPayload,
+      settledReturns
     }),
   })
   const text = await res.text()

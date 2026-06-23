@@ -66,6 +66,17 @@ export function buildForwardReturnRecord(
     const ret10d = returnForDays(10)
     const spyRet5d = spyReturnForDays(5)
     const spyRet10d = spyReturnForDays(10)
+    // Medium-term horizons (trading-day offsets, consistent with the 5d/10d convention).
+    // null until +Nd bars exist; the 2y fetch window supports up to ret12m (252 td).
+    const MEDIUM_TERM_DAYS = { ret1m: 21, ret3m: 63, ret6m: 126, ret12m: 252 } as const
+    const ret1m = returnForDays(MEDIUM_TERM_DAYS.ret1m)
+    const ret3m = returnForDays(MEDIUM_TERM_DAYS.ret3m)
+    const ret6m = returnForDays(MEDIUM_TERM_DAYS.ret6m)
+    const ret12m = returnForDays(MEDIUM_TERM_DAYS.ret12m)
+    const relVsSpy = (ret: number | null, days: number): number | null => {
+      const spyRet = spyReturnForDays(days)
+      return ret !== null && spyRet !== null ? ret - spyRet : null
+    }
     const excursion5d = favorableAndAdverseExcursions(signal, history, signalIndex, 5)
     const excursion10d = favorableAndAdverseExcursions(signal, history, signalIndex, 10)
 
@@ -93,6 +104,14 @@ export function buildForwardReturnRecord(
         ret10d,
         ret5dVsSpy: ret5d !== null && spyRet5d !== null ? ret5d - spyRet5d : null,
         ret10dVsSpy: ret10d !== null && spyRet10d !== null ? ret10d - spyRet10d : null,
+        ret1m,
+        ret3m,
+        ret6m,
+        ret12m,
+        ret1mVsSpy: relVsSpy(ret1m, MEDIUM_TERM_DAYS.ret1m),
+        ret3mVsSpy: relVsSpy(ret3m, MEDIUM_TERM_DAYS.ret3m),
+        ret6mVsSpy: relVsSpy(ret6m, MEDIUM_TERM_DAYS.ret6m),
+        ret12mVsSpy: relVsSpy(ret12m, MEDIUM_TERM_DAYS.ret12m),
         mfe5d: excursion5d.mfe,
         mfe10d: excursion10d.mfe,
         mae5d: excursion5d.mae,

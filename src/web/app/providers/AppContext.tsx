@@ -2,7 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react'
 
 export type MarketScope = 'US' | 'HK'
 export type UiMode = 'simple' | 'pro'
-export type ViewId = 'market' | 'sectors' | 'discover' | 'detail' | 'lab' | 'index-detail'
+export type ViewId = 'market' | 'sectors' | 'discover' | 'portfolio' | 'detail' | 'lab' | 'index-detail'
 
 export type DetailTarget = {
   ticker: string

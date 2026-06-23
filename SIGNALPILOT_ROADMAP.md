@@ -1,5 +1,10 @@
 # SignalPilot Roadmap（執行追蹤）
 
+> ❄️ **凍結通知（2026-06-24）：** 因應個人資本管理 pivot，**SP-5→SP-8 無限期暫停**。
+> SP-0→SP-4（paper ledger + shadow inference）被動運行、唔好改動、唔好部署。
+> 詳見 [`docs/planning/EXECUTION_PLAN.md`](docs/planning/EXECUTION_PLAN.md) §0/§8 與
+> [`docs/planning/MULTI_AI_WORKFLOW.md`](docs/planning/MULTI_AI_WORKFLOW.md) Zone E（凍結，無 AI 觸碰）。
+
 > **狀態：** Active v1.0 · 建立 2026-06-23
 > **規格來源：** [`SIGNALPILOT_AI_TRADING_PLAN.md`](SIGNALPILOT_AI_TRADING_PLAN.md)（本文件只負責里程碑、排序、依賴與進度；設計理由看 plan）
 > **產品線：** 獨立於 `trading-etf` web app 的交易決策／執行系統。

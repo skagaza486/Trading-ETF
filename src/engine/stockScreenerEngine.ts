@@ -477,3 +477,110 @@ export function classifyStock(
     reason: reasonParts.join(' | ')
   }
 }
+
+// ── Fundamentals Filter (T2.7–T2.8) ──────────────────────────────────
+
+export type FundamentalRow = {
+  ticker: string
+  sector: string | null
+  roe: number | null
+  pe: number | null
+  forward_pe: number | null
+  peg: number | null
+  debt_to_equity: number | null
+  revenue_growth_yoy: number | null
+  earnings_growth_yoy: number | null
+  free_cash_flow: number | null
+  profitable: number | null
+  market_cap: number | null
+}
+
+export type ScreenerCandidate = {
+  ticker: string
+  name: string
+  sector: string
+  label: string
+  rsRank: number | null
+  close: number | null
+  reason: string
+  // Fundamentals
+  roe: number | null
+  pe: number | null
+  debtToEquity: number | null
+  profitable: boolean | null
+  marketCap: number | null
+  // Filter reasons
+  passedFundamentals: boolean
+  fundamentalsNote: string
+}
+
+const LONG_ENTRY_LABELS = new Set(['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE'])
+
+/**
+ * Fundamentals gates (EXECUTION_PLAN §4, Steps 3–4):
+ * - Profitable (trailing EPS > 0)
+ * - ROE ≥ 12%
+ * - P/E ≤ 40 (skip if null — some sectors e.g. financials)
+ * - D/E ≤ 2.0 (skip if null)
+ * These are conservative filters for a 3–6 month hold.
+ * ⚠️ yfinance provides current/TTM data only — no PIT history.
+ */
+function checkFundamentals(f: FundamentalRow | null): { passed: boolean; note: string } {
+  if (!f) return { passed: false, note: 'No fundamentals data' }
+
+  const failures: string[] = []
+
+  if (f.profitable !== 1) failures.push('not profitable')
+  if (f.roe !== null && f.roe < 0.12) failures.push(`ROE ${(f.roe * 100).toFixed(0)}%`)
+  if (f.pe !== null && f.pe > 40) failures.push(`P/E ${f.pe.toFixed(0)}`)
+  if (f.debt_to_equity !== null && f.debt_to_equity > 2.0) failures.push(`D/E ${f.debt_to_equity.toFixed(1)}`)
+
+  if (failures.length === 0) return { passed: true, note: 'OK' }
+  return { passed: false, note: failures.join(', ') }
+}
+
+/**
+ * Run fundamentals + liquidity filter over snapshot stocks that carry a LONG entry label.
+ * Pure function: takes stocks from snapshot + fundamentals from D1, returns ranked candidates.
+ */
+export function runScreenerFilter(
+  stocks: Array<{
+    ticker: string
+    name: string
+    sector: string
+    label: string
+    rsRank: number | null
+    close: number | null
+    reason: string
+  }>,
+  fundamentals: Map<string, FundamentalRow>,
+): ScreenerCandidate[] {
+  return stocks
+    .filter(s => LONG_ENTRY_LABELS.has(s.label))
+    .map(s => {
+      const f = fundamentals.get(s.ticker) ?? null
+      const { passed, note } = checkFundamentals(f)
+
+      return {
+        ticker: s.ticker,
+        name: s.name,
+        sector: s.sector,
+        label: s.label,
+        rsRank: s.rsRank,
+        close: s.close,
+        reason: s.reason,
+        roe: f?.roe ?? null,
+        pe: f?.pe ?? null,
+        debtToEquity: f?.debt_to_equity ?? null,
+        profitable: f?.profitable === 1,
+        marketCap: f?.market_cap ?? null,
+        passedFundamentals: passed,
+        fundamentalsNote: note,
+      }
+    })
+    .sort((a, b) => {
+      // Sort: fundamentals-passed first, then by RS rank descending
+      if (a.passedFundamentals !== b.passedFundamentals) return a.passedFundamentals ? -1 : 1
+      return (b.rsRank ?? 0) - (a.rsRank ?? 0)
+    })
+}

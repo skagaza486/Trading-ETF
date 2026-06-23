@@ -48,6 +48,14 @@
   transition: all 0.15s;
 }
 .choice:hover      { border-color: var(--border-subtle); }
+.choice:focus-visible,
+.choiceActive:focus-visible,
+.back:focus-visible,
+.next:focus-visible,
+.start:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .choiceActive {
   border-color: var(--accent);
   background: var(--accent-dim);

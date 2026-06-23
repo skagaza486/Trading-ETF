@@ -1,0 +1,261 @@
+{
+  "section": "PART 3: SP-4 / ML Readiness Assessment",
+  "data_summary": {
+    "total_eligible": 536,
+    "train_val_n": 461,
+    "train_val_dates": "2025-06-06 \u2192 2026-01-30",
+    "holdout_n": 75,
+    "holdout_dates": "2026-02-02 \u2192 2026-06-05",
+    "cost_bps": 20
+  },
+  "hold_all_strategy": {
+    "train_val": {
+      "n": 461,
+      "mean_net_ret": 0.002384,
+      "ci_95_lo": -0.002852,
+      "ci_95_hi": 0.008185,
+      "p_value": 0.2038,
+      "significant": false
+    },
+    "holdout": {
+      "n": 75,
+      "mean_net_ret": 0.013836,
+      "ci_95_lo": -0.00367,
+      "ci_95_hi": 0.031981,
+      "p_value": 0.0636,
+      "significant": false
+    }
+  },
+  "upper_only_strategy": {
+    "train_val": {
+      "n_upper": 145,
+      "n_total": 461,
+      "upper_pct": 31.5,
+      "mean_net_ret": 0.052469,
+      "ci_95_lo": 0.041907,
+      "ci_95_hi": 0.064269,
+      "p_value": 0.0,
+      "significant": true,
+      "all_mean_for_reference": -0.020597,
+      "uplift_vs_all": 0.073066
+    },
+    "holdout": {
+      "n_upper": 28,
+      "n_total": 75,
+      "upper_pct": 37.3,
+      "mean_net_ret": 0.077588,
+      "ci_95_lo": 0.055299,
+      "ci_95_hi": 0.105447,
+      "p_value": 0.0,
+      "significant": true,
+      "all_mean_for_reference": -0.024144,
+      "uplift_vs_all": 0.101731
+    }
+  },
+  "upper_only_bh_correction": {
+    "train_val_upper": {
+      "bh_adjusted_p": 0.0,
+      "bh_significant": true
+    },
+    "holdout_upper": {
+      "bh_adjusted_p": 0.0,
+      "bh_significant": true
+    }
+  },
+  "holdout_per_label": {
+    "LOWER": {
+      "n": 18,
+      "mean_net_ret": -0.053659,
+      "ci_95": [
+        -0.069566,
+        -0.032541
+      ],
+      "p_value": 1.0,
+      "significant": false,
+      "contribution_to_overall_mean": -0.012878
+    },
+    "VERTICAL": {
+      "n": 29,
+      "mean_net_ret": -0.005824,
+      "ci_95": [
+        -0.013184,
+        0.002335
+      ],
+      "p_value": 0.918,
+      "significant": false,
+      "contribution_to_overall_mean": -0.002252
+    },
+    "UPPER": {
+      "n": 28,
+      "mean_net_ret": 0.077588,
+      "ci_95": [
+        0.055299,
+        0.105447
+      ],
+      "p_value": 0.0,
+      "significant": true,
+      "contribution_to_overall_mean": 0.028966
+    }
+  },
+  "perfect_upper_prediction_theoretical_bound": {
+    "description": "If ML could perfectly identify UPPER signals (ideal case, unattainable)",
+    "n": 28,
+    "mean_net_ret": 0.077588,
+    "ci_95": [
+      0.055299,
+      0.105447
+    ],
+    "p_value": 0.0,
+    "significant": true
+  },
+  "pit_tickers_count": 528,
+  "signal_tickers_count": 233,
+  "known_delisted_missing_from_signals": [],
+  "known_delisted_present_in_signals": [],
+  "note": "Delisted stocks with negative returns that we cannot observe create upward bias in our mean estimates. The scenarios below estimate this bias.",
+  "eligible_signals_n": 536,
+  "current_overall_mean_ret5d_vs_spy": 0.005987,
+  "sensitivity_scenarios": [
+    {
+      "assumed_n_delisted_signals": 5,
+      "assumed_mean_return": -0.05,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.005469,
+      "bias_impact_bps": -5.2,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 5,
+      "assumed_mean_return": -0.1,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.005007,
+      "bias_impact_bps": -9.8,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 5,
+      "assumed_mean_return": -0.15,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.004545,
+      "bias_impact_bps": -14.4,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 5,
+      "assumed_mean_return": -0.2,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.004083,
+      "bias_impact_bps": -19.0,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 10,
+      "assumed_mean_return": -0.05,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.004961,
+      "bias_impact_bps": -10.3,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 10,
+      "assumed_mean_return": -0.1,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.004046,
+      "bias_impact_bps": -19.4,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 10,
+      "assumed_mean_return": -0.15,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.00313,
+      "bias_impact_bps": -28.6,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 10,
+      "assumed_mean_return": -0.2,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.002214,
+      "bias_impact_bps": -37.7,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 15,
+      "assumed_mean_return": -0.05,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.004463,
+      "bias_impact_bps": -15.2,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 15,
+      "assumed_mean_return": -0.1,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.003102,
+      "bias_impact_bps": -28.9,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 15,
+      "assumed_mean_return": -0.15,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.00174,
+      "bias_impact_bps": -42.5,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 15,
+      "assumed_mean_return": -0.2,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.000379,
+      "bias_impact_bps": -56.1,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 20,
+      "assumed_mean_return": -0.05,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.003973,
+      "bias_impact_bps": -20.1,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 20,
+      "assumed_mean_return": -0.1,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.002174,
+      "bias_impact_bps": -38.1,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 20,
+      "assumed_mean_return": -0.15,
+      "current_mean": 0.005987,
+      "hypothetical_mean": 0.000376,
+      "bias_impact_bps": -56.1,
+      "still_positive_after_correction": true
+    },
+    {
+      "assumed_n_delisted_signals": 20,
+      "assumed_mean_return": -0.2,
+      "current_mean": 0.005987,
+      "hypothetical_mean": -0.001423,
+      "bias_impact_bps": -74.1,
+      "still_positive_after_correction": false
+    }
+  ],
+  "conclusion_placeholder": "If bias impact < uplift from UPPER-only strategy (~+6% vs current mean), the edge is likely real, not an artifact of delisting bias.",
+  "data_window": "2025-06-06 \u2192 2026-06-05",
+  "total_eligible_n": 536,
+  "signals_per_month_estimate": 44.8,
+  "current_fold4_n": 62,
+  "rate_per_month_post_april": 24.5,
+  "months_to_fold4_n40": 0.0,
+  "current_holdout_n": 75,
+  "rate_per_month_holdout": 16.0,
+  "months_to_n100": 1.6,
+  "current_upper_n_holdout": 28,
+  "months_to_upper_n50": 4.3,
+  "recommended_retrain_date": "2026-08-15 (estimated: fold 4 >= 40 + total >= 100)"
+}

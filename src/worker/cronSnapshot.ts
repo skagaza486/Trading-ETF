@@ -265,6 +265,69 @@ export async function writeSignalsToD1(db: D1Database, snapshot: DailySnapshot):
   await db.batch(stmts)
 }
 
+// Shared: turn raw D1 signal rows (ticker/signal_date/label/regime/research_flags/rvol/atr) into
+// settled ForwardReturnRecords using in-memory histories. Used by both in-Worker settle passes and
+// the Node-side nightly settle (scripts/build-snapshot.ts) so the math lives in exactly one place.
+export function buildSettlementRecords(
+  rows: Array<Record<string, unknown>>,
+  allHistories: Record<string, TickerHistory>,
+  spyHistory: TickerHistory | undefined
+): ForwardReturnRecord[] {
+  const signals = rows.flatMap(row => {
+    const history = allHistories[row.ticker as string]
+    if (!history) return []
+    return [{
+      ticker: row.ticker as string,
+      signalDate: row.signal_date as string,
+      label: row.label as ForwardReturnRecord['label'],
+      regime: (row.regime ?? 'neutral') as ForwardReturnRecord['regimeAtSignal'],
+      researchFlags: row.research_flags ? (row.research_flags as string).split(',').filter(Boolean) : [],
+      indicators: { atr: (row.atr_at_signal as number | null) ?? null, rvol: (row.rvol as number | null) ?? null },
+      earningsWithinWindow: false,
+      previousLabel: null,
+      reason: '',
+    }]
+  })
+  return buildForwardReturnRecordsLite(signals, allHistories, spyHistory)
+}
+
+// Shared: UPSERT all settled return columns (short-term + medium-term + excursions + stop) for a
+// batch of records. Idempotent — recomputed-but-unchanged values are harmless no-ops.
+export async function writeSettledReturnsToD1(
+  db: D1Database,
+  records: ForwardReturnRecord[]
+): Promise<number> {
+  if (records.length === 0) return 0
+  const CHUNK = 100
+  for (let i = 0; i < records.length; i += CHUNK) {
+    const chunk = records.slice(i, i + CHUNK)
+    const stmts = chunk.map(r =>
+      db.prepare(
+        `UPDATE signals SET
+           close_at_signal = ?, next_open = ?, ret1d = ?, ret3d = ?, ret5d = ?, ret10d = ?,
+           ret5d_vs_spy = ?, ret10d_vs_spy = ?,
+           ret1m = ?, ret3m = ?, ret6m = ?, ret12m = ?,
+           ret1m_vs_spy = ?, ret3m_vs_spy = ?, ret6m_vs_spy = ?, ret12m_vs_spy = ?,
+           mfe5d = ?, mae5d = ?, mfe10d = ?, mae10d = ?,
+           earnings_in_window = ?, suggested_stop_loss = ?, stop_loss_hit = ?, atr_at_signal = ?
+         WHERE ticker = ? AND signal_date = ?`
+      ).bind(
+        r.closeAtSignal, r.nextOpen, r.ret1d, r.ret3d, r.ret5d, r.ret10d,
+        r.ret5dVsSpy, r.ret10dVsSpy,
+        r.ret1m, r.ret3m, r.ret6m, r.ret12m,
+        r.ret1mVsSpy, r.ret3mVsSpy, r.ret6mVsSpy, r.ret12mVsSpy,
+        r.mfe5d, r.mae5d, r.mfe10d, r.mae10d,
+        r.earningsInWindow ? 1 : 0, r.suggestedStopLoss,
+        r.stopLossHit === null ? null : r.stopLossHit ? 1 : 0,
+        r.atrAtSignal,
+        r.ticker, r.signalDate
+      )
+    )
+    await db.batch(stmts)
+  }
+  return records.length
+}
+
 // Settle forward returns for existing D1 signals whose outcome bars have now landed.
 // Does NOT re-run the signal classifier — just computes price returns for rows already in D1.
 // Covers the last 15 days so ret5d (5d) and ret10d (10d) windows can both be settled.
@@ -289,57 +352,51 @@ export async function settleForwardReturns(
   const allHistories = { ...benchmarks, ...stockHistories }
   const spyHistory = allHistories['SPY']
 
-  // Build minimal StockSignal stubs from D1 rows so buildForwardReturnRecord can work
-  const signals = results.flatMap(row => {
-    const history = allHistories[row.ticker as string]
-    if (!history) return []
-    const indicators = {
-      atr: row.atr_at_signal as number | null,
-      rvol: row.rvol as number | null,
-    }
-    return [{
-      ticker: row.ticker as string,
-      signalDate: row.signal_date as string,
-      label: row.label as ForwardReturnRecord['label'],
-      regime: (row.regime ?? 'neutral') as ForwardReturnRecord['regimeAtSignal'],
-      researchFlags: row.research_flags ? (row.research_flags as string).split(',').filter(Boolean) : [],
-      indicators,
-      earningsWithinWindow: false,
-      previousLabel: null,
-      reason: '',
-    }]
-  })
-
-  // Use the existing forward-return calculator (only needs signalDate + ticker)
-  const records = buildForwardReturnRecordsLite(signals, allHistories, spyHistory)
-
+  const records = buildSettlementRecords(results, allHistories, spyHistory)
   if (records.length === 0) return { count: 0, records: [] }
 
-  const CHUNK = 100
-  for (let i = 0; i < records.length; i += CHUNK) {
-    const chunk = records.slice(i, i + CHUNK)
-    const stmts = chunk.map(r =>
-      db.prepare(
-        `UPDATE signals SET
-           close_at_signal = ?, next_open = ?, ret1d = ?, ret3d = ?, ret5d = ?, ret10d = ?,
-           ret5d_vs_spy = ?, ret10d_vs_spy = ?,
-           mfe5d = ?, mae5d = ?, mfe10d = ?, mae10d = ?,
-           earnings_in_window = ?, suggested_stop_loss = ?, stop_loss_hit = ?, atr_at_signal = ?
-         WHERE ticker = ? AND signal_date = ?`
-      ).bind(
-        r.closeAtSignal, r.nextOpen, r.ret1d, r.ret3d, r.ret5d, r.ret10d,
-        r.ret5dVsSpy, r.ret10dVsSpy,
-        r.mfe5d, r.mae5d, r.mfe10d, r.mae10d,
-        r.earningsInWindow ? 1 : 0, r.suggestedStopLoss,
-        r.stopLossHit === null ? null : r.stopLossHit ? 1 : 0,
-        r.atrAtSignal,
-        r.ticker, r.signalDate
-      )
-    )
-    await db.batch(stmts)
-  }
-
+  await writeSettledReturnsToD1(db, records)
   return { count: records.length, records }
+}
+
+// Settle MEDIUM-TERM forward returns (ret1m/3m/6m/12m) for older D1 signals whose outcome bars
+// have now landed. Separate from settleForwardReturns because the horizons settle months later
+// and need a much wider lookback. Idempotent: a row stays selected until ret12m fills (~365d),
+// recomputing the shorter horizons (same values) each pass. Reuses the 2y fetch window — the
+// histories passed in must reach back to the signal's date for the longest horizon to settle.
+// NOTE: like settleForwardReturns, this only runs in the runCronSnapshot/backfill path; the
+// nightly GH Actions ingest endpoint does not settle. See docs/planning/EXECUTION_PLAN §9.
+export async function settleMediumTermReturns(
+  db: D1Database,
+  stockHistories: Record<string, TickerHistory>,
+  benchmarks: Record<string, TickerHistory>,
+  asOfDate: string
+): Promise<{ count: number }> {
+  // 2y history window supports settling signals 365–730d old for ret12m, ≥~30d old for ret1m.
+  const floor = dateMinus(asOfDate, 730)
+  const ceiling = dateMinus(asOfDate, 28)
+
+  const { results } = await db.prepare(
+    `SELECT ticker, signal_date, label, regime, research_flags, rvol, atr_at_signal
+     FROM signals
+     WHERE signal_date >= ? AND signal_date <= ?
+       AND (ret1m IS NULL OR ret3m IS NULL OR ret6m IS NULL OR ret12m IS NULL)
+     ORDER BY signal_date`
+  ).bind(floor, ceiling).all() as { results: Array<Record<string, unknown>> }
+
+  if (results.length === 0) return { count: 0 }
+
+  const allHistories = { ...benchmarks, ...stockHistories }
+  const spyHistory = allHistories['SPY']
+
+  const records = buildSettlementRecords(results, allHistories, spyHistory)
+    // Only settle rows that actually have at least the 1m bar available.
+    .filter(r => r.ret1m !== null)
+
+  if (records.length === 0) return { count: 0 }
+
+  await writeSettledReturnsToD1(db, records)
+  return { count: records.length }
 }
 
 function dateMinus(isoDate: string, days: number): string {
@@ -571,15 +628,21 @@ export async function runBackfillChunk(
           (ticker, signal_date, label, regime, research_flags,
            close_at_signal, next_open, ret1d, ret3d, ret5d, ret10d,
            ret5d_vs_spy, ret10d_vs_spy,
+           ret1m, ret3m, ret6m, ret12m,
+           ret1m_vs_spy, ret3m_vs_spy, ret6m_vs_spy, ret12m_vs_spy,
            mfe5d, mae5d, mfe10d, mae10d,
            earnings_in_window, suggested_stop_loss, stop_loss_hit, atr_at_signal)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(ticker, signal_date) DO UPDATE SET
            close_at_signal = excluded.close_at_signal,
            next_open = excluded.next_open,
            ret1d = excluded.ret1d, ret3d = excluded.ret3d,
            ret5d = excluded.ret5d, ret10d = excluded.ret10d,
            ret5d_vs_spy = excluded.ret5d_vs_spy, ret10d_vs_spy = excluded.ret10d_vs_spy,
+           ret1m = excluded.ret1m, ret3m = excluded.ret3m,
+           ret6m = excluded.ret6m, ret12m = excluded.ret12m,
+           ret1m_vs_spy = excluded.ret1m_vs_spy, ret3m_vs_spy = excluded.ret3m_vs_spy,
+           ret6m_vs_spy = excluded.ret6m_vs_spy, ret12m_vs_spy = excluded.ret12m_vs_spy,
            mfe5d = excluded.mfe5d, mae5d = excluded.mae5d,
            mfe10d = excluded.mfe10d, mae10d = excluded.mae10d,
            earnings_in_window = excluded.earnings_in_window,
@@ -591,6 +654,8 @@ export async function runBackfillChunk(
         r.researchFlags.join(',') || null,
         r.closeAtSignal, r.nextOpen, r.ret1d, r.ret3d, r.ret5d, r.ret10d,
         r.ret5dVsSpy, r.ret10dVsSpy,
+        r.ret1m, r.ret3m, r.ret6m, r.ret12m,
+        r.ret1mVsSpy, r.ret3mVsSpy, r.ret6mVsSpy, r.ret12mVsSpy,
         r.mfe5d, r.mae5d, r.mfe10d, r.mae10d,
         r.earningsInWindow ? 1 : 0,
         r.suggestedStopLoss,

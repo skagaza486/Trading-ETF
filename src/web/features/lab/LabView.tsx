@@ -179,8 +179,13 @@ function WalkForwardSection() {
                   <tr key={row.period} className={styles.row}>
                     <td className={styles.tdDate}>{row.period}</td>
                     <td className={styles.td}>{row.n}</td>
-                    <td className={styles.td} style={{ color: pctColor(row.winRate ? row.winRate - 50 : null) }}>
-                      {row.winRate !== null ? `${row.winRate.toFixed(0)}%` : '—'}
+                    <td className={styles.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+                        <div style={{ width: 28, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ width: `${row.winRate ?? 0}%`, height: '100%', borderRadius: 2, background: (row.winRate ?? 0) >= 50 ? 'var(--color-gain)' : 'var(--color-loss)' }} />
+                        </div>
+                        <span style={{ color: pctColor(row.winRate ? row.winRate - 50 : null) }}>{row.winRate !== null ? `${row.winRate.toFixed(0)}%` : '—'}</span>
+                      </div>
                     </td>
                     <td className={styles.td} style={{ color: pctColor(row.avgRet5d) }}>{pct(row.avgRet5d)}</td>
                     <td className={styles.td} style={{ color: pctColor(row.avgVsSpy) }}>{pct(row.avgVsSpy)}</td>
@@ -272,9 +277,14 @@ export function LabView() {
                       <tr key={s.label} className={isBull ? styles.rowBull : isBear ? styles.rowBear : styles.row}>
                         <td className={styles.tdLabel}>{LABEL_ZH[s.label] ?? s.label}</td>
                         <td className={styles.td}>{s.n.toLocaleString()}</td>
-                        <td className={styles.td} style={{ color: pctColor(s.winRate ? s.winRate - 50 : null) }}>
-                          {s.winRate !== null ? `${s.winRate.toFixed(0)}%` : '—'}
-                        </td>
+                        <td className={styles.td}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
+                        <div style={{ width: 28, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ width: `${s.winRate ?? 0}%`, height: '100%', borderRadius: 2, background: (s.winRate ?? 0) >= 50 ? 'var(--color-gain)' : 'var(--color-loss)' }} />
+                        </div>
+                        <span style={{ color: pctColor(s.winRate ? s.winRate - 50 : null) }}>{s.winRate !== null ? `${s.winRate.toFixed(0)}%` : '—'}</span>
+                      </div>
+                    </td>
                         <td className={styles.td} style={{ color: pctColor(s.avgRet5d) }}>{pct(s.avgRet5d)}</td>
                         <td className={styles.td} style={{ color: pctColor(s.avgVsSpy) }}>{pct(s.avgVsSpy)}</td>
                       </tr>

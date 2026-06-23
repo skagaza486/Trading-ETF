@@ -1,4 +1,4 @@
-import { buildDailySnapshot, writeSignalsToD1, settleForwardReturns, writeGateSnapshotsToD1, runBackfillChunk, writeETFSignalsToD1, runETFBackfill } from './src/worker/cronSnapshot'
+import { buildDailySnapshot, writeSignalsToD1, settleForwardReturns, settleMediumTermReturns, writeSettledReturnsToD1, writeGateSnapshotsToD1, runBackfillChunk, writeETFSignalsToD1, runETFBackfill } from './src/worker/cronSnapshot'
 import { stockWatchlist } from './src/data/watchlist'
 import type { DailySnapshot } from './src/types/snapshot'
 import type { ForwardReturnRecord } from './src/types/research'
@@ -9,6 +9,7 @@ import {
   writeUniverseSnapshotBatchToD1,
   writeUniverseSnapshotToD1
 } from './src/worker/researchData'
+import { runScreenerFilter, type FundamentalRow } from './src/engine/stockScreenerEngine'
 
 
 const SNAPSHOT_KEY = 'snapshot:latest'
@@ -21,6 +22,10 @@ type IngestSnapshotRequest =
       ticker: string
       dates: string[]
     }>
+    // Forward-return records pre-computed in Node (scripts/build-snapshot.ts) for OLDER signals
+    // whose outcome bars have landed. Lets the nightly ingest settle returns without the Worker
+    // re-fetching 2y of histories (which would hit Worker subrequest/CPU limits).
+    settledReturns?: ForwardReturnRecord[]
   }
 
 type UniverseSnapshotRequest = {
@@ -80,6 +85,12 @@ export default {
       return handleUniverseSnapshotsIngest(request, env)
     }
 
+    // Return signal stubs whose forward returns are not yet settled, so the Node batch runner can
+    // compute them off-Worker and POST them back via /api/admin/ingest-snapshot (settledReturns).
+    if (url.pathname === '/api/admin/unsettled-signals') {
+      return handleUnsettledSignals(request, env, url)
+    }
+
     if (url.pathname === '/api/d1/etf-signals') {
       return handleETFSignalsRead(env, url)
     }
@@ -104,6 +115,14 @@ export default {
       return handleResearchHealth(env)
     }
 
+    if (url.pathname === '/api/d1/screener-candidates') {
+      return handleScreenerCandidates(env)
+    }
+
+    if (url.pathname === '/api/d1/recent-settled-signals') {
+      return handleRecentSettledSignals(env)
+    }
+
     // Serve legacy app for /legacy and /legacy/* paths
     if (url.pathname === '/legacy' || url.pathname.startsWith('/legacy/')) {
       const legacyUrl = new URL(request.url)
@@ -119,6 +138,43 @@ export default {
   }
 }
 
+// Absolute floor: the watchlist is ~299 stocks across 12 sectors. Anything well below
+// this is a rate-limited partial run, not a real snapshot.
+const MIN_HEALTHY_STOCKS = 150
+
+async function isSnapshotHealthyToPublish(
+  env: Env,
+  snapshot: DailySnapshot
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const newStocks = snapshot.stocks.length
+  const newSectors = snapshot.sectors?.length ?? 0
+
+  // Absolute floor — a full universe build yields ~294 stocks / 12 sectors.
+  if (newStocks < MIN_HEALTHY_STOCKS) {
+    return { ok: false, reason: `partial snapshot (${newStocks} stocks, ${newSectors} sectors < ${MIN_HEALTHY_STOCKS})` }
+  }
+
+  // Regression check against the currently published snapshot.
+  try {
+    const raw = await env.SNAPSHOT_KV?.get(SNAPSHOT_KEY)
+    if (raw) {
+      const existing = JSON.parse(raw) as DailySnapshot
+      const prevStocks = existing.stocks?.length ?? 0
+      // Reject if the new build has materially fewer stocks than what's already live.
+      if (prevStocks > 0 && newStocks < prevStocks * 0.7) {
+        return {
+          ok: false,
+          reason: `regression vs existing (${newStocks} stocks < 70% of live ${prevStocks})`,
+        }
+      }
+    }
+  } catch {
+    // If we can't read/parse the existing snapshot, fall back to the absolute floor only.
+  }
+
+  return { ok: true }
+}
+
 async function runCronSnapshot(env: Env): Promise<void> {
   if (!env.SNAPSHOT_KV) {
     console.error('SNAPSHOT_KV binding not configured — skipping cron snapshot')
@@ -128,6 +184,18 @@ async function runCronSnapshot(env: Env): Promise<void> {
   try {
     console.log('Cron snapshot: starting...')
     const { snapshot, stockHistories, benchmarks } = await buildDailySnapshot()
+
+    // Guard against partial runs clobbering a healthy snapshot.
+    // A single Worker invocation gets rate-limited by Yahoo after ~43 stocks, so an
+    // in-Worker build often returns only a handful of stocks/sectors. Don't let that
+    // overwrite the full snapshot produced nightly by GitHub Actions. Reads the existing
+    // KV snapshot and skips the write (KV + D1) if the new one is a clear regression.
+    const healthy = await isSnapshotHealthyToPublish(env, snapshot)
+    if (!healthy.ok) {
+      console.warn(`Cron snapshot: ${healthy.reason} — skipping write to preserve existing snapshot`)
+      return
+    }
+
     await env.SNAPSHOT_KV.put(SNAPSHOT_KEY, JSON.stringify(snapshot), {
       expirationTtl: 60 * 60 * 36  // 36h TTL — survives weekends
     })
@@ -144,6 +212,10 @@ async function runCronSnapshot(env: Env): Promise<void> {
       // 2. Settle forward returns for signals from the past 15 days (no re-classification)
       const { count: recordCount, records } = await settleForwardReturns(env.trading_etf_db, stockHistories, benchmarks, snapshot.date)
       console.log(`Cron D1: settled forward returns for ${recordCount} signals`)
+
+      // 2b. Settle medium-term returns (ret1m/3m/6m/12m) for older signals whose bars have landed
+      const { count: mtCount } = await settleMediumTermReturns(env.trading_etf_db, stockHistories, benchmarks, snapshot.date)
+      console.log(`Cron D1: settled medium-term returns for ${mtCount} signals`)
 
       // 3. Write gate snapshot aggregates (one row per label, per cron run)
       await writeGateSnapshotsToD1(env.trading_etf_db, records, snapshot.date)
@@ -209,6 +281,7 @@ async function handleIngestSnapshot(request: Request, env: Env): Promise<Respons
   let d1Written = 0
   let earningsRowsWritten = 0
   let universeRowsWritten = 0
+  let settledReturnsWritten = 0
   if (env.trading_etf_db) {
     if ('snapshot' in payload && Array.isArray(payload.historicalEarnings) && payload.historicalEarnings.length > 0) {
       earningsRowsWritten = await writeEarningsCalendarToD1(env.trading_etf_db, payload.historicalEarnings)
@@ -216,6 +289,11 @@ async function handleIngestSnapshot(request: Request, env: Env): Promise<Respons
     await writeSignalsToD1(env.trading_etf_db, snapshot)
     universeRowsWritten = await writeUniverseSnapshotToD1(env.trading_etf_db, snapshot.date, stockWatchlist)
     d1Written = snapshot.stocks.length
+
+    // Settle forward returns (short + medium term) for older signals — records pre-computed in Node.
+    if ('snapshot' in payload && Array.isArray(payload.settledReturns) && payload.settledReturns.length > 0) {
+      settledReturnsWritten = await writeSettledReturnsToD1(env.trading_etf_db, payload.settledReturns)
+    }
   }
 
   return new Response(
@@ -225,8 +303,35 @@ async function handleIngestSnapshot(request: Request, env: Env): Promise<Respons
       stocks: snapshot.stocks.length,
       d1Written,
       earningsRowsWritten,
-      universeRowsWritten
+      universeRowsWritten,
+      settledReturnsWritten
     }),
+    { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+  )
+}
+
+async function handleUnsettledSignals(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+  const authError = requireAdminToken(request, env)
+  if (authError) return authError
+
+  // Up to 730 days back so even ret12m (≈365 cal days) can settle. Returns the stub columns the
+  // Node settle math needs; selects rows missing ANY short- or medium-term return.
+  const days = Math.min(parseInt(url.searchParams.get('days') ?? '730', 10), 760)
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+  const { results } = await env.trading_etf_db.prepare(
+    `SELECT ticker, signal_date, label, regime, research_flags, rvol, atr_at_signal
+     FROM signals
+     WHERE signal_date >= ?
+       AND (ret5d IS NULL OR next_open IS NULL
+            OR ret1m IS NULL OR ret3m IS NULL OR ret6m IS NULL OR ret12m IS NULL)
+     ORDER BY signal_date DESC
+     LIMIT 5000`
+  ).bind(since).all()
+
+  return new Response(
+    JSON.stringify({ status: 'ok', since, count: results.length, signals: results }),
     { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
   )
 }
@@ -745,6 +850,101 @@ async function handleETFSignalsRead(env: Env, url: URL): Promise<Response> {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'public, max-age=900'
+    }
+  })
+}
+
+// ── Screener Candidates (T2.7–T2.8) ──────────────────────────────────
+
+async function handleScreenerCandidates(env: Env): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+  if (!env.SNAPSHOT_KV) return jsonError('SNAPSHOT_KV not configured', 503)
+
+  const raw = await env.SNAPSHOT_KV.get(SNAPSHOT_KEY)
+  if (!raw) return jsonError('No snapshot available', 404)
+
+  const snapshot = JSON.parse(raw) as DailySnapshot
+
+  // Query all fundamentals (latest as_of_date per ticker)
+  const { results: fundRows } = await env.trading_etf_db.prepare(`
+    SELECT f.* FROM fundamentals f
+    INNER JOIN (
+      SELECT ticker, MAX(as_of_date) as latest_date
+      FROM fundamentals
+      GROUP BY ticker
+    ) latest ON f.ticker = latest.ticker AND f.as_of_date = latest.latest_date
+    ORDER BY f.ticker
+  `).all()
+
+  const fundamentals = new Map<string, FundamentalRow>()
+  for (const row of fundRows as Record<string, unknown>[]) {
+    fundamentals.set(row.ticker as string, {
+      ticker: row.ticker as string,
+      sector: row.sector as string | null,
+      roe: row.roe as number | null,
+      pe: row.pe as number | null,
+      forward_pe: row.forward_pe as number | null,
+      peg: row.peg as number | null,
+      debt_to_equity: row.debt_to_equity as number | null,
+      revenue_growth_yoy: row.revenue_growth_yoy as number | null,
+      earnings_growth_yoy: row.earnings_growth_yoy as number | null,
+      free_cash_flow: row.free_cash_flow as number | null,
+      profitable: row.profitable as number | null,
+      market_cap: row.market_cap as number | null,
+    })
+  }
+
+  const stockInputs = snapshot.stocks.map((s: { ticker: string; name: string; sector: string; label: string; rsRank: number | null; indicators: { close: number | null }; reason: string }) => ({
+    ticker: s.ticker,
+    name: s.name,
+    sector: s.sector,
+    label: s.label,
+    rsRank: s.rsRank,
+    close: s.indicators.close ?? null,
+    reason: s.reason,
+  }))
+
+  const candidates = runScreenerFilter(stockInputs, fundamentals)
+
+  return new Response(JSON.stringify({
+    snapshotDate: snapshot.date,
+    totalStocks: snapshot.stocks.length,
+    fundamentalsCoverage: fundamentals.size,
+    candidateCount: candidates.length,
+    passedFundamentals: candidates.filter(c => c.passedFundamentals).length,
+    candidates,
+  }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=900'
+    }
+  })
+}
+
+// ── Recent Settled Signals (system paper reference) ──────────────────
+
+async function handleRecentSettledSignals(env: Env): Promise<Response> {
+  if (!env.trading_etf_db) return jsonError('D1 not configured', 503)
+
+  const { results } = await env.trading_etf_db.prepare(`
+    SELECT s.ticker, s.signal_date, s.label, s.close_at_signal as close,
+           s.ret1d, s.ret5d, s.ret10d, s.ret5d_vs_spy,
+           f.roe, f.pe, f.debt_to_equity, f.profitable,
+           f.sector
+    FROM signals s
+    LEFT JOIN fundamentals f ON f.ticker = s.ticker
+      AND f.as_of_date = (SELECT MAX(as_of_date) FROM fundamentals WHERE ticker = s.ticker)
+    WHERE s.ret5d IS NOT NULL
+      AND s.label IN ('LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE')
+    ORDER BY s.signal_date DESC
+  `).all()
+
+  return new Response(JSON.stringify({ signals: results, count: results.length }), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=120'
     }
   })
 }

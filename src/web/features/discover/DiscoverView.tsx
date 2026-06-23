@@ -502,29 +502,4 @@ const LABEL_SHORT: Record<string, string> = {
   SHORT_BREAK:'空頭突破', SHORT_BASE:'空頭整固', SHORT_WATCH:'空頭轉弱',
 }
 
-function ChangeRow({ stock }: { stock: StockSnapshotEntry }) {
-  const { openDetail } = useApp()
-  const meta = getStockMeta(stock.ticker, stock.name)
-  const isUpgrade = BULL_SET.has(stock.label) && !BULL_SET.has(stock.previousLabel ?? 'NEUTRAL')
-  const isDowngrade = BEAR_SET.has(stock.label)
 
-  return (
-    <button
-      className={styles.changeRow}
-      onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
-    >
-      <div className={styles.changeLeft}>
-        <div className={styles.changeTicker}>{stock.ticker}</div>
-        <div className={styles.changeName}>{meta.nameZh}</div>
-        <div className={styles.changeArrow}>
-          <span className={styles.changePrev}>{LABEL_SHORT[stock.previousLabel ?? ''] ?? stock.previousLabel}</span>
-          <span className={isUpgrade ? styles.arrowUp : isDowngrade ? styles.arrowDown : styles.arrowFlat}>
-            {isUpgrade ? '↑' : isDowngrade ? '↓' : '→'}
-          </span>
-          <span>{LABEL_SHORT[stock.label] ?? stock.label}</span>
-        </div>
-      </div>
-      <SignalBadge label={stock.label} />
-    </button>
-  )
-}

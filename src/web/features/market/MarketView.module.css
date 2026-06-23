@@ -100,18 +100,9 @@
 }
 
 .heroProgress {
-  margin: 12px 0 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.heroProgress span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--color-gain) 0%, #5FE4A5 68%, var(--color-warn) 100%);
+  display: flex;
+  justify-content: center;
+  margin: 10px 0 8px;
 }
 
 .heroScale {

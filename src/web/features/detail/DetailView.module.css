@@ -156,6 +156,11 @@
   color: inherit;
   padding-top: 10px;
   border-top: 1px solid var(--border-faint);
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.newsRow:hover {
+  opacity: 0.84;
 }
 
 .newsRow:first-child {

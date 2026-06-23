@@ -78,7 +78,25 @@ Always use `--remote` to target production D1. Omit it for local dev.
 - **Research health endpoint**: `GET /api/d1/research-health` — aggregate counts for signals, earnings-window ratio, and universe-snapshot coverage
 - **Manual snapshot trigger**: `POST /api/admin/run-snapshot` — runs the snapshot job on demand inside the Worker. ⚠️ A single Worker invocation caps at ~43 stocks (Yahoo rate-limits the Worker egress IP); `buildDailySnapshot` fetches the full ~299-stock universe at once, so the manual trigger returns a partial snapshot. For the full universe, rely on the nightly GitHub Actions run or chunk the builder like `runBackfillChunk`.
 
-## Current sprint (as of 2026-06-23)
+## ⚠️ DIRECTION CHANGE (2026-06-24): Personal Capital Management pivot
+
+The project pivoted from "SaaS product proving a 5-day edge" → **personal capital management
+tool for HK$5M (Phase 1 = HK$500K), executed manually via Futu.** The canonical plan and the
+multi-AI collaboration rules now live in **[`docs/planning/`](docs/planning/)** — read
+[`docs/planning/EXECUTION_PLAN.md`](docs/planning/EXECUTION_PLAN.md) and
+[`docs/planning/MULTI_AI_WORKFLOW.md`](docs/planning/MULTI_AI_WORKFLOW.md) **before any work**.
+
+- **Frozen (run passively, not developed):** ML retrain, SignalPilot SP-5→SP-8, GATE_EDGE_v2.
+- **Reused unchanged:** snapshot pipeline, D1, signal engine, regime, PIT universe.
+- **Completed (T2.7–T2.11 by DeepSeek, 2026-06-24):** Screener extension → Portfolio cockpit → Paper
+  P&L tracker → System Signal Reference → Visual polish across all tabs. All deployed to
+  `trading-etf` (version 4beb21c7). Stock funnel is a **paper-validated discretionary heuristic,
+  not a backtested edge** — see EXECUTION_PLAN §9 limitations.
+- **In progress (Claude):** fundamentals pipeline (T2.4–T2.5); medium-term return settlement
+  (T2.2 — code done, pending GH Actions verification).
+- The "Current sprint (5-day edge)" section below is **historical** — superseded by the pivot.
+
+## Current sprint (as of 2026-06-23) — HISTORICAL, superseded by the pivot above
 
 **Context:** GPT is offline — Claude handles both `trading-etf` and SignalPilot lines.  
 **If you are another AI reading this:** role boundaries and task assignments are in [`docs/HANDOFF_GPT.md`](docs/HANDOFF_GPT.md). Full backlog with blocking deps is in [`WORKLIST.md`](WORKLIST.md). Read those before starting any work.
@@ -139,9 +157,10 @@ python3 scripts/ml/evaluate.py --meta models/meta_v1.0.0_<run_id>.json --baselin
 ### Key data health
 
 > Single source of truth = `/api/d1/research-health`. Do not restate these numbers elsewhere; link here.
+> **Reconciled 2026-06-24 by DeepSeek (T2.0 ✅).**
 
-- `signals` total: 422 eligible (LONG_BREAK/VCP/BOUNCE with ret5d settled); 74,043 settled overall
-- `indicators_json` coverage: 419/422 ✅
-- `earnings_ratio_pct`: **3.12%** verified 2026-06-23 (2,308 / 74,043; SEC Edgar; target ~11% — acceptable for training). HYP-013 ✅ resolved. (Any doc still quoting 0.02% is stale.)
-- `universe_snapshot_months`: **15 rows (2025-04→2026-06) BUT false coverage** — every month is the identical current 299-ticker watchlist (zero membership diff first↔last). Survivorship bias intact → HYP-015 P1 ❌. Avg5D/backtest figures are inflated until real membership history is reconstructed.
+- `signals` total: **101,171** (100,582 settled with forward returns); eligible (LONG_BREAK/VCP/BOUNCE with ret5d_vs_spy settled): **536** (was 422 at 2026-06-23 — more signals settled since). Earnings ratio: **3.16%** (3,196 / 101,171).
+- `indicators_json` coverage: 419/422 was stale — recompute from /api/d1/research-health.
+- `earnings_ratio_pct`: **3.16%** verified 2026-06-24 (3,196 / 101,171; SEC Edgar; target ~11% — acceptable for training).
+- `universe_snapshot_months`: **15 rows (2025-04→2026-06) with real PIT variation** ✅ HYP-015 resolved — S&P 500 Wikipedia PIT backfill applied. Each month has 565–568 tickers reflecting actual index membership changes (was previously the identical 299-ticker watchlist). Delisting bias caveat remains (SPLK/ATVI/FRC etc have no Yahoo prices).
 - `sp4_shadow_inferences`: accumulating nightly since 2026-06-23

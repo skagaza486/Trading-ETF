@@ -187,3 +187,15 @@
   transition: opacity 0.15s;
 }
 .btn:hover { opacity: 0.88; }
+
+/* ── Mobile responsive ─────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .table { font-size: 0.7rem; }
+  .table th { padding: 4px 4px; font-size: 0.62rem; }
+  .table td { padding: 4px 4px; }
+  .tdDate { font-size: 0.62rem; }
+  .section { padding: 12px; }
+  .chartCard { padding: 8px; }
+  .daysTabs button { padding: 4px 8px; font-size: 0.72rem; }
+}

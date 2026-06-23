@@ -9,6 +9,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'market',   icon: '🌡️', label: '大市' },
   { id: 'sectors',  icon: '🗺️', label: '板塊' },
   { id: 'discover', icon: '⭐', label: '發現' },
+  { id: 'portfolio', icon: '💼', label: '組合' },
   { id: 'lab',      icon: '🔬', label: '研究室' },
 ]
 
