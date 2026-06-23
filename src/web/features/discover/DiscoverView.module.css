@@ -20,8 +20,9 @@
   gap: 8px;
   margin: -2px 0 2px;
   padding: 8px 0 10px;
-  background:
-    linear-gradient(180deg, var(--bg-base) 0%, var(--bg-base) 78%, color-mix(in srgb, var(--bg-base) 65%, transparent) 100%);
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--border-faint);
+  margin-bottom: 4px;
 }
 
 .searchWrap {
@@ -75,6 +76,20 @@
 }
 
 .count { font-size: 11px; color: var(--text-muted); }
+
+.loadMore {
+  width: 100%;
+  padding: 13px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.loadMore:hover { border-color: var(--accent); color: var(--accent); }
 
 .list { display: flex; flex-direction: column; gap: 8px; }
 

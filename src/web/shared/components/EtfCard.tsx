@@ -2,7 +2,7 @@ import { useApp } from '../../app/providers/AppContext'
 import { EtfSignalBadge } from './EtfSignalBadge'
 import { Sparkline } from './Sparkline'
 import { getStockLogoAsset } from '../../../ui/assetRegistry'
-import { etfUniverse } from '../../../data/etfUniverse'
+import { useEtfMeta } from '../hooks/useEtfMeta'
 import type { EtfSignalEntry } from '../hooks/useEtfSignals'
 import styles from './StockCard.module.css'
 
@@ -19,13 +19,12 @@ const ETF_CATEGORY_ZH: Record<string, string> = {
   DIVIDEND:       '股息收益',
 }
 
-const etfMap = new Map(etfUniverse.map(e => [e.ticker, e]))
-
 type Props = { etf: EtfSignalEntry; showMode?: 'simple' | 'pro' }
 
 export function EtfCard({ etf, showMode = 'simple' }: Props) {
   const { openDetail } = useApp()
-  const meta = etfMap.get(etf.ticker)
+  const { etfMetaByTicker } = useEtfMeta()
+  const meta = etfMetaByTicker.get(etf.ticker)
   const logo = getStockLogoAsset(etf.ticker)
   const nameDisplay = meta?.name ?? etf.ticker
   const desc = meta?.description ?? ''
@@ -46,6 +45,7 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
         etfCategory: categoryZh,
         etfDescription: desc || undefined,
         etfPrice: etf.closeAtSignal,
+        etfPrevClose: etf.prevClose,
         etfIndicators: etf.indicators,
       })}
     >
@@ -59,8 +59,8 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
 
         <div className={styles.info}>
           <div className={styles.nameRow}>
-            <span className={styles.nameZh}>{etf.ticker}</span>
-            <span className={styles.ticker}>{categoryZh}</span>
+            <span className={styles.nameZh}>{nameDisplay}</span>
+            <span className={styles.ticker}>{etf.ticker} · {categoryZh}</span>
           </div>
           {desc && <p className={styles.desc}>{desc}</p>}
         </div>

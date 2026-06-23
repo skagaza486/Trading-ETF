@@ -1,4 +1,4 @@
-import { useState, Fragment } from 'react'
+import { useState, Fragment, useMemo } from 'react'
 import { useApp } from '../../app/providers/AppContext'
 import { useIntraday, type TimeFrame } from '../../shared/hooks/useIntraday'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
@@ -47,13 +47,14 @@ export function DetailView() {
   const { starred, toggle } = useWatchlist()
   const [tf, setTf] = useState<TimeFrame>('1M')
 
-  if (!detailTarget) return null
+  const ticker = detailTarget?.ticker ?? ''
+  const isEtf = !!detailTarget?.etfLabel
+  const chart = useIntraday(ticker, tf)
+  const news = useFinancialNews(!ticker || isEtf ? null : ticker)
+  const earnings = useEarningsDate(!ticker || isEtf ? null : ticker)
+  const history = useTickerHistory(!ticker || isEtf ? '' : ticker)
 
-  const isEtf = !!detailTarget.etfLabel
-  const chart = useIntraday(detailTarget.ticker, tf)
-  const news = useFinancialNews(isEtf ? null : detailTarget.ticker)
-  const earnings = useEarningsDate(isEtf ? null : detailTarget.ticker)
-  const history = useTickerHistory(isEtf ? '' : (detailTarget?.ticker ?? ''))
+  if (!detailTarget) return null
 
   const stock: StockSnapshotEntry | undefined =
     snap.status === 'ok'
@@ -77,6 +78,40 @@ export function DetailView() {
   const earningsWithin30d = !isEtf && earnings.status === 'ok' && earnings.date
     ? daysUntil(earnings.date) <= 30 && daysUntil(earnings.date) >= 0
     : false
+
+  const etfDayPct = isEtf && detailTarget.etfPrice != null && detailTarget.etfPrevClose != null && detailTarget.etfPrevClose > 0
+    ? ((detailTarget.etfPrice - detailTarget.etfPrevClose) / detailTarget.etfPrevClose) * 100
+    : null
+
+  const etfChartRisk = useMemo(() => {
+    if (!isEtf || chart.status !== 'ok' || chart.bars.length < 10) return null
+    const closes = chart.bars.map(b => b.close)
+    const returns = closes.slice(1).map((c, i) => Math.log(c / closes[i]))
+    const mean = returns.reduce((a, b) => a + b, 0) / returns.length
+    const variance = returns.reduce((a, b) => a + (b - mean) ** 2, 0) / (returns.length - 1)
+    const annVol = Math.sqrt(variance * 252) * 100
+    let peak = closes[0], maxDD = 0
+    for (const c of closes) {
+      if (c > peak) peak = c
+      const dd = (c - peak) / peak * 100
+      if (dd < maxDD) maxDD = dd
+    }
+    const periodRet = (closes[closes.length - 1] - closes[0]) / closes[0] * 100
+    // RSI14
+    let rsi: number | null = null
+    if (closes.length >= 15) {
+      const changes = closes.slice(1).map((c, i) => c - closes[i])
+      let ag = 0, al = 0
+      for (let i = 0; i < 14; i++) { ag += changes[i] > 0 ? changes[i] : 0; al += changes[i] < 0 ? -changes[i] : 0 }
+      ag /= 14; al /= 14
+      for (let i = 14; i < changes.length; i++) {
+        ag = (ag * 13 + (changes[i] > 0 ? changes[i] : 0)) / 14
+        al = (al * 13 + (changes[i] < 0 ? -changes[i] : 0)) / 14
+      }
+      rsi = al === 0 ? 100 : 100 - 100 / (1 + ag / al)
+    }
+    return { annVol, maxDD, periodRet, rsi }
+  }, [isEtf, chart])
 
   return (
     <div className={styles.view}>
@@ -172,23 +207,49 @@ export function DetailView() {
       {/* ETF metrics + notice */}
       {isEtf && (
         <>
+          {/* 1D change summary */}
+          {etfDayPct !== null && (
+            <div className={styles.etfDayRow}>
+              <span className={styles.etfDayLabel}>今日</span>
+              <span className={etfDayPct >= 0 ? styles.etfDayGain : styles.etfDayLoss}>
+                {etfDayPct >= 0 ? '▲' : '▼'}{Math.abs(etfDayPct).toFixed(2)}%
+              </span>
+            </div>
+          )}
+
           {detailTarget.etfIndicators && (
             <div className={styles.metricsCard}>
-              <div className={styles.metricsTitle}>ETF 動量指標</div>
+              <div className={styles.metricsTitle}>動量指標</div>
               <div className={styles.metricsGrid}>
                 <EtfMetric label="13週回報" value={detailTarget.etfIndicators.return13w} fmt="pct" />
                 <EtfMetric label="26週回報" value={detailTarget.etfIndicators.return26w} fmt="pct" />
                 <EtfMetric label="相對SPY強弱" value={detailTarget.etfIndicators.relStrengthVsSpy} fmt="pct" />
                 <EtfMetric label="距40週均線" value={detailTarget.etfIndicators.priceVs40wMa !== null ? detailTarget.etfIndicators.priceVs40wMa - 1 : null} fmt="pct" />
+                <EtfMetric label="RS動量方向" value={detailTarget.etfIndicators.rsSlope} fmt="slope" />
+                <EtfMetric label="綜合排名" value={detailTarget.etfIndicators.rankScore} fmt="rank" />
               </div>
             </div>
           )}
+
+          {/* Chart-derived risk metrics */}
+          {etfChartRisk && (
+            <div className={styles.metricsCard}>
+              <div className={styles.metricsTitle}>期間技術與風險（{tf === '1D' ? '今日' : tf === '5D' ? '近5日' : tf === '1M' ? '近1月' : tf === '3M' ? '近3月' : '近1年'}）</div>
+              <div className={styles.metricsGrid}>
+                <EtfMetric label="期間回報" value={etfChartRisk.periodRet / 100} fmt="pct" />
+                <EtfMetric label="RSI14" value={etfChartRisk.rsi !== null ? etfChartRisk.rsi / 100 : null} fmt="rsi" />
+                <EtfMetric label="年化波幅" value={etfChartRisk.annVol / 100} fmt="pct" />
+                <EtfMetric label="最大回撤" value={etfChartRisk.maxDD / 100} fmt="pct" />
+              </div>
+            </div>
+          )}
+
           <div className={styles.explainCard}>
             <div className={styles.explainTitle}>ETF 週度信號</div>
             <p className={styles.explainText}>
-              信號基於 13 週回報、40 週均線、相對強弱等因素每週更新。FAVOUR 代表當前動量有利於持有，AVOID 代表動量轉弱建議迴避。
+              信號基於 13 週回報、40 週均線、相對強弱及 RS 動量方向每週更新。FAVOUR 代表動量有利於持有；AVOID 代表動量轉弱建議迴避。RS 動量方向（rsSlope）正值代表相對強度持續提升，負值代表強度減退。
             </p>
-            <p className={styles.disclaimer}>研究參考，非買入建議。過去表現不代表將來回報。</p>
+            <p className={styles.disclaimer}>研究參考，非買入建議。ETF 信號屬規則化觀察結果，並非已證實優勢；過去表現不代表將來回報。</p>
           </div>
         </>
       )}
@@ -198,7 +259,7 @@ export function DetailView() {
         <div className={styles.explainCard}>
           <div className={styles.explainTitle}>為什麼值得留意？</div>
           <p className={styles.explainText}>{explanation}</p>
-          <p className={styles.disclaimer}>研究階段，非買入建議。過去表現不代表將來回報。</p>
+          <p className={styles.disclaimer}>研究階段，非買入建議。現有信號屬研究結果展示，edge 尚未證實；過去表現不代表將來回報。</p>
         </div>
       )}
 
@@ -359,7 +420,7 @@ function SignalStatsCard({ label }: { label: string }) {
         </div>
       )}
       <p className={styles.disclaimer}>
-        以上為過去已結算樣本的歷史平均，屬研究統計、非未來預測；樣本不足或市況改變時參考價值有限。
+        以上為過去已結算樣本的歷史平均，屬研究統計、非未來預測；edge 尚未證實，樣本不足或市況改變時參考價值有限。
       </p>
     </div>
   )
@@ -395,7 +456,7 @@ function StageIndicator({ label }: { label: string }) {
   )
 }
 
-function EtfMetric({ label, value, fmt }: { label: string; value: number | null; fmt: 'pct' }) {
+function EtfMetric({ label, value, fmt }: { label: string; value: number | null; fmt: 'pct' | 'slope' | 'rank' | 'rsi' }) {
   if (value === null) {
     return (
       <div className={styles.metric}>
@@ -404,8 +465,23 @@ function EtfMetric({ label, value, fmt }: { label: string; value: number | null;
       </div>
     )
   }
-  const display = fmt === 'pct' ? `${value >= 0 ? '+' : ''}${(value * 100).toFixed(1)}%` : String(value)
-  const color = value > 0 ? 'var(--color-gain)' : value < 0 ? 'var(--color-loss)' : undefined
+  let display: string
+  let color: string | undefined
+  if (fmt === 'pct') {
+    display = `${value >= 0 ? '+' : ''}${(value * 100).toFixed(1)}%`
+    color = value > 0 ? 'var(--color-gain)' : value < 0 ? 'var(--color-loss)' : undefined
+  } else if (fmt === 'slope') {
+    display = value > 0.002 ? '↑ 上升' : value < -0.002 ? '↓ 下降' : '→ 持平'
+    color = value > 0.002 ? 'var(--color-gain)' : value < -0.002 ? 'var(--color-loss)' : 'var(--text-muted)'
+  } else if (fmt === 'rank') {
+    display = value.toFixed(1)
+    color = value >= 70 ? 'var(--color-gain)' : value <= 30 ? 'var(--color-loss)' : undefined
+  } else {
+    // rsi: value passed as /100 fraction
+    const rsiVal = value * 100
+    display = rsiVal.toFixed(0)
+    color = rsiVal >= 70 ? 'var(--color-warn)' : rsiVal <= 30 ? 'var(--color-loss)' : undefined
+  }
   return (
     <div className={styles.metric}>
       <span className={styles.metricLabel}>{label}</span>
@@ -456,7 +532,7 @@ function HistoricalSignalsCard({ history }: { history: ReturnType<typeof useTick
           })}
         </tbody>
       </table>
-      <p className={styles.disclaimer}>以已結算樣本為準，近期資料尚未結算顯示「待結算」。</p>
+      <p className={styles.disclaimer}>以已結算樣本為準，近期資料尚未結算顯示「待結算」；歷史記錄只供研究參考，唔代表可重複優勢已被證實。</p>
     </div>
   )
 }

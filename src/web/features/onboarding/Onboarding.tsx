@@ -18,7 +18,7 @@ export function Onboarding() {
         {screen === 1 && (
           <Step
             title="你想先看？"
-            subtitle="現階段先支援美股，港股建設中"
+            subtitle="現階段先支援美股；港股目前未有足夠真實覆蓋，暫未開放"
           >
             <ChoiceGrid>
               <Choice selected={scope === 'US'} onClick={() => setScope('US')}>
@@ -30,7 +30,7 @@ export function Onboarding() {
                 <span className={styles.comingSoon}>即將推出</span>
                 <span className={styles.flag}>🇭🇰</span>
                 <strong>港股</strong>
-                <small>建設中</small>
+                <small>目前未有足夠真實覆蓋，暫未開放</small>
               </Choice>
             </ChoiceGrid>
             <button className={styles.next} onClick={() => setScreen(2)}>下一步 →</button>
@@ -64,14 +64,14 @@ export function Onboarding() {
         {screen === 3 && (
           <Step
             title="準備好了！"
-            subtitle="打開市場羅盤，由大市開始了解今日市況"
+            subtitle="打開市場羅盤，由大市開始了解今日市況；所有內容屬研究輔助，edge 仍在驗證中"
           >
             <div className={styles.summary}>
               <SummaryRow icon="🌍" label="市場" value={scope === 'US' ? '🇺🇸 美股' : '🇭🇰 港股'} />
               <SummaryRow icon="👁️" label="模式" value={mode === 'simple' ? '簡易（推薦新手）' : '進階'} />
             </div>
             <p className={styles.disclaimer}>
-              此 App 為研究工具，所有資訊僅供參考，不構成投資建議。
+              此 App 為研究工具，所有資訊僅供參考，不構成投資建議；現有信號與統計屬研究結果展示，edge 尚未證實。
             </p>
             <div className={styles.btnRow}>
               <button className={styles.back} onClick={() => setScreen(2)}>← 返回</button>

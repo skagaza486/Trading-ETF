@@ -81,6 +81,15 @@
   align-self: flex-start;
 }
 
+.etfDayRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.etfDayLabel { font-size: 12px; color: var(--text-muted); }
+.etfDayGain  { font-size: 18px; font-weight: 700; color: var(--color-gain); font-variant-numeric: tabular-nums; }
+.etfDayLoss  { font-size: 18px; font-weight: 700; color: var(--color-loss); font-variant-numeric: tabular-nums; }
+
 .earningsWarn {
   font-size: 12px;
   color: var(--color-warn);

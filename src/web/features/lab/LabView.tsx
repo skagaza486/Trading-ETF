@@ -192,7 +192,7 @@ function WalkForwardSection() {
             </table>
           </div>
           <p className={styles.note}>
-            每月信號（已結算 5 日回報）。MFE = 最大有利波動，MAE = 最大不利波動。研究參考，非投資建議。
+            每月信號（已結算 5 日回報）。MFE = 最大有利波動，MAE = 最大不利波動。研究參考，非投資建議；edge 尚未證實，月度拆解只用作觀察穩定性。
           </p>
         </>
       )}
@@ -284,7 +284,7 @@ export function LabView() {
               </table>
             </div>
             <p className={styles.note}>
-              統計期：{statsState.since} 起，共 {sortedStats.reduce((a, b) => a + b.n, 0).toLocaleString()} 筆已結算信號（含 5 日實際回報）。研究參考，非投資建議。
+              統計期：{statsState.since} 起，共 {sortedStats.reduce((a, b) => a + b.n, 0).toLocaleString()} 筆已結算信號（含 5 日實際回報）。研究參考，非投資建議；歷史統計不等於已證實可重複 edge。
             </p>
           </>
         )}
@@ -296,7 +296,7 @@ export function LabView() {
       {/* Legacy app link */}
       <section className={styles.legacySection}>
         <h3 className={styles.legacyTitle}>進階研究室</h3>
-        <p className={styles.legacyDesc}>ETF Replay、Stock Replay、Gate 驗證等功能仍在舊版介面。</p>
+        <p className={styles.legacyDesc}>ETF Replay、Stock Replay、Gate 驗證等功能仍在舊版介面；所有研究結果只供分析，不應視為已驗證投資優勢。</p>
         <a href="/legacy.html" target="_blank" rel="noopener noreferrer" className={styles.btn}>
           開啟研究室（舊版）↗
         </a>

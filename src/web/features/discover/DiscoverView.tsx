@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { useEtfSignals } from '../../shared/hooks/useEtfSignals'
 import { useApp } from '../../app/providers/AppContext'
@@ -9,7 +9,7 @@ import { SignalBadge } from '../../shared/components/SignalBadge'
 import { LoadingScreen, ErrorScreen } from '../../shared/components/LoadingScreen'
 import { HkPlaceholder } from '../../shared/components/HkPlaceholder'
 import { getStockMeta } from '../../shared/i18n/stockNames'
-import { etfUniverse } from '../../../data/etfUniverse'
+import { useEtfMeta } from '../../shared/hooks/useEtfMeta'
 import type { StockSnapshotEntry } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import type { EtfSignalEntry, EtfSignalLabel } from '../../shared/hooks/useEtfSignals'
@@ -28,8 +28,6 @@ const ETF_CATEGORY_ZH: Record<string, string> = {
   GOLD:           '黃金',
   DIVIDEND:       '股息收益',
 }
-
-const etfCategoryMap = new Map(etfUniverse.map(e => [e.ticker, e.category]))
 
 type AssetType = 'stocks' | 'etf' | 'changes'
 type Filter = 'all' | 'starred' | 'bullish' | 'watchlist' | 'bearish' | 'changed' | 'risk'
@@ -138,7 +136,7 @@ function buildOpportunityGroups(stocks: StockSnapshotEntry[]): OpportunityGroup[
     .sort(byPriority)
 
   return [
-    { kind: 'new', title: '剛轉強', description: '今日首次進入強勢訊號，最值得先看原因', stocks: newStrength },
+    { kind: 'new', title: '剛轉強', description: '今日首次進入強勢訊號，可先查背後原因', stocks: newStrength },
     { kind: 'continuing', title: '延續中', description: '強勢結構仍在，留意是否過度追高', stocks: continuing },
     { kind: 'waiting', title: '等待確認', description: '接近機會，但尚欠突破或量能確認', stocks: waiting },
     { kind: 'risk', title: '風險升高', description: '弱勢或剛轉差，優先檢查自選與持倉', stocks: risk },
@@ -149,11 +147,15 @@ export function DiscoverView() {
   const { mode, scope } = useApp()
   const snap = useSnapshot()
   const etfState = useEtfSignals()
+  const { etfCategoryByTicker } = useEtfMeta()
   const { starred } = useWatchlist()
   const [assetType, setAssetType] = useState<AssetType>('stocks')
   const [filter, setFilter] = useState<Filter>('all')
   const [etfCategory, setEtfCategory] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [showCount, setShowCount] = useState(30)
+
+  useEffect(() => { setShowCount(30) }, [assetType, filter, search, etfCategory])
 
   const displayedStocks = useMemo(() => {
     if (snap.status !== 'ok') return []
@@ -185,7 +187,7 @@ export function DiscoverView() {
   const availableCategories = useMemo(() => {
     const seen = new Set<string>()
     for (const e of etfsForCategory) {
-      const cat = etfCategoryMap.get(e.ticker)
+      const cat = etfCategoryByTicker.get(e.ticker)
       if (cat) seen.add(cat)
     }
     return Array.from(seen)
@@ -193,7 +195,7 @@ export function DiscoverView() {
 
   const displayedEtfs = useMemo(() => {
     let etfs = etfsForCategory
-    if (etfCategory) etfs = etfs.filter(e => etfCategoryMap.get(e.ticker) === etfCategory)
+    if (etfCategory) etfs = etfs.filter(e => etfCategoryByTicker.get(e.ticker) === etfCategory)
     if (search) {
       const q = search.toUpperCase()
       etfs = etfs.filter(e => e.ticker.includes(q))
@@ -334,44 +336,44 @@ export function DiscoverView() {
             {changedStocks.length > 0 && <span className={styles.changeCount}>{changedStocks.length}</span>}
           </button>
         </div>
+
+        {assetType !== 'changes' && (
+          <div className={styles.filters}>
+            {FILTER_LABELS.map(f => (
+              <button
+                key={f.id}
+                className={filter === f.id ? styles.filterActive : styles.filterBtn}
+                onClick={() => setFilter(f.id)}
+              >
+                {f.label}
+                {filterCounts[f.id] > 0 && (
+                  <span className={styles.filterCount}>{filterCounts[f.id]}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {assetType === 'etf' && availableCategories.length > 1 && (
+          <div className={styles.catRow}>
+            <button
+              className={etfCategory === null ? styles.catActive : styles.catBtn}
+              onClick={() => setEtfCategory(null)}
+            >
+              全類別
+            </button>
+            {availableCategories.map(cat => (
+              <button
+                key={cat}
+                className={etfCategory === cat ? styles.catActive : styles.catBtn}
+                onClick={() => setEtfCategory(cat === etfCategory ? null : cat)}
+              >
+                {ETF_CATEGORY_ZH[cat] ?? cat}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-
-      {assetType !== 'changes' && (
-        <div className={styles.filters}>
-          {FILTER_LABELS.map(f => (
-            <button
-              key={f.id}
-              className={filter === f.id ? styles.filterActive : styles.filterBtn}
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label}
-              {filterCounts[f.id] > 0 && (
-                <span className={styles.filterCount}>{filterCounts[f.id]}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {assetType === 'etf' && availableCategories.length > 1 && (
-        <div className={styles.catRow}>
-          <button
-            className={etfCategory === null ? styles.catActive : styles.catBtn}
-            onClick={() => setEtfCategory(null)}
-          >
-            全類別
-          </button>
-          {availableCategories.map(cat => (
-            <button
-              key={cat}
-              className={etfCategory === cat ? styles.catActive : styles.catBtn}
-              onClick={() => setEtfCategory(cat === etfCategory ? null : cat)}
-            >
-              {ETF_CATEGORY_ZH[cat] ?? cat}
-            </button>
-          ))}
-        </div>
-      )}
 
       {assetType !== 'changes' && <div className={styles.count}>{count} 項</div>}
 
@@ -386,9 +388,23 @@ export function DiscoverView() {
               : '此篩選條件下沒有項目'}
           </div>
         ) : assetType === 'stocks'
-          ? displayedStocks.map((s, i) => <StockCard key={s.ticker} stock={s} showMode={mode} delay={i * 0.04} />)
+          ? <>
+              {displayedStocks.slice(0, showCount).map((s, i) => <StockCard key={s.ticker} stock={s} showMode={mode} delay={i * 0.04} />)}
+              {showCount < displayedStocks.length && (
+                <button className={styles.loadMore} onClick={() => setShowCount(n => n + 30)}>
+                  再顯示 30 項（還有 {displayedStocks.length - showCount} 檔）
+                </button>
+              )}
+            </>
           : assetType === 'etf'
-          ? displayedEtfs.map(e => <EtfCard key={e.ticker} etf={e} showMode={mode} />)
+          ? <>
+              {displayedEtfs.slice(0, showCount).map(e => <EtfCard key={e.ticker} etf={e} showMode={mode} />)}
+              {showCount < displayedEtfs.length && (
+                <button className={styles.loadMore} onClick={() => setShowCount(n => n + 30)}>
+                  再顯示 30 項（還有 {displayedEtfs.length - showCount} 檔）
+                </button>
+              )}
+            </>
           : <OpportunityQueue groups={opportunityGroups} />
         }
       </div>
