@@ -1,7 +1,12 @@
 {
   "_comment": "Frozen SP-3 feature contract. Bump version + re-run build_features.py whenever columns change.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "created_at": "2026-06-23",
+  "changelog": {
+    "1.0.1": "Restore 33 features (v1.1.0 pruning was worse). Fix: label.py mae5d LOWER barrier now uses abs(mae5d) >= k*atr (D1 stores positive absolute value, not negative).",
+    "1.1.0": "Pruned 7 zero-importance booleans — OOF AUC 0.579→0.527, reverted.",
+    "1.0.0": "Initial frozen contract."
+  },
 
   "leakage_blocklist": [
     "ret1d", "ret3d", "ret5d", "ret10d",

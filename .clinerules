@@ -1,0 +1,104 @@
+# Cline Workspace Rules — Trading ETF
+
+## 1. node / npm / npx 不在 PATH
+
+**永遠用 bundled binary，否則所有 node 指令都會 not found：**
+
+```bash
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/<tool>
+```
+
+常用指令：
+```bash
+# TypeScript check
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/tsc --noEmit
+
+# Vite build
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/vite build
+
+# Wrangler deploy (trading-etf)
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/wrangler deploy
+
+# Wrangler deploy (signalpilot)
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/wrangler deploy --config wrangler.signalpilot.toml
+
+# D1 query
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/wrangler d1 execute trading-etf-db --remote --command "SELECT ..."
+```
+
+---
+
+## 2. 命令輸出捕捉不穩定時，重定向到 .tmp/
+
+若 execute_command 輸出被截斷或報 "could not be captured"，改為：
+
+```bash
+<指令> > .tmp/cmd_out.txt 2>&1
+```
+
+再用 read_file 讀 `.tmp/cmd_out.txt`。`.tmp/` 已加入 `.gitignore`。
+
+---
+
+## 3. 防止終端 INSERT/REPLACE 污染
+
+`-- INSERT --` / `-- REPLACE --` 出現在輸出裡，代表**本機有 Vim 殘留 .swp 檔案污染了 pseudo-tty**。
+
+**開工前先清理：**
+```bash
+find . -name "*.swp" -o -name "*.swo" | xargs rm -f 2>/dev/null
+```
+
+**每個 shell 指令前設定（防止任何工具開啟互動編輯器）：**
+```bash
+GIT_EDITOR=true EDITOR=true VISUAL=true <指令>
+```
+
+**永遠不要跑會開啟 pager 的指令**（如 `git log` 不加 `--no-pager`）：
+```bash
+git --no-pager log --oneline -10
+git --no-pager diff
+```
+
+**出現污染時的診斷：**
+
+```bash
+find . -name "*.swp" -o -name "*.swo"
+```
+
+找到後刪除，重開 Cline session。
+
+---
+
+## 4. 工具呼叫守則
+
+- **每次只做一件事**：讀完再寫，寫完再跑，跑完再讀結果
+- **依賴前一步結果的，必須等結果回來才呼叫下一個工具**
+- **不要在同一輪混用 read_file + execute_command + replace_in_file**
+
+---
+
+## 5. 禁區（對應 CLAUDE.md 與 WORKLIST.md 政策）
+
+- **不要自動 git commit 或 push** — 用戶自己處理 git
+- **不要動 `scripts/ml/`**（ML pipeline — Claude 負責）
+- **不要改 `models/EXPERIMENT_LOG.md`**（除非跑了新訓練）
+- **不要改 `data/holdout_freeze_v1.json`**（holdout 凍結）
+- **不要解鎖 SP-5+**（GATE-EDGE 未 PASS）
+- **不要讓 SP_AUTH_TOKEN / INGEST_TOKEN 落入任何檔案或日誌**
+
+---
+
+## 6. 部署前必過 tsc
+
+```bash
+.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/tsc --noEmit
+```
+
+零錯誤才能 deploy。
+
+---
+
+## 7. 任務完成後更新 WORKLIST.md
+
+每完成一項在 `WORKLIST.md` 打 `[x]` + 日期，不要另開文件記錄。

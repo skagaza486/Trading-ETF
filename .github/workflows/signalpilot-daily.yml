@@ -25,12 +25,11 @@ jobs:
   sp2-batch:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Only run on weekdays, and only when triggered by a successful snapshot run.
+    # Run when the upstream Daily snapshot workflow succeeds (weekday filtering is already
+    # handled by snapshot.yml's cron schedule), or on manual dispatch.
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       contains(fromJson('["Monday","Tuesday","Wednesday","Thursday","Friday"]'),
-                github.event.workflow_run.created_at))
+      github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v4
 
@@ -52,11 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: sp2-batch
-    # Skip if no promoted model exists yet (controlled via workflow_dispatch input or
-    # absence of models/promotion_*.json).  Set skip_sp4=true until first model trains.
+    # Skip if no promoted model exists yet, or caller sets skip_sp4=true.
+    # Precedence fix: workflow_dispatch branch parenthesised explicitly.
     if: >
-      github.event_name == 'workflow_dispatch' &&
-      inputs.skip_sp4 != 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.skip_sp4 != 'true') ||
       github.event_name == 'workflow_run'
     steps:
       - uses: actions/checkout@v4

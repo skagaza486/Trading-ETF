@@ -40,6 +40,15 @@ export async function runIntent(env: FlowEnv, params: FlowParams): Promise<Inten
   const accountId = params.accountId ?? PAPER_ACCOUNT_ID
   const now = new Date().toISOString()
 
+  // Idempotency guard: if an intent already exists for this (account, ticker, signal_date),
+  // return it immediately. Prevents FK violation from the INSERT OR IGNORE no-op path.
+  const existingIntent = await env.SIGNALPILOT_DB.prepare(
+    'SELECT * FROM trade_intents WHERE account_id = ? AND ticker = ? AND signal_date = ? LIMIT 1',
+  ).bind(accountId, params.ticker, params.signalDate).first<IntentRecord>()
+  if (existingIntent) {
+    return { intent: existingIntent, order: null, fill: null, cash_balance_cents: await getBalance(env.SIGNALPILOT_DB, accountId) }
+  }
+
   // 1. Fetch signal (read-only; never writes to TRADING_ETF_DB_RO)
   const signal = await env.TRADING_ETF_DB_RO.prepare(
     'SELECT rowid, ticker, signal_date, label, close_at_signal, next_open, earnings_in_window FROM signals WHERE ticker = ? AND signal_date = ? LIMIT 1',

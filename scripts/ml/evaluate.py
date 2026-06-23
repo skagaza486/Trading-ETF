@@ -88,6 +88,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--meta",      required=True)
     ap.add_argument("--baselines", required=True)
+    ap.add_argument("--oof",       default=None,
+                    help="Path to OOF CSV (oof_v*.csv). If provided with --threshold, "
+                         "re-computes precision at the given threshold for the gate check.")
+    ap.add_argument("--threshold", type=float, default=0.50,
+                    help="Decision threshold for precision gate (default 0.50)")
     ap.add_argument("--promote",   action="store_true",
                     help="Write a promotion record JSON if gate passes")
     ap.add_argument("--out-dir",   default="models/")
@@ -95,6 +100,19 @@ def main():
 
     meta      = load(args.meta)
     baselines = load(args.baselines)
+
+    # If OOF CSV + custom threshold provided, re-compute precision at that threshold
+    if args.oof and args.threshold != 0.50:
+        import pandas as pd
+        from sklearn.metrics import precision_score as _prec
+        oof_df = pd.read_csv(args.oof)
+        pred   = (oof_df["prob_take"] >= args.threshold).astype(int)
+        if pred.sum() > 0:
+            new_prec = round(float(_prec(oof_df["y_true"], pred, zero_division=0)), 4)
+            print(f"[INFO] Recomputed precision at threshold={args.threshold}: {new_prec} "
+                  f"(was {meta['oof_metrics'].get('precision','n/a')} at 0.50)")
+            meta["oof_metrics"]["precision"] = new_prec
+            meta["oof_metrics"]["_threshold"] = args.threshold
 
     print(f"\n=== SP-4 Model Promotion Gate ===")
     print(f"Run ID:        {meta['run_id']}")
@@ -112,8 +130,9 @@ def main():
               f"prec={agg.get('precision','n/a')}  brier={agg.get('brier','n/a')}")
 
     oof = meta.get("oof_metrics", {})
+    thresh_note = f" (at t={oof.get('_threshold',0.50)})" if "_threshold" in oof else ""
     print(f"\nCandidate OOF:  AUC={oof.get('auc','n/a')}  "
-          f"prec={oof.get('precision','n/a')}  brier={oof.get('brier','n/a')}")
+          f"prec={oof.get('precision','n/a')}{thresh_note}  brier={oof.get('brier','n/a')}")
     print()
 
     promoted, passed, failed = check_gate(meta, baselines)

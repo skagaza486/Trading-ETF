@@ -80,35 +80,68 @@ Always use `--remote` to target production D1. Omit it for local dev.
 
 ## Current sprint (as of 2026-06-23)
 
-**Context:** GPT is offline — Claude handles both `trading-etf` and SignalPilot lines.
+**Context:** GPT is offline — Claude handles both `trading-etf` and SignalPilot lines.  
+**If you are another AI reading this:** role boundaries and task assignments are in [`docs/HANDOFF_GPT.md`](docs/HANDOFF_GPT.md). Full backlog with blocking deps is in [`WORKLIST.md`](WORKLIST.md). Read those before starting any work.
 
 ### What's running autonomously (no action needed)
 
 - `trading-etf` nightly snapshot: GH Actions `snapshot.yml` 21:30 UTC Mon–Fri ✅
-- SignalPilot SP-2 nightly batch: GH Actions `signalpilot-daily.yml` (deployed, accumulating data) ✅
+- SignalPilot SP-2 nightly batch + SP-4 shadow inference: GH Actions `signalpilot-daily.yml` ⚠️ **FIXED 2026-06-24** — weekday `if` condition used `created_at` (ISO timestamp) instead of day name → always false → batch never ran since 2026-06-03. Fixed to `conclusion == 'success'` only. Will resume next trading day.
 
-### What was just completed
+### What was completed (2026-06-23 full cycle)
 
-- SP-4 indicator backfill: 419/422 historical signals now have `rs_rank`, `rsi14`, `rvol`, `rs_vs_spy`, `clv`, `ema50_slope`, `indicators_json` (3 PSTG rows skipped, delisted)
-- SP-0 Auth spine + SP-1 Paper Ledger + SP-2 Rule-Only Shadow: code complete, deployed
+- **P0 ✅**: earnings 3.12% verified (74,043 settled / 2,308 flagged)
+- **P1 ✅ A-lite**: S&P 500 Wikipedia PIT universe built (`build_pit_sp500.py`); D1 injected; ~530-ticker 2y Yahoo backfill done; export + label re-run; research-health confirmed. ⚠️ delisting bias residual (no prices for SPLK/ATVI/FRC etc.)
+- **P4 ✅**: holdout frozen — `data/holdout_freeze_v1.json` (n=75, 2026-02-01→2026-06-05, 20bps cost)
+- **GATE-EDGE v1 ✅ executed, verdict = 🟡 ITERATE**: mean=+1.38% after cost, p=0.085 (α=0.05 not reached). UPPER-only BH-sig ✅ (+7.76%, n=28). LOWER labels drag (−5.37%, n=18). ML overlay failed (distribution shift, n_take=0). Full results: `models/gate_edge_result.json`, writeup: `GATE_EDGE.md` §12.
+- **SP-2 ✅**: idempotency fix + 22-date historical backfill passed
+- **SP-4 🟡**: pipeline promotes `model_v1.0.1_ef58f809`; shadow inference accumulating nightly. **Pipeline ≠ edge** — model on PIT data will need retraining (v1.0.2)
 
-### Immediate next actions (priority order)
+### Immediate next actions (ITERATE path)
 
-1. **SP-1 E2E smoke test** — run `SP_AUTH_TOKEN=<token> bash scripts/sp1-smoke-test.sh` to formally close SP-1 exit gate
-2. **HYP-015** — `watchlist_universe_snapshots` has only 2026-06 (1 month); needs 14 more months for SP-4 sector features. Use `npm run research:backfill-universe -- --merge-file <path> --apply` with manual JSON for missing months
-3. **SP-4 first training run** — unblocked once HYP-015 + ≥20 trading days SP-2 data ready:
+> GATE-EDGE v1 = ITERATE. SP-5→SP-8 remain BLOCKED. Focus: understand *why* ITERATE and prepare v2.
+
+1. **Investigate LOWER label drag** — n=18, mean=−5.37% is pulling primary mean down. Is k=1.5 barrier too narrow for 5d hold? Or should LOWER-type outcomes be excluded from the trading strategy entirely?
+2. **Consider UPPER-only pre-registration for v2** — UPPER signals (n=28) are the only BH-significant slice. A strategy that only holds when triple-barrier predicts UPPER may be cleaner.
+3. **Retrain ML v1.0.2 on PIT data** — v1.0.1 was trained on old biased universe; distribution shifted completely on holdout (n_take=0). Retrain after more PIT samples accumulate.
+4. **Wait for 2026-08+ samples** — current holdout n=75 is borderline for n≥100 target. Let nightly inference accumulate ~1–2 more months before GATE_EDGE_v2.
+5. **SP-1 E2E smoke test** — `SP_AUTH_TOKEN=<token> bash scripts/sp1-smoke-test.sh` — independent of above, can do now.
+6. **Open GATE_EDGE_v2.md** when ready — new pre-registration, new holdout segment (cannot reuse 2026-02→06-05).
+
+⚠️ **Do NOT**: adjust cost assumption, shrink holdout, use v1 holdout numbers to select threshold, then claim PASS. Must be full new pre-registration + new holdout. Do NOT resume feature-importance pruning (EXPERIMENT_LOG shows naive pruning hurt AUC).
+
+### ML iteration log
+
+**Before training a new model or re-trying an experiment, read `models/EXPERIMENT_LOG.md`.**
+It records every run (promoted/reverted/superseded) with hypothesis → change → result →
+conclusion, so you don't repeat failed experiments (e.g. naive feature pruning was tried
+and hurt AUC — do not re-try). Add a new entry at the top after each training run.
+Current promoted model: `model_v1.0.1_ef58f809` (threshold = 0.48).
+
+### ML re-train command reference
 
 ```bash
+# Re-export (if signals updated)
 .tools/node-v22.22.3-darwin-arm64/bin/node scripts/ml/export_signals_d1.mjs --out data/signals_full.csv
-python scripts/ml/build_features.py --in data/signals_full.csv --out data/features/
-python scripts/ml/train_lgbm.py --features data/features/features_v1.0.0_<hash>.parquet
-python scripts/ml/baselines.py --features data/features/features_v1.0.0_<hash>.parquet
-python scripts/ml/evaluate.py --oof models/oof_v*.csv --baselines models/baselines_*.json --promote
+
+# Re-label (if k or ATR logic changed)
+python3 scripts/ml/label.py --in data/signals_full.csv --k 1.5 --out data/signals_labeled.csv
+
+# Re-build features (if feature_schema.json changed)
+python3 scripts/ml/build_features.py --in data/signals_full.csv --out data/features/
+
+# Train + evaluate
+python3 scripts/ml/train_lgbm.py --features data/features/features_v1.0.0_<hash>.parquet --targets data/features/features_v1.0.0_<hash>.targets.parquet
+python3 scripts/ml/baselines.py --features data/features/features_v1.0.0_<hash>.parquet --targets data/features/features_v1.0.0_<hash>.targets.parquet
+python3 scripts/ml/evaluate.py --meta models/meta_v1.0.0_<run_id>.json --baselines models/baselines_<run_id>.json --promote
 ```
 
 ### Key data health
 
-- `signals` total: ~422 eligible (LONG_BREAK/VCP/BOUNCE with ret5d settled)
+> Single source of truth = `/api/d1/research-health`. Do not restate these numbers elsewhere; link here.
+
+- `signals` total: 422 eligible (LONG_BREAK/VCP/BOUNCE with ret5d settled); 74,043 settled overall
 - `indicators_json` coverage: 419/422 ✅
-- `earnings_ratio_pct`: ~3.12% (SEC Edgar, target ~11% — acceptable for training)
-- `universe_snapshot_months`: 1 (needs 14+ for point-in-time sector features)
+- `earnings_ratio_pct`: **3.12%** verified 2026-06-23 (2,308 / 74,043; SEC Edgar; target ~11% — acceptable for training). HYP-013 ✅ resolved. (Any doc still quoting 0.02% is stale.)
+- `universe_snapshot_months`: **15 rows (2025-04→2026-06) BUT false coverage** — every month is the identical current 299-ticker watchlist (zero membership diff first↔last). Survivorship bias intact → HYP-015 P1 ❌. Avg5D/backtest figures are inflated until real membership history is reconstructed.
+- `sp4_shadow_inferences`: accumulating nightly since 2026-06-23

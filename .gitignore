@@ -15,3 +15,10 @@ data/
 models/baselines_*.json
 models/oof_*.csv
 models/folds_*.json
+
+# Vim swap files
+*.swp
+*.swo
+
+# Temporary command output (redirect workaround for Cline)
+.tmp/

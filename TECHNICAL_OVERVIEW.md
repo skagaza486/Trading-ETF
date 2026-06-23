@@ -501,7 +501,9 @@ type StockSnapshotEntry = {
 - **Structure + Trigger design:** As of 2026-06-18, all entry signals require both a structural condition (trend alignment, above EMA200) and a trigger condition (breakout, bounce, compression). WATCH is a universe filter only and is not gate-evaluated.
 - **Research phase:** Gates still building sample size with new label taxonomy. The app is a signal generator and backtesting workspace, not a validated trading system.
 - **Safe-haven override:** GLD, IAU, SGOV, SHY, IEF, TLT, BIL, TIP are immune to regime downgrades in the ETF engine.
-- **HYP-013 — D1 earnings contamination (confirmed bug):** `cronSnapshot.ts` backfill path calls `buildHistoricalSignals` without the `historicalEarningsMap` parameter, so all historical D1 signals have `earnings_in_window = false`. Approximately 11% of signals occur near earnings windows and are not flagged. Gate Summary statistics have a known optimistic bias until this is fixed. See `SIGNAL_IMPROVEMENT.md` HYP-013.
+- **HYP-013 — D1 earnings contamination (RESOLVED 2026-06-23):** The original `cronSnapshot.ts` backfill bug (missing `historicalEarningsMap`) is fixed and the source switched to SEC Edgar 8-K. **Production verified: 2,308 / 74,043 settled signals flagged = 3.12% `earnings_in_window` rate** (single source of truth: `/api/d1/research-health`). This is below the ~11% theoretical target but sufficient for training; the contamination is no longer a blocker. (Older docs quoting ~0.02% are stale.)
+- **HYP-015 — survivorship bias in point-in-time universe (NOT resolved — false coverage):** `watchlist_universe_snapshots` now holds 15 months (2025-04→2026-06), but **every month is the identical current 299-ticker watchlist** — membership diff between 2025-04 and 2026-06 is **zero**. Rows exist, but genuine point-in-time membership history does not. **All Avg5D / backtest figures are therefore survivorship-inflated** until real historical membership is reconstructed. This is gate `GATE-EDGE`'s P1 prerequisite (see `ROADMAP.md` 北極星與決策閘).
+- **Multiple-testing / no-holdout (open governance risk):** Dozens of hypotheses (HYP-009→028) were tested on overlapping small samples, creating p-hacking risk. No untouched holdout set exists yet; `GATE-EDGE` requires one before any edge claim is accepted (P4).
 - **Market cap data:** `StockSnapshotEntry.marketCap` is only populated by GitHub Actions builds (via `scripts/yahooMarketCap.ts`). The on-demand Worker snapshot trigger lacks market cap data; the Sector Treemap gracefully degrades to equal-width tiles.
 
 ---
@@ -568,9 +570,11 @@ All state changes write an append-only, hash-chained row to `audit_log`. Chain i
 |---|---|
 | SP-0 Auth & Audit Spine | ✅ Complete (2026-06-23) |
 | SP-1 Paper Ledger MVP | 🟡 Code complete (2026-06-23); E2E smoke test pending |
-| SP-2 Rule-Only Shadow Portfolio | ⏳ Next |
-| SP-3 Feature Builder | ⛔ Blocked on GPT (HYP-013 + HYP-015) |
-| SP-4–SP-8 | See `SIGNALPILOT_ROADMAP.md` |
+| SP-2 Rule-Only Shadow Portfolio | ✅ Code complete + 22-date historical backfill passed; nightly GH Actions active |
+| SP-3 Feature Builder | 🟡 Partial (HYP-013 ✅ 3.12%; **HYP-015 NOT resolved — 15 months of rows but back-stamped current universe, survivorship bias intact**) |
+| SP-4 AI Shadow Mode | ✅ Pipeline reproducible (first model promoted); ⚠️ **edge unproven — AUC=0.579 ≈ random, +3.7pp precision over always-take. Scaffolding milestone, not alpha evidence** |
+| 🚦 GATE-EDGE | ⛔ Not run. Pre-registered edge test; prerequisites P0 ✅ / P1 ❌ / P4 ❌. Blocks SP-5→SP-8 |
+| SP-5–SP-8 | 🔒 BLOCKED until GATE-EDGE passes. See `SIGNALPILOT_ROADMAP.md` |
 
 ---
 
@@ -583,19 +587,28 @@ All state changes write an append-only, hash-chained row to `audit_log`. Chain i
 | Track B — FRED liquidity | ✅ Complete (2026-06-22) | `fredLiquidity.ts` → `LiquidityNote` in DailySnapshot; GH Actions verified |
 | Track C — Sector Treemap | ✅ Complete (2026-06-22) | `SectorTreemap.tsx` Pro-only CSS flex treemap; `yahooMarketCap.ts` batch fetch |
 | Track A — Python ML infra | ✅ Infrastructure done (2026-06-22) | `scripts/ml/`: fetch_signals.py + label.py (Triple-Barrier); sample volume already sufficient (~74k rows / ~14 months) |
-| B3 — ML training | ⏳ Blocked on data quality | Sample count is NOT the blocker (~74k rows since 2025-04). Requires only: **HYP-013 earnings fix** + **HYP-015 universe snapshot** |
+| B3 — ML training | ✅ First model trained + promoted (2026-06-23) | LightGBM v1.0.0 OOF AUC=0.579 vs LogReg 0.496; triple-barrier labels; 422 signals; shadow inference live |
 | **SP-0** — Auth & Audit Spine | ✅ Complete (2026-06-23) | SignalPilot Worker live; token auth + replay guard + kill switch + hash-chained audit |
 | **SP-1** — Paper Ledger MVP | 🟡 Code complete (2026-06-23) | 8-table schema deployed; POST /api/sp1/intent end-to-end; E2E smoke test pending |
+| **SP-2** — Rule-Only Shadow | ✅ Complete (2026-06-23) | Idempotency guard + 22-date historical backfill; nightly GH Actions batch active |
+| **SP-3** — Feature Builder | 🟡 Partial | feature_schema.json v1.0.0 frozen; leakage audit pass; HYP-013 ✅ (3.12%); **HYP-015 false coverage — 15 months back-stamped, survivorship bias intact** |
+| **SP-4** — AI Shadow Mode | ✅ Pipeline reproducible; ⚠️ edge unproven | model_v1.0.0_8aa032a3 OOF AUC=0.579 ≈ random; shadow inference live. **Scaffolding milestone — see GATE-EDGE before any alpha claim** |
+| **🚦 GATE-EDGE** | ⛔ Not run | Pre-registered edge test gating SP-5→SP-8; prerequisites: P0 data ✅, P1 point-in-time universe ❌, P4 holdout ❌ |
 
-### Pre-conditions Before ML Training
+### SP-4 Model Details (v1.0.0)
 
-Before running `scripts/ml/label.py` and training LightGBM:
+| Metric | LightGBM | LogReg (B3) | Always-Take (B0) |
+| --- | --- | --- | --- |
+| OOF AUC | **0.579** | 0.496 | 0.500 |
+| Precision@take | **0.462** | 0.370 | 0.425 |
+| Brier | **0.244** | 0.270 | 0.575 |
 
-1. **HYP-013 fix:** Add `earnings_calendar` D1 table; pass historical earnings map to `buildHistoricalSignals` in backfill path so ~11% of mislabeled signals are corrected.
-2. **HYP-015:** Establish frozen monthly universe snapshots to eliminate selection bias in training data.
+- 422 signals (LONG_BREAK/VCP/BOUNCE, ret5d settled), 33 features, schema v1.0.0
+- Triple-barrier labels: UPPER=142 (33.6%), VERTICAL=280 (66.4%), k=1.5
+- Missing: real point-in-time sector/industry features (HYP-015 false coverage); will retrain once genuine membership history exists
 
-Until these are resolved, training data has known systematic biases that a stronger model will amplify rather than correct.
+**⚠️ Honest read:** AUC 0.579 sits ~8 points above the 0.500 random floor and precision beats always-take by only **~3.7pp**. Combined with a 2024–26 bull-only sample, survivorship-inflated returns (HYP-015), and a 422-row / 33-feature overfitting surface, **this is a scaffolding milestone proving the pipeline reproduces — not evidence the model adds alpha.** The next step is **not** feature-importance pruning or a threshold sweep; it is to pass `GATE-EDGE` (resolve P1 survivorship + build P4 holdout, then run the pre-registered edge test). See `ROADMAP.md` 北極星與決策閘.
 
 ---
 
-Last updated: 2026-06-23 (SP-0 + SP-1 SignalPilot Paper Ledger deployed; Track A+B+C complete; 299 stocks; FRED liquidity; Sector Treemap Pro; Python ML infra ready)
+Last updated: 2026-06-23 (governance reset: P0–P5 gates introduced; HYP-013 verified resolved at 3.12%; HYP-015 found to be false coverage — survivorship bias intact; SP-4 reframed as pipeline scaffolding, not edge evidence; GATE-EDGE introduced, SP-5→SP-8 frozen. See `ROADMAP.md` 北極星與決策閘)

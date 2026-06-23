@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
@@ -15,6 +15,10 @@ const HISTORY_RANGE = '2y'
 const SIGNAL_BARS = 250
 const SQL_CHUNK_SIZE = 500
 
+const WRANGLER = '.tools/node-v22.22.3-darwin-arm64/bin/node'
+const WRANGLER_BIN = 'node_modules/.bin/wrangler'
+const DB = 'trading-etf-db'
+
 // SEC EDGAR — free, no API key required. Rate limit: 10 req/s.
 const SEC_USER_AGENT = 'trading-etf-app/1.0 skagaza486@gmail.com'
 type SecTickerEntry = { cik_str: number; ticker: string }
@@ -25,11 +29,13 @@ type SecSubmissionsResponse = {
 type CliOptions = {
   chunkSize: number
   startIndex: number
+  pitMode: boolean
 }
 
 function parseArgs(argv: string[]): CliOptions {
   let chunkSize = 5
   let startIndex = 0
+  let pitMode = false
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
     if (arg === '--chunk-size') {
@@ -40,8 +46,71 @@ function parseArgs(argv: string[]): CliOptions {
       startIndex = Math.max(0, Number(argv[index + 1] ?? startIndex))
       index += 1
     }
+    if (arg === '--pit') {
+      pitMode = true
+    }
   }
-  return { chunkSize, startIndex }
+  return { chunkSize, startIndex, pitMode }
+}
+
+// ── PIT universe helpers (--pit mode) ────────────────────────────────────────
+
+type PitMembership = Map<string, Set<string>>  // month (YYYY-MM) → Set<ticker>
+
+function d1QuerySync(sql: string): Record<string, unknown>[] {
+  const args = [WRANGLER_BIN, 'd1', 'execute', DB, '--remote', '--command', sql]
+  const raw = execFileSync(WRANGLER, args, { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 })
+  const match = raw.match(/\[\s*[\s\S]*\]/)
+  if (!match) return []
+  try {
+    const parsed = JSON.parse(match[0]) as Record<string, unknown>[]
+    // Wrangler wraps rows: [{results: [...], success: true, meta: {...}}]
+    if (parsed.length > 0 && Array.isArray((parsed[0] as Record<string, unknown>)['results'])) {
+      return (parsed[0] as Record<string, unknown>)['results'] as Record<string, unknown>[]
+    }
+    return parsed
+  } catch {
+    return []
+  }
+}
+
+function loadPitMembership(): PitMembership {
+  console.log('[PIT] Loading watchlist_universe_snapshots from D1…')
+  const rows = d1QuerySync(
+    'SELECT snapshot_month, ticker FROM watchlist_universe_snapshots ORDER BY snapshot_month, ticker'
+  )
+  const map: PitMembership = new Map()
+  for (const row of rows) {
+    const month = String(row['snapshot_month'])
+    const ticker = String(row['ticker'])
+    if (!map.has(month)) map.set(month, new Set())
+    map.get(month)!.add(ticker)
+  }
+  const monthCount = map.size
+  const tickerCount = [...map.values()].reduce((acc, s) => acc + s.size, 0)
+  console.log(`[PIT] Loaded ${monthCount} months, ${tickerCount} total membership rows`)
+  return map
+}
+
+function pitUnionTickers(pit: PitMembership): string[] {
+  const all = new Set<string>()
+  for (const tickers of pit.values()) {
+    for (const t of tickers) all.add(t)
+  }
+  return [...all].sort()
+}
+
+function isPitMember(pit: PitMembership, ticker: string, signalDate: string): boolean {
+  const month = signalDate.slice(0, 7)
+  const members = pit.get(month)
+  if (!members) {
+    // No snapshot for this month — use nearest earlier month as fallback
+    const months = [...pit.keys()].sort()
+    const prior = [...months].reverse().find(m => m <= month)
+    if (!prior) return false
+    return pit.get(prior)!.has(ticker)
+  }
+  return members.has(ticker)
 }
 
 
@@ -173,14 +242,36 @@ function escapeSql(value: string): string {
   return value.replaceAll("'", "''")
 }
 
-async function runWranglerSqlFile(filePath: string): Promise<void> {
-  const { stdout, stderr } = await execFileAsync(
-    process.execPath,
-    ['./node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'trading-etf-db', '--remote', `--file=${filePath}`],
-    { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 20 }
-  )
-  if (stdout) process.stdout.write(stdout)
-  if (stderr) process.stderr.write(stderr)
+async function runWranglerSqlFile(filePath: string, retries = 3): Promise<void> {
+  const { readFile } = await import('node:fs/promises')
+  const content = await readFile(filePath, 'utf8')
+  if (!content.trim()) {
+    console.warn(`  Skipping empty SQL file: ${filePath}`)
+    return
+  }
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const { stdout, stderr } = await execFileAsync(
+        process.execPath,
+        ['./node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'trading-etf-db', '--remote', `--file=${filePath}`],
+        { cwd: process.cwd(), maxBuffer: 1024 * 1024 * 20, timeout: 120_000 }
+      )
+      if (stdout) process.stdout.write(stdout)
+      if (stderr) process.stderr.write(stderr)
+      return
+    } catch (err) {
+      const msg = (err as Error).message ?? ''
+      if (attempt < retries) {
+        const delay = attempt * 5000
+        console.warn(`  ⚠ Attempt ${attempt}/${retries} failed for ${filePath}: ${msg.slice(0, 120)}`)
+        console.warn(`    Retrying in ${delay / 1000}s…`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      } else {
+        console.error(`  ✘ All ${retries} attempts failed for ${filePath}: ${msg.slice(0, 200)}`)
+        console.error(`    (continuing with remaining chunks — re-run to retry this file)`)
+      }
+    }
+  }
 }
 
 async function writeSqlChunks(prefix: string, statements: string[]): Promise<string[]> {
@@ -190,8 +281,11 @@ async function writeSqlChunks(prefix: string, statements: string[]): Promise<str
 
   for (let index = 0; index < statements.length; index += SQL_CHUNK_SIZE) {
     const slice = statements.slice(index, index + SQL_CHUNK_SIZE)
+    if (slice.length === 0) continue
+    const content = slice.join('\n')
+    if (!content.trim()) continue
     const filePath = path.join(sqlRoot, `${prefix}-${String(index / SQL_CHUNK_SIZE).padStart(3, '0')}.sql`)
-    await writeFile(filePath, slice.join('\n'), 'utf8')
+    await writeFile(filePath, content, 'utf8')
     files.push(filePath)
   }
 
@@ -214,7 +308,8 @@ async function processChunk(
   chunkIndex: number,
   tickers: string[],
   benchmarkHistories: Record<string, TickerHistory>,
-  earningsMap: Map<string, string[]>
+  earningsMap: Map<string, string[]>,
+  pit?: PitMembership
 ): Promise<number> {
   const chunkHistories = await fetchHistories(tickers)
   const availableTickers = tickers.filter(ticker => chunkHistories[ticker])
@@ -226,7 +321,16 @@ async function processChunk(
   const allHistories = { ...benchmarkHistories, ...chunkHistories }
   const chunkEarningsMap = new Map(availableTickers.map(ticker => [ticker, earningsMap.get(ticker) ?? []]))
   const signals = buildHistoricalSignals(allHistories, availableTickers, SIGNAL_BARS, chunkEarningsMap)
-  const records = buildForwardReturnRecord(signals, allHistories)
+  let records = buildForwardReturnRecord(signals, allHistories)
+
+  if (pit) {
+    const before = records.length
+    records = records.filter(r => isPitMember(pit, r.ticker, r.signalDate))
+    const dropped = before - records.length
+    if (dropped > 0) {
+      console.log(`  [PIT] Chunk ${chunkIndex + 1}: filtered out ${dropped} signals not in S&P 500 at signal_date`)
+    }
+  }
 
   const statements = records.map(r => {
     const researchFlags = r.researchFlags.join(',')
@@ -275,9 +379,26 @@ async function processChunk(
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2))
-  const watchlistTickers = stockWatchlist.map(stock => stock.ticker)
-  console.log(`Fetching 2y earnings archive (SEC Edgar) for ${watchlistTickers.length} tickers…`)
-  const earningsMap = await fetchHistoricalEarningsMapNode(watchlistTickers)
+
+  // --pit: use S&P 500 PIT universe from D1 instead of static stockWatchlist.
+  // Signals are generated for the union of all monthly members, then filtered
+  // to only keep signals where the ticker was a member at signal_date.
+  let pit: PitMembership | undefined
+  let universeTickers: string[]
+
+  if (options.pitMode) {
+    pit = loadPitMembership()
+    universeTickers = pitUnionTickers(pit)
+    console.log(`[PIT] Universe: ${universeTickers.length} unique tickers across all PIT months`)
+    console.log(`[PIT] Signals will be filtered by S&P 500 membership at signal_date`)
+    console.log(`[PIT] ⚠️  A-lite caveat: delisting bias not corrected (Yahoo has no delisted prices)`)
+  } else {
+    universeTickers = stockWatchlist.map(stock => stock.ticker)
+    console.log(`[watchlist] Universe: ${universeTickers.length} tickers from static stockWatchlist`)
+  }
+
+  console.log(`\nFetching 2y earnings archive (SEC Edgar) for ${universeTickers.length} tickers…`)
+  const earningsMap = await fetchHistoricalEarningsMapNode(universeTickers)
   const earningsStatements = buildEarningsStatements(earningsMap)
   const earningsFiles = await writeSqlChunks('earnings-calendar', earningsStatements)
   for (const file of earningsFiles) {
@@ -288,14 +409,14 @@ async function main(): Promise<void> {
   const benchmarkHistories = await fetchHistories(STOCK_BENCHMARK_TICKERS)
 
   let totalRecords = 0
-  const totalChunks = Math.ceil(watchlistTickers.length / options.chunkSize)
+  const totalChunks = Math.ceil(universeTickers.length / options.chunkSize)
   const startOffset = options.startIndex * options.chunkSize
 
-  for (let index = startOffset; index < watchlistTickers.length; index += options.chunkSize) {
-    const tickers = watchlistTickers.slice(index, index + options.chunkSize)
+  for (let index = startOffset; index < universeTickers.length; index += options.chunkSize) {
+    const tickers = universeTickers.slice(index, index + options.chunkSize)
     const chunkIndex = Math.floor(index / options.chunkSize)
     console.log(`Processing local chunk ${chunkIndex + 1} / ${totalChunks} -> ${tickers.join(', ')}`)
-    const records = await processChunk(chunkIndex, tickers, benchmarkHistories, earningsMap)
+    const records = await processChunk(chunkIndex, tickers, benchmarkHistories, earningsMap, pit)
     totalRecords += records
     console.log(`Chunk ${chunkIndex + 1}: wrote ${records} records (running total ${totalRecords})`)
   }

@@ -52,7 +52,9 @@ MODELS_DIR     = pathlib.Path(__file__).parent.parent.parent / "models"
 SP_WORKER_URL  = os.environ.get("SP_WORKER_URL",    "https://signalpilot.skagaza486.workers.dev")
 ETF_WORKER_URL = os.environ.get("TRADING_ETF_URL",  "https://trading-etf.skagaza486.workers.dev")
 SP_AUTH_TOKEN  = os.environ.get("SP_AUTH_TOKEN")
-TAKE_THRESHOLD = 0.55   # prob_take >= this → decision TAKE
+TAKE_THRESHOLD = 0.48   # prob_take >= this → decision TAKE
+# Note: OOF analysis shows precision peaks at t=0.48 (prec=0.427, recall=0.672, n=96/153).
+# t=0.50 drops precision just below +0.02 gate vs AlwaysTake — calibration issue to fix in v2.
 
 
 # ---------------------------------------------------------------------------

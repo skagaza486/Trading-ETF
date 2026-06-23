@@ -35,13 +35,13 @@ export default {
 
       // --- Authenticated reads ---
       if (pathname === '/api/control/status' && method === 'GET') {
-        return withTokenRead(request, env, async () =>
+        return await withTokenRead(request, env, async () =>
           json({ tradingDisabled: await isTradingDisabled(env) }),
         )
       }
 
       if (pathname === '/api/audit' && method === 'GET') {
-        return withTokenRead(request, env, async () => {
+        return await withTokenRead(request, env, async () => {
           const limit = Number(url.searchParams.get('limit') ?? '50')
           const [rows, chain] = await Promise.all([readAudit(env.SIGNALPILOT_DB, limit), verifyChain(env.SIGNALPILOT_DB)])
           return json({ chain, count: rows.length, rows })
@@ -50,36 +50,36 @@ export default {
 
       // --- Authenticated mutations (token + replay guard + audit) ---
       if (pathname === '/api/control/kill' && method === 'POST') {
-        return handleKill(request, env, true)
+        return await handleKill(request, env, true)
       }
       if (pathname === '/api/control/resume' && method === 'POST') {
-        return handleKill(request, env, false)
+        return await handleKill(request, env, false)
       }
 
       // Proves the trade-gating path end-to-end without doing anything: full
       // mutation gate + fail-closed kill-switch check. Real trade endpoints land
       // in SP-1 and reuse exactly this pattern.
       if (pathname === '/api/trade/preflight' && method === 'POST') {
-        return handlePreflight(request, env)
+        return await handlePreflight(request, env)
       }
 
       // --- SP-1: Paper Ledger reads (token only, no replay needed) ---
       if (pathname === '/api/sp1/account' && method === 'GET') {
-        return withTokenRead(request, env, async () => {
+        return await withTokenRead(request, env, async () => {
           const cash = await getBalance(env.SIGNALPILOT_DB, PAPER_ACCOUNT_ID)
           return json({ accountId: PAPER_ACCOUNT_ID, currency: 'USD', cash_balance_cents: cash, cash_balance_usd: cash / 100 })
         })
       }
 
       if (pathname === '/api/sp1/positions' && method === 'GET') {
-        return withTokenRead(request, env, async () => {
+        return await withTokenRead(request, env, async () => {
           const positions = await getOpenPositions(env.SIGNALPILOT_DB, PAPER_ACCOUNT_ID)
           return json({ positions, count: positions.length })
         })
       }
 
       if (pathname === '/api/sp1/ledger' && method === 'GET') {
-        return withTokenRead(request, env, async () => {
+        return await withTokenRead(request, env, async () => {
           const limit = Math.min(Number(url.searchParams.get('limit') ?? '50'), 200)
           const entries = await listCash(env.SIGNALPILOT_DB, PAPER_ACCOUNT_ID, limit)
           return json({ entries, count: entries.length })
@@ -88,7 +88,7 @@ export default {
 
       // --- SP-1: Paper trade intent (full mutation gate: token + replay + kill-switch + audit) ---
       if (pathname === '/api/sp1/intent' && method === 'POST') {
-        return handleIntent(request, env)
+        return await handleIntent(request, env)
       }
 
       // --- SP-2: Rule-only shadow portfolio ---
@@ -97,12 +97,12 @@ export default {
       // Called by GH Actions signalpilot-daily.yml after the snapshot build completes.
       // Mutation gate: token + replay + kill-switch.
       if (pathname === '/api/sp2/batch' && method === 'POST') {
-        return handleSp2Batch(request, env)
+        return await handleSp2Batch(request, env)
       }
 
       // Read: recent candidate decisions (approved + rejected with reason codes).
       if (pathname === '/api/sp2/candidates' && method === 'GET') {
-        return withTokenRead(request, env, async () => {
+        return await withTokenRead(request, env, async () => {
           const days = Math.min(Number(url.searchParams.get('days') ?? '7'), 90)
           const limit = Math.min(Number(url.searchParams.get('limit') ?? '100'), 500)
           const cutoff = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
@@ -118,7 +118,7 @@ export default {
 
       // Read: strategy daily snapshots (NAV + attribution).
       if (pathname === '/api/sp2/portfolio' && method === 'GET') {
-        return withTokenRead(request, env, async () => {
+        return await withTokenRead(request, env, async () => {
           const days = Math.min(Number(url.searchParams.get('days') ?? '30'), 365)
           const cutoff = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
           const { results } = await env.SIGNALPILOT_DB.prepare(`
@@ -132,24 +132,108 @@ export default {
         })
       }
 
+      // Read: three-layer attribution summary (strategy / execution / portfolio).
+      if (pathname === '/api/sp2/attribution' && method === 'GET') {
+        return await withTokenRead(request, env, async () => {
+          const days = Math.min(Number(url.searchParams.get('days') ?? '30'), 365)
+          const cutoff = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
+
+          const [candRow, rejRow, fillRow, snapRow, posRow] = await Promise.all([
+            // Strategy layer: approved vs rejected counts + per-ticker breakdown
+            env.SIGNALPILOT_DB.prepare(`
+              SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN decision = 'APPROVED' THEN 1 ELSE 0 END) AS approved,
+                SUM(CASE WHEN decision = 'REJECTED' THEN 1 ELSE 0 END) AS rejected,
+                ticker
+              FROM candidate_decisions
+              WHERE account_id = ? AND decision_date >= ?
+              GROUP BY ticker
+              ORDER BY total DESC
+              LIMIT 50
+            `).bind(PAPER_ACCOUNT_ID, cutoff).all(),
+
+            // Strategy layer: rejection reason breakdown
+            env.SIGNALPILOT_DB.prepare(`
+              SELECT rejection_code, COUNT(*) AS n
+              FROM candidate_decisions
+              WHERE account_id = ? AND decision_date >= ? AND decision = 'REJECTED'
+              GROUP BY rejection_code
+              ORDER BY n DESC
+            `).bind(PAPER_ACCOUNT_ID, cutoff).all(),
+
+            // Execution layer: fills by price_source (next_open vs close_fallback)
+            env.SIGNALPILOT_DB.prepare(`
+              SELECT
+                price_source,
+                COUNT(*) AS fill_count,
+                AVG(fill_price_cents) AS avg_fill_price_cents
+              FROM fills
+              WHERE account_id = ? AND fill_date >= ?
+              GROUP BY price_source
+            `).bind(PAPER_ACCOUNT_ID, cutoff).all(),
+
+            // Portfolio layer: NAV curve
+            env.SIGNALPILOT_DB.prepare(`
+              SELECT snapshot_date, nav_cents, cash_cents, open_positions
+              FROM strategy_daily_snapshots
+              WHERE account_id = ? AND snapshot_date >= ?
+              ORDER BY snapshot_date ASC
+            `).bind(PAPER_ACCOUNT_ID, cutoff).all(),
+
+            getOpenPositions(env.SIGNALPILOT_DB, PAPER_ACCOUNT_ID),
+          ])
+
+          const candidates = candRow.results as { total: number; approved: number; rejected: number; ticker: string }[]
+          const totalCands = candidates.reduce((s, r) => s + r.total, 0)
+          const totalApproved = candidates.reduce((s, r) => s + r.approved, 0)
+
+          const snaps = snapRow.results as { snapshot_date: string; nav_cents: number; cash_cents: number; open_positions: number }[]
+          const firstNav = snaps[0]?.nav_cents ?? null
+          const lastNav = snaps[snaps.length - 1]?.nav_cents ?? null
+          const navReturnBps = firstNav && lastNav ? Math.round(((lastNav - firstNav) / firstNav) * 10000) : null
+
+          return json({
+            period_days: days,
+            since: cutoff,
+            strategy: {
+              total_candidates: totalCands,
+              approved: totalApproved,
+              rejected: totalCands - totalApproved,
+              approval_rate_pct: totalCands ? +((totalApproved / totalCands) * 100).toFixed(1) : null,
+              by_ticker: candidates,
+              rejection_breakdown: rejRow.results,
+            },
+            execution: {
+              fills_by_price_source: fillRow.results,
+            },
+            portfolio: {
+              nav_snapshots: snaps,
+              nav_return_bps: navReturnBps,
+              open_positions: posRow.length,
+            },
+          })
+        })
+      }
+
       // --- SP-4: AI Shadow Mode ---
 
       // Receive daily shadow inferences from GH Actions Python scorer.
       // Mutation gate: token + replay. Does NOT require kill-switch (shadow never trades).
       if (pathname === '/api/sp4/shadow' && method === 'POST') {
-        return withTokenMutation(request, env, 'sp4.shadow.ingest', req =>
+        return await withTokenMutation(request, env, 'sp4.shadow.ingest', req =>
           handleSp4Shadow(req, env),
         )
       }
 
       // Read shadow inferences for a date range.
       if (pathname === '/api/sp4/shadow' && method === 'GET') {
-        return withTokenRead(request, env, () => handleSp4ShadowRead(url, env))
+        return await withTokenRead(request, env, () => handleSp4ShadowRead(url, env))
       }
 
       // Register a promoted model in the model registry.
       if (pathname === '/api/sp4/model' && method === 'POST') {
-        return withTokenMutation(request, env, 'sp4.model.register', req =>
+        return await withTokenMutation(request, env, 'sp4.model.register', req =>
           handleSp4ModelRegister(req, env),
         )
       }

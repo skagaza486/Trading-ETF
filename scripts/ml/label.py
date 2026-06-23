@@ -35,10 +35,12 @@ def triple_barrier_label(df: pd.DataFrame, k: float = 1.5) -> pd.DataFrame:
     else:
         atr = atr_dollars  # legacy: assume same units (will warn caller)
     mfe = df["mfe5d"].fillna(0)
-    mae = df["mae5d"].fillna(0)   # already negative in the API
+    # mae5d is stored as absolute value (positive) in D1 — max adverse excursion magnitude.
+    # Lower barrier hit when the drawdown magnitude exceeds k * atr.
+    mae = df["mae5d"].fillna(0).abs()
 
     upper_hit = mfe >=  k * atr
-    lower_hit = mae <= -k * atr
+    lower_hit = mae >=  k * atr  # abs(mae) >= threshold
 
     label = pd.Series(0, index=df.index, dtype=int)
     # Both hit: whichever excursion is larger wins
