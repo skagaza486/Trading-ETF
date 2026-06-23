@@ -1,0 +1,113 @@
+{
+  "created_at": "2026-06-23",
+  "holdout_definition": {
+    "filter": "signal_date >= '2026-02-01'",
+    "signal_date_gte": "2026-02-01",
+    "n_signals": 75,
+    "date_range": [
+      "2026-02-03",
+      "2026-06-05"
+    ],
+    "label_distribution": {
+      "UPPER": 28,
+      "VERTICAL": 29,
+      "LOWER": 18
+    },
+    "regime_distribution": {
+      "long_friendly": 73,
+      "neutral": 2
+    }
+  },
+  "cost_bps": 20,
+  "promoted_model": "model_v1.0.1_ef58f809",
+  "primary_test": {
+    "n": 75,
+    "mean_net_ret": 0.013836,
+    "ci_95_lo": -0.005389,
+    "ci_95_hi": 0.034215,
+    "p_value_one_tailed": 0.0849,
+    "significant": false,
+    "mean_above_threshold": true
+  },
+  "half_consistency": {
+    "first_half_mean": 0.007745,
+    "second_half_mean": 0.019767,
+    "first_half_n": 37,
+    "second_half_n": 38,
+    "consistent": true
+  },
+  "secondary_slices": {
+    "label_LOWER": {
+      "n": 18,
+      "mean": -0.053659,
+      "ci_95": [
+        -0.069098,
+        -0.032541
+      ],
+      "p_value": 1.0,
+      "bh_adjusted_p": 1.0,
+      "bh_significant": false
+    },
+    "label_VERTICAL": {
+      "n": 29,
+      "mean": -0.005824,
+      "ci_95": [
+        -0.013097,
+        0.002114
+      ],
+      "p_value": 0.9203,
+      "bh_adjusted_p": 1.0,
+      "bh_significant": false
+    },
+    "label_UPPER": {
+      "n": 28,
+      "mean": 0.077588,
+      "ci_95": [
+        0.053493,
+        0.104076
+      ],
+      "p_value": 0.0,
+      "bh_adjusted_p": 0.0,
+      "bh_significant": true
+    },
+    "regime_long_friendly": {
+      "n": 73,
+      "mean": 0.012781,
+      "ci_95": [
+        -0.008311,
+        0.033914
+      ],
+      "p_value": 0.1196,
+      "bh_adjusted_p": 0.2392,
+      "bh_significant": false
+    },
+    "regime_neutral": {
+      "n": 2,
+      "mean": null,
+      "p_value": null,
+      "note": "too few samples (<5)"
+    }
+  },
+  "ml_overlay": {
+    "n_holdout_matched": 75,
+    "threshold": 0.48,
+    "n_take": 0,
+    "take_rate": 0.0,
+    "always_take_precision": 0.3733,
+    "ml_precision_at_take": 0.0,
+    "pp_vs_always_take": -0.3733,
+    "passes_5pp_gate": false
+  },
+  "decision_conditions": {
+    "c1_mean_above_0.5pct": true,
+    "c2_pvalue_lt_0.05": false,
+    "c3_half_half_consistent": true,
+    "c4_neutral_not_negative": null,
+    "c4_note": "neutral regime n=2 < 5 \u2192 inconclusive (not treated as FAIL)",
+    "c5_ml_precision_plus5pp": false,
+    "c5_note": "ML pp_vs_always_take = -0.3733"
+  },
+  "verdict": "ITERATE",
+  "verdict_reason": "p-value (0.0849) not significant (\u03b1=0.05)",
+  "caveat": "A-lite universe: delisting bias not corrected (Yahoo has no delisted prices). PASS does not eliminate this residual bias."
+}
