@@ -22,3 +22,6 @@ models/folds_*.json
 
 # Temporary command output (redirect workaround for Cline)
 .tmp/
+
+# Third-party VS Code extension accidentally checked out into the repo root
+deepseek-v4-for-copilot/
