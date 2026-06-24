@@ -1,0 +1,110 @@
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.05s ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+}
+
+.card:active {
+  transform: scale(0.99);
+}
+
+.icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  border: 1px solid var(--border-subtle);
+}
+
+.iconGain {
+  background: color-mix(in srgb, var(--color-gain) 14%, transparent);
+  border-color: color-mix(in srgb, var(--color-gain) 28%, transparent);
+}
+
+.iconNeutral {
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+}
+
+.iconWarn {
+  background: color-mix(in srgb, var(--color-warn) 16%, transparent);
+  border-color: color-mix(in srgb, var(--color-warn) 30%, transparent);
+}
+
+.body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.titleRow strong {
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.proTag {
+  font-size: 11px;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim, var(--border-subtle));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.summary {
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.arrow {
+  color: var(--accent);
+  font-size: 18px;
+  justify-self: end;
+  transition: transform 0.15s ease;
+}
+
+.card:hover .arrow {
+  transform: translateX(3px);
+}

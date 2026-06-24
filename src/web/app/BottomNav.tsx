@@ -6,15 +6,15 @@ import styles from './BottomNav.module.css'
 type NavItem = { id: ViewId; icon: string; label: string }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'market',   icon: '🌡️', label: '大市' },
+  { id: 'market',   icon: '📊', label: '大市' },
   { id: 'sectors',  icon: '🗺️', label: '板塊' },
-  { id: 'discover', icon: '⭐', label: '發現' },
+  { id: 'discover', icon: '🎯', label: '機會' },
   { id: 'portfolio', icon: '💼', label: '組合' },
-  { id: 'lab',      icon: '🔬', label: '研究室' },
+  { id: 'lab',      icon: '📈', label: '驗證' },
 ]
 
 export function BottomNav() {
-  const { view, prevView, setView, mode } = useApp()
+  const { view, prevView, setView } = useApp()
   const snap = useSnapshot()
   const { starred } = useWatchlist()
   const activeId = view === 'detail' ? prevView : view
@@ -27,13 +27,9 @@ export function BottomNav() {
       )
     : false
 
-  const items = mode === 'pro'
-    ? NAV_ITEMS
-    : NAV_ITEMS.filter(i => i.id !== 'lab')
-
   return (
     <nav className={styles.nav}>
-      {items.map(item => (
+      {NAV_ITEMS.map(item => (
         <button
           key={item.id}
           className={activeId === item.id ? styles.itemActive : styles.item}

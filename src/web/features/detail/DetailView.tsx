@@ -1,4 +1,4 @@
-import { useState, Fragment, useMemo } from 'react'
+import { useState, Fragment, useMemo, useRef, type RefObject } from 'react'
 import { useApp } from '../../app/providers/AppContext'
 import { useIntraday, type TimeFrame } from '../../shared/hooks/useIntraday'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
@@ -42,10 +42,19 @@ const SIGNAL_EXPLANATION: Partial<Record<string, string>> = {
 }
 
 export function DetailView() {
-  const { detailTarget, closeDetail, mode } = useApp()
+  const { detailTarget, closeDetail } = useApp()
   const snap = useSnapshot()
   const { starred, toggle } = useWatchlist()
   const [tf, setTf] = useState<TimeFrame>('1M')
+
+  // Sticky mini-nav anchors (stocks only — the long 19-section detail page)
+  const chartRef = useRef<HTMLDivElement>(null)
+  const infoRef = useRef<HTMLDivElement>(null)
+  const statsRef = useRef<HTMLDivElement>(null)
+  const metricsRef = useRef<HTMLDivElement>(null)
+  const peersRef = useRef<HTMLDivElement>(null)
+  const scrollTo = (r: RefObject<HTMLDivElement | null>) =>
+    r.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   const ticker = detailTarget?.ticker ?? ''
   const isEtf = !!detailTarget?.etfLabel
@@ -147,8 +156,8 @@ export function DetailView() {
         <div className={styles.priceBlock}>
           <span className={styles.price}>${displayPrice.toFixed(2)}</span>
           {isEtf && detailTarget.etfLabel
-            ? <EtfSignalBadge label={detailTarget.etfLabel} showCode={mode === 'pro'} />
-            : stock && <SignalBadge label={stock.label} showCode={mode === 'pro'} />
+            ? <EtfSignalBadge label={detailTarget.etfLabel} showCode />
+            : stock && <SignalBadge label={stock.label} showCode />
           }
           {earningsWithin30d && earnings.status === 'ok' && earnings.date && (
             <span className={styles.earningsChip}>財報 {earnings.date}</span>
@@ -178,7 +187,19 @@ export function DetailView() {
       {/* Stage indicator (stocks only) */}
       {!isEtf && stock && <StageIndicator label={stock.label} />}
 
+      {/* Sticky mini-nav — chunk the long page into 5 jump groups (stocks only) */}
+      {!isEtf && stock && (
+        <nav className={styles.miniNav}>
+          <button onClick={() => scrollTo(chartRef)}>📊 圖表</button>
+          <button onClick={() => scrollTo(infoRef)}>📰 資訊</button>
+          <button onClick={() => scrollTo(statsRef)}>📈 統計</button>
+          <button onClick={() => scrollTo(metricsRef)}>🔍 指標</button>
+          <button onClick={() => scrollTo(peersRef)}>🏷️ 同業</button>
+        </nav>
+      )}
+
       {/* Time frame selector */}
+      <div ref={chartRef} className={styles.scrollAnchor} />
       <div className={styles.tfRow}>
         {TIMEFRAMES.map(t => (
           <button
@@ -255,6 +276,7 @@ export function DetailView() {
       )}
 
       {/* Signal explanation (stocks only) */}
+      {!isEtf && stock && <div ref={infoRef} className={styles.scrollAnchor} />}
       {!isEtf && stock && explanation && (
         <div className={styles.explainCard}>
           <div className={styles.explainTitle}>為什麼值得留意？</div>
@@ -283,12 +305,14 @@ export function DetailView() {
       {!isEtf && <NewsSection news={news} />}
 
       {/* Historical stats — real settled samples, sample-gated (stocks only) */}
+      {!isEtf && stock && <div ref={statsRef} className={styles.scrollAnchor} />}
       {!isEtf && stock && <SignalStatsCard label={stock.label} />}
 
       {/* Per-ticker signal history (stocks only) */}
       {!isEtf && stock && <HistoricalSignalsCard history={history} />}
 
       {/* Key metrics (stocks only) */}
+      {!isEtf && stock && <div ref={metricsRef} className={styles.scrollAnchor} />}
       {!isEtf && stock && (
         <div className={styles.metricsCard}>
           <div className={styles.metricsTitle}>關鍵數據</div>
@@ -297,20 +321,16 @@ export function DetailView() {
             <Metric label="EMA200" value={stock.indicators.ema200 ? `$${stock.indicators.ema200.toFixed(1)}` : '—'} />
             <Metric label="RSI(14)" value={stock.indicators.rsi14 ? stock.indicators.rsi14.toFixed(0) : '—'} />
             <Metric label="RS 排名" value={stock.rsRank !== null ? `${stock.rsRank}` : '—'} />
-            {mode === 'pro' && (
-              <>
-                <Metric label="RVOL"       value={stock.indicators.rvol ? stock.indicators.rvol.toFixed(1) : '—'} />
+              <Metric label="RVOL"       value={stock.indicators.rvol ? stock.indicators.rvol.toFixed(1) : '—'} />
                 <Metric label="ATR"        value={stock.indicators.atr  ? `$${stock.indicators.atr.toFixed(2)}` : '—'} />
                 <Metric label="EMA上方"    value={stock.indicators.aboveEma200 !== null ? (stock.indicators.aboveEma200 ? '是' : '否') : '—'} />
                 <Metric label="近52W高"    value={stock.indicators.nearHigh52w !== null ? (stock.indicators.nearHigh52w ? '是' : '否') : '—'} />
-              </>
-            )}
           </div>
         </div>
       )}
 
       {/* Pro: regime & flags (stocks only) */}
-      {!isEtf && mode === 'pro' && stock && (
+      {!isEtf && stock && (
         <div className={styles.proCard}>
           <div className={styles.metricsTitle}>進階資訊</div>
           <div className={styles.proRow}><span>市場環境</span><span>{stock.regime}</span></div>
@@ -326,6 +346,7 @@ export function DetailView() {
       )}
 
       {/* Same sector picks (stocks only) */}
+      {!isEtf && stock && <div ref={peersRef} className={styles.scrollAnchor} />}
       {!isEtf && stock && snap.status === 'ok' && (
         <SameSectorPicks
           currentTicker={stock.ticker}

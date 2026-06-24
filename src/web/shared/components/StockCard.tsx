@@ -7,9 +7,9 @@ import type { StockSnapshotEntry } from '../../../types/snapshot'
 import { buildWatchout, buildWhyNow } from '../stockNarrative'
 import styles from './StockCard.module.css'
 
-type Props = { stock: StockSnapshotEntry; showMode?: 'simple' | 'pro'; delay?: number }
+type Props = { stock: StockSnapshotEntry; delay?: number }
 
-export function StockCard({ stock, showMode = 'simple', delay = 0 }: Props) {
+export function StockCard({ stock, delay = 0 }: Props) {
   const { openDetail } = useApp()
   const meta = getStockMeta(stock.ticker, stock.name)
   const logo = getStockLogoAsset(stock.ticker)
@@ -90,7 +90,7 @@ export function StockCard({ stock, showMode = 'simple', delay = 0 }: Props) {
             {stock.earningsWithinWindow && (
               <span className={styles.earnings} title="財報日在信號窗口內">財報⚡</span>
             )}
-            <SignalBadge label={stock.label} showCode={showMode === 'pro'} />
+            <SignalBadge label={stock.label} showCode />
             {stock.rsRank !== null && (
               <span className={styles.rs}>RS {stock.rsRank}</span>
             )}

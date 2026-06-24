@@ -19,9 +19,9 @@ const ETF_CATEGORY_ZH: Record<string, string> = {
   DIVIDEND:       '股息收益',
 }
 
-type Props = { etf: EtfSignalEntry; showMode?: 'simple' | 'pro' }
+type Props = { etf: EtfSignalEntry }
 
-export function EtfCard({ etf, showMode = 'simple' }: Props) {
+export function EtfCard({ etf }: Props) {
   const { openDetail } = useApp()
   const { etfMetaByTicker } = useEtfMeta()
   const meta = etfMetaByTicker.get(etf.ticker)
@@ -78,7 +78,7 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
               今日 {dayPct >= 0 ? '▲' : '▼'}{Math.abs(dayPct).toFixed(1)}%
             </span>
           )}
-          {showMode === 'pro' && etf.indicators.return13w !== null && (
+          {etf.indicators.return13w !== null && (
             <span className={etf.indicators.return13w >= 0 ? styles.gain : styles.loss}>
               13w {etf.indicators.return13w >= 0 ? '+' : ''}{(etf.indicators.return13w * 100).toFixed(1)}%
             </span>
@@ -91,7 +91,7 @@ export function EtfCard({ etf, showMode = 'simple' }: Props) {
             <Sparkline values={sparklineValues} width={72} height={24} gain={dayPct !== null ? dayPct >= 0 : undefined} />
           )}
           <div className={styles.badgeRow}>
-            <EtfSignalBadge label={etf.label} showCode={showMode === 'pro'} />
+            <EtfSignalBadge label={etf.label} showCode />
           </div>
         </div>
       </div>

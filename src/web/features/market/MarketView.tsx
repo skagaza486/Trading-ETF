@@ -6,22 +6,15 @@ import { LoadingScreen, ErrorScreen } from '../../shared/components/LoadingScree
 import { HkPlaceholder } from '../../shared/components/HkPlaceholder'
 import { fetchYahooTickerHistory } from '../../../services/marketData/yahooFinanceProvider'
 import { IndexChart } from './IndexChart'
-import { MiniBreadthChart } from './MiniBreadthChart'
-import { SectorHeatMap } from './SectorHeatMap'
+import { NavHubCard, NavHubList, PortfolioNavCard, VerifyNavCard } from './NavHub'
+import { TabIntroBanner } from '../../shared/components/TabIntroBanner'
 import { SignalBadge } from '../../shared/components/SignalBadge'
 import { getStockMeta } from '../../shared/i18n/stockNames'
 import { buildSectorLeadership } from '../../shared/market/sectorLeadership'
 import { buildVerificationNote, buildWatchout, buildWhyNow, byPriority, hasMeaningfulChange } from '../../shared/stockNarrative'
-import { useSignalStats } from '../../shared/hooks/useSignalStats'
 import type { StockSnapshotEntry, LiquidityNote } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import styles from './MarketView.module.css'
-
-const LABEL_SHORT_MV: Partial<Record<StockSignalLabel, string>> = {
-  LONG_BREAK: '突破', LONG_VCP: 'VCP', LONG_BOUNCE: '反彈', LONG_BASE: '整固',
-  WATCH: '觀察', NEUTRAL: '中性', AVOID_CHOP: '震盪',
-  SHORT_BREAK: '空頭突破', SHORT_BASE: '空頭整固', SHORT_WATCH: '空頭轉弱',
-}
 
 function medianRvol(stocks: StockSnapshotEntry[]): number | null {
   const vals = stocks.map(s => s.indicators.rvol).filter((v): v is number => v !== null)
@@ -41,7 +34,6 @@ const SIGNAL_CHIPS = [
 const STRONG_LABELS: StockSignalLabel[] = ['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE']
 const BULLISH_LABELS: StockSignalLabel[] = ['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE', 'LONG_BASE', 'WATCH']
 const BEARISH_LABELS: StockSignalLabel[] = ['SHORT_BREAK', 'SHORT_BASE', 'SHORT_WATCH', 'AVOID_CHOP']
-const PREV_WEAK = new Set(['NEUTRAL', 'AVOID_CHOP', 'WATCH', 'SHORT_WATCH', 'SHORT_BASE', 'SHORT_BREAK'])
 
 type StoryTone = 'positive' | 'neutral' | 'risk'
 type StoryItem = { title: string; note: string; tone: StoryTone; stat: string }
@@ -340,86 +332,8 @@ function LiquidityBanner({ note }: { note: LiquidityNote }) {
   )
 }
 
-// 誠實戰績卡：用真實已結算的 forward returns（/api/d1/signal-stats）聚合看漲訊號整體表現。
-// 不挑單一最佳形態、不挑時間窗 —— 把三類進攻訊號（突破/VCP/反彈）按樣本數加權合併；
-// 樣本不足時刻意不顯示回報數字。面向普通用戶、可驗證、非 cherry-pick 的信任錨。
-const TRACK_RECORD_LABELS = ['LONG_BREAK', 'LONG_VCP', 'LONG_BOUNCE']
-const TRACK_MIN_SAMPLE = 30
-
-function fmtTrackPct(v: number | null): string {
-  if (v === null) return '—'
-  return `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`
-}
-
-function toneFor(v: number | null): string | undefined {
-  if (v === null) return undefined
-  return v > 0 ? styles.trackGain : v < 0 ? styles.trackLoss : undefined
-}
-
-function SignalTrackRecord() {
-  const stats = useSignalStats(90)
-  if (stats.status !== 'ok') return null
-
-  const rows = stats.stats.filter(s => TRACK_RECORD_LABELS.includes(s.label))
-  const totalN = rows.reduce((sum, r) => sum + r.n, 0)
-  const weighted = (pick: (s: (typeof rows)[number]) => number | null): number | null => {
-    let num = 0, den = 0
-    for (const r of rows) {
-      const v = pick(r)
-      if (v !== null) { num += v * r.n; den += r.n }
-    }
-    return den > 0 ? num / den : null
-  }
-
-  const avg5d = weighted(s => s.avgRet5d)
-  const vsSpy = weighted(s => s.avgVsSpy)
-  const winRate = weighted(s => s.winRate)
-  const insufficient = totalN < TRACK_MIN_SAMPLE
-
-  return (
-    <section className={styles.trackCard}>
-      <div className={styles.sectionHeader}>
-        <h2>看漲訊號 90 天戰績</h2>
-        <span>已結算樣本</span>
-      </div>
-      {insufficient ? (
-        <p className={styles.trackEmpty}>
-          目前僅 {totalN} 個已結算樣本，數量不足以提供可靠戰績，因此暫不顯示回報數字。
-        </p>
-      ) : (
-        <div className={styles.trackGrid}>
-          <div className={styles.trackStat}>
-            <span>樣本數</span>
-            <strong>{totalN}</strong>
-          </div>
-          <div className={styles.trackStat}>
-            <span>勝率</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
-              <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                <div style={{ width: `${winRate ?? 0}%`, height: '100%', borderRadius: 3, background: (winRate ?? 0) >= 50 ? 'var(--color-gain)' : 'var(--color-loss)' }} />
-              </div>
-              <strong>{winRate !== null ? `${winRate.toFixed(0)}%` : '—'}</strong>
-            </div>
-          </div>
-          <div className={styles.trackStat}>
-            <span>平均 5 日</span>
-            <strong className={toneFor(avg5d)}>{fmtTrackPct(avg5d)}</strong>
-          </div>
-          <div className={styles.trackStat}>
-            <span>相對大盤</span>
-            <strong className={toneFor(vsSpy)}>{fmtTrackPct(vsSpy)}</strong>
-          </div>
-        </div>
-      )}
-      <p className={styles.trackDisclaimer}>
-        統計自過去 90 天「突破／VCP／反彈」三類進攻訊號的已結算實際回報，按樣本數加權合併，非挑選最佳形態或最佳時段。屬研究統計、非未來預測。
-      </p>
-    </section>
-  )
-}
-
 export function MarketView() {
-  const { mode, scope, openDetail } = useApp()
+  const { scope, openDetail, setView } = useApp()
   const snap = useSnapshot()
   const { starred } = useWatchlist()
   const [vix, setVix] = useState<number | null>(null)
@@ -493,13 +407,26 @@ export function MarketView() {
   const focusQueue = buildMarketQueue(focusStock, breadth)
   const threeThings = buildThreeThings(snapshot.stocks, breadth, sigCounts)
   const heroFacts = buildHeroFacts(snapshot.stocks, breadth, sigCounts)
-  const otherIdeas = topIdeas.filter(stock => stock.ticker !== focusStock.ticker)
-  const starredIdeas = otherIdeas.filter(s => starred.has(s.ticker))
-  const unstarredIdeas = otherIdeas.filter(s => !starred.has(s.ticker))
-  const discoveryList = [...starredIdeas, ...unstarredIdeas].slice(0, 3)
+
+  // Navigation Hub 摘要數據(全部來自 snapshot,無需新 API)
+  const sectorList = buildSectorLeadership(snapshot.stocks, snapshot.sectors ?? [])
+  const sectorSummary = sectorList.slice(0, 3)
+    .map(s => {
+      const arrow = s.avgDayPct == null ? '·' : s.avgDayPct > 0 ? '▲' : s.avgDayPct < 0 ? '▼' : '·'
+      return `${s.sectorZh} ${Math.round(s.bullishPct * 100)}% ${arrow}`
+    })
+    .join(' · ') || '暫未分類'
+  const sectorTone = (sectorList[0]?.bullishPct ?? 0) >= 50 ? 'gain' as const : 'neutral' as const
+  const oppCount = topIdeas.length
+  const turnedStrong = upgradeDelta?.upgrades ?? 0
+  const oppSummary = `${oppCount} 隻符合條件${turnedStrong > 0 ? ` · ${turnedStrong} 隻轉強` : ''}`
 
   return (
     <div className={styles.view}>
+      <TabIntroBanner
+        tabId="market"
+        message="「大市」係今日市場總結;下面「深入了解」嘅入口卡會帶你去板塊、機會、組合同驗證。"
+      />
       {staleWarning && (
         <div className={styles.stale}>⚠️ 資料或未更新（上次快照已逾 25 小時）</div>
       )}
@@ -592,8 +519,6 @@ export function MarketView() {
 
       <IndexChart compact breadthPct={breadth?.pctAboveEma50} rvolLabel={rvolLabel ?? undefined} />
 
-      <SignalTrackRecord />
-
       <div className={styles.storyGrid}>
         <section className={styles.storyCard}>
           <div className={styles.sectionHeader}>
@@ -628,7 +553,7 @@ export function MarketView() {
               <span className={styles.focusTicker}>{focusStock.ticker}</span>
               <h3>{focusMeta.nameZh}</h3>
             </div>
-            <SignalBadge label={focusStock.label} showCode={mode === 'pro'} />
+            <SignalBadge label={focusStock.label} showCode />
           </div>
           <div className={styles.focusNotes}>
             <article className={styles.focusNote}>
@@ -650,90 +575,35 @@ export function MarketView() {
           </div>
         </section>
 
-        {mode === 'pro' && snap.status === 'ok' && snap.snapshot.liquidityNote && (
+        {snap.status === 'ok' && snap.snapshot.liquidityNote && (
           <div className={styles.storyLiquidity}>
             <LiquidityBanner note={snap.snapshot.liquidityNote} />
           </div>
         )}
-
-        <aside className={styles.sideRail}>
-          <section className={styles.railCard}>
-            <div className={styles.sectionHeader}>
-              <h2>今日動向</h2>
-              <span>信號有變</span>
-            </div>
-            <div className={styles.changeList}>
-              {(changedStocks.length ? changedStocks : topIdeas.slice(0, 3)).map(stock => {
-                const meta = getStockMeta(stock.ticker, stock.name)
-                const queue = buildMarketQueue(stock, breadth)
-                const statusTone =
-                  BEARISH_LABELS.includes(stock.label) ? styles.statusRisk
-                  : STRONG_LABELS.includes(stock.label) ? styles.statusPositive
-                  : styles.statusNeutral
-                const statusLabel =
-                  stock.previousLabel && PREV_WEAK.has(stock.previousLabel) && STRONG_LABELS.includes(stock.label) ? '轉強'
-                  : BEARISH_LABELS.includes(stock.label) ? '偏弱'
-                  : stock.label === 'LONG_BASE' || stock.label === 'WATCH' ? '觀察'
-                  : '延續'
-
-                return (
-                  <button
-                    key={stock.ticker}
-                    className={styles.changeRow}
-                    onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
-                  >
-                    <div className={styles.changeCopy}>
-                      <div className={styles.changeTickerRow}>
-                        <strong>{stock.ticker}</strong>
-                        <span>{meta.nameZh}</span>
-                      </div>
-                      {stock.previousLabel && stock.previousLabel !== stock.label && (
-                        <p className={styles.changeTrans}>
-                          {LABEL_SHORT_MV[stock.previousLabel] ?? stock.previousLabel}
-                          {' → '}
-                          {LABEL_SHORT_MV[stock.label] ?? stock.label}
-                        </p>
-                      )}
-                      <p>{queue.whyNow}</p>
-                      <p className={styles.changeSubtle}>先留意：{queue.watchout}</p>
-                    </div>
-                    <span className={`${styles.statusPill} ${statusTone}`}>{statusLabel}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          <section className={styles.railCard}>
-            <div className={styles.sectionHeader}>
-              <h2>發現清單</h2>
-              <span>值得留意</span>
-            </div>
-            <div className={styles.discoveryList}>
-              {discoveryList.map(stock => {
-                const meta = getStockMeta(stock.ticker, stock.name)
-                const isStarred = starred.has(stock.ticker)
-                const queue = buildMarketQueue(stock, breadth)
-                return (
-                  <button
-                    key={stock.ticker}
-                    className={styles.discoveryRow}
-                    onClick={() => openDetail({ ticker: stock.ticker, name: meta.nameZh })}
-                  >
-                    <strong>{isStarred ? '⭐ ' : ''}{stock.ticker}</strong>
-                    <p>{queue.whyNow}</p>
-                    <p className={styles.discoverySubtle}>仍需確認：{queue.verification}</p>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        </aside>
       </div>
 
-      <MiniBreadthChart />
-
-      <SectorHeatMap stocks={snapshot.stocks} />
+      <section className={styles.navHubSection}>
+        <div className={styles.sectionHeader}>
+          <h2>深入了解</h2>
+          <span>一行摘要 + 入口</span>
+        </div>
+        <NavHubList>
+          <NavHubCard
+            icon="🗺️" title="板塊" tone={sectorTone}
+            summary={sectorSummary}
+            meta="邊個方向最強"
+            onClick={() => setView('sectors')}
+          />
+          <NavHubCard
+            icon="🎯" title="機會" tone={oppCount > 0 ? 'gain' : 'neutral'}
+            summary={oppSummary}
+            meta="符合形態的股票同 ETF"
+            onClick={() => setView('discover')}
+          />
+          <PortfolioNavCard onClick={() => setView('portfolio')} />
+          <VerifyNavCard onClick={() => setView('lab')} />
+        </NavHubList>
+      </section>
     </div>
   )
 }

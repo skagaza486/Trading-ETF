@@ -14,6 +14,7 @@ import type { StockSnapshotEntry } from '../../../types/snapshot'
 import type { StockSignalLabel } from '../../../types/signal'
 import type { EtfSignalEntry, EtfSignalLabel } from '../../shared/hooks/useEtfSignals'
 import { buildPriorityScore, buildVerificationNote, buildWatchout, buildWhyNow, byPriority, hasMeaningfulChange, hasRaisedRisk } from '../../shared/stockNarrative'
+import { TabIntroBanner } from '../../shared/components/TabIntroBanner'
 import styles from './DiscoverView.module.css'
 
 const ETF_CATEGORY_ZH: Record<string, string> = {
@@ -71,6 +72,10 @@ const FILTER_LABELS: { id: Filter; label: string }[] = [
   { id: 'changed',   label: '↗ 今日有變化' },
   { id: 'risk',      label: '⚠ 風險升高' },
 ]
+
+// Chunking (Hick's Law): show 5 common filters, fold the 2 advanced ones.
+const PRIMARY_FILTER_IDS: Filter[] = ['all', 'starred', 'bullish', 'watchlist', 'changed']
+const SECONDARY_FILTER_IDS: Filter[] = ['bearish', 'risk']
 
 function filterStocks(stocks: StockSnapshotEntry[], f: Filter, starred: Set<string>): StockSnapshotEntry[] {
   switch (f) {
@@ -151,6 +156,7 @@ export function DiscoverView() {
   const { starred } = useWatchlist()
   const [assetType, setAssetType] = useState<AssetType>('stocks')
   const [filter, setFilter] = useState<Filter>('all')
+  const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [etfCategory, setEtfCategory] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [showCount, setShowCount] = useState(30)
@@ -286,6 +292,10 @@ export function DiscoverView() {
 
   return (
     <div className={styles.view}>
+      <TabIntroBanner
+        tabId="discover"
+        message="用形態同篩選搵符合條件嘅股票同 ETF;撳 ⭐ 可加入自選。"
+      />
       {summary && (
         <div className={styles.summaryStrip}>
           今日 {summary.total} 檔
@@ -337,22 +347,32 @@ export function DiscoverView() {
           </button>
         </div>
 
-        {assetType !== 'changes' && (
-          <div className={styles.filters}>
-            {FILTER_LABELS.map(f => (
+        {assetType !== 'changes' && (() => {
+          const moreOpen = showMoreFilters || SECONDARY_FILTER_IDS.includes(filter)
+          const visibleIds = moreOpen ? [...PRIMARY_FILTER_IDS, ...SECONDARY_FILTER_IDS] : PRIMARY_FILTER_IDS
+          return (
+            <div className={styles.filters}>
+              {FILTER_LABELS.filter(f => visibleIds.includes(f.id)).map(f => (
+                <button
+                  key={f.id}
+                  className={filter === f.id ? styles.filterActive : styles.filterBtn}
+                  onClick={() => setFilter(f.id)}
+                >
+                  {f.label}
+                  {filterCounts[f.id] > 0 && (
+                    <span className={styles.filterCount}>{filterCounts[f.id]}</span>
+                  )}
+                </button>
+              ))}
               <button
-                key={f.id}
-                className={filter === f.id ? styles.filterActive : styles.filterBtn}
-                onClick={() => setFilter(f.id)}
+                className={styles.moreFiltersBtn}
+                onClick={() => setShowMoreFilters(v => !v)}
               >
-                {f.label}
-                {filterCounts[f.id] > 0 && (
-                  <span className={styles.filterCount}>{filterCounts[f.id]}</span>
-                )}
+                {moreOpen ? '收起 ▴' : '更多篩選 ▾'}
               </button>
-            ))}
-          </div>
-        )}
+            </div>
+          )
+        })()}
 
         {assetType === 'etf' && availableCategories.length > 1 && (
           <div className={styles.catRow}>
@@ -389,7 +409,7 @@ export function DiscoverView() {
           </div>
         ) : assetType === 'stocks'
           ? <>
-              {displayedStocks.slice(0, showCount).map((s, i) => <StockCard key={s.ticker} stock={s} showMode={mode} delay={i * 0.04} />)}
+              {displayedStocks.slice(0, showCount).map((s, i) => <StockCard key={s.ticker} stock={s} delay={i * 0.04} />)}
               {showCount < displayedStocks.length && (
                 <button className={styles.loadMore} onClick={() => setShowCount(n => n + 30)}>
                   再顯示 30 項（還有 {displayedStocks.length - showCount} 檔）
@@ -398,7 +418,7 @@ export function DiscoverView() {
             </>
           : assetType === 'etf'
           ? <>
-              {displayedEtfs.slice(0, showCount).map(e => <EtfCard key={e.ticker} etf={e} showMode={mode} />)}
+              {displayedEtfs.slice(0, showCount).map(e => <EtfCard key={e.ticker} etf={e} />)}
               {showCount < displayedEtfs.length && (
                 <button className={styles.loadMore} onClick={() => setShowCount(n => n + 30)}>
                   再顯示 30 項（還有 {displayedEtfs.length - showCount} 檔）

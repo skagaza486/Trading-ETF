@@ -69,6 +69,12 @@
   font-style: italic;
 }
 
+.pnlLivePct {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
 /* ── ETF Target Chips ──────────────────────────────────────────────── */
 
 .inlineAddBtn {
@@ -1288,6 +1294,7 @@
   color: var(--text-primary);
   border-bottom-color: var(--accent);
 }
+.subNavIcon { margin-right: 5px; }
 
 /* ── ETF sleeve breakdown ───────────────────────────────────────── */
 .sleeveList {

@@ -2,8 +2,10 @@ import { useState, useRef } from 'react'
 import { useSignalStats } from '../../shared/hooks/useSignalStats'
 import { useSignalBreadth } from '../../shared/hooks/useSignalBreadth'
 import { useTickerHistory } from '../../shared/hooks/useTickerHistory'
+import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { usePerfByPeriod } from '../../shared/hooks/usePerfByPeriod'
 import { BreadthChart } from './BreadthChart'
+import { TabIntroBanner } from '../../shared/components/TabIntroBanner'
 import styles from './LabView.module.css'
 
 const LABEL_ZH: Record<string, string> = {
@@ -63,6 +65,8 @@ function TickerHistorySection() {
   const [query, setQuery] = useState('')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const state = useTickerHistory(query)
+  const snap = useSnapshot()
+  const universe = snap.status === 'ok' ? snap.snapshot.stocks : []
 
   function handleChange(v: string) {
     setInputVal(v)
@@ -84,7 +88,11 @@ function TickerHistorySection() {
           placeholder="輸入代碼，例如 AAPL"
           spellCheck={false}
           autoCapitalize="characters"
+          list="lab-ticker-list"
         />
+        <datalist id="lab-ticker-list">
+          {universe.map(s => <option key={s.ticker} value={s.ticker}>{s.name}</option>)}
+        </datalist>
         {inputVal && (
           <button className={styles.tickerClear} onClick={() => { setInputVal(''); setQuery('') }}>✕</button>
         )}
@@ -220,15 +228,24 @@ export function LabView() {
 
   return (
     <div className={styles.view}>
-      {/* Breadth timeline */}
-      {breadthState.status === 'ok' && breadthState.rows.length > 1 && (
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>信號趨勢（近 30 日）</h2>
-          <div className={styles.chartCard}>
+      <TabIntroBanner
+        tabId="lab"
+        message="睇信號嘅實際結算戰績(勝率、平均回報),屬研究統計、非未來預測。"
+      />
+      {/* Breadth timeline — always render the section with explicit states */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>信號趨勢（近 30 日）</h2>
+        <div className={styles.chartCard}>
+          {breadthState.status === 'loading' && <div className={styles.loading}>載入廣度圖中…</div>}
+          {breadthState.status === 'error' && <div className={styles.error}>廣度圖載入失敗，請稍後再試。</div>}
+          {breadthState.status === 'ok' && breadthState.rows.length > 1 && (
             <BreadthChart rows={breadthState.rows} height={90} />
-          </div>
-        </section>
-      )}
+          )}
+          {breadthState.status === 'ok' && breadthState.rows.length <= 1 && (
+            <div className={styles.loading}>暫無足夠數據繪製廣度圖（需多於一日資料）。</div>
+          )}
+        </div>
+      </section>
 
       {/* Ticker history lookup */}
       <TickerHistorySection />
@@ -305,10 +322,10 @@ export function LabView() {
 
       {/* Legacy app link */}
       <section className={styles.legacySection}>
-        <h3 className={styles.legacyTitle}>進階研究室</h3>
+        <h3 className={styles.legacyTitle}>原始研究頁面（舊版）</h3>
         <p className={styles.legacyDesc}>ETF Replay、Stock Replay、Gate 驗證等功能仍在舊版介面；所有研究結果只供分析，不應視為已驗證投資優勢。</p>
         <a href="/legacy.html" target="_blank" rel="noopener noreferrer" className={styles.btn}>
-          開啟研究室（舊版）↗
+          開啟舊版研究頁 ↗
         </a>
       </section>
     </div>

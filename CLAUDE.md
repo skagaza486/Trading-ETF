@@ -2,14 +2,16 @@
 
 ## Runtime environment
 
-`node`, `npm`, and `npx` are NOT on the system PATH.
-Always use the bundled binaries:
+This project is developed on **two machines** with different Node setups:
+
+### Mac (darwin-arm64) — bundled Node v22
+`node`, `npm`, and `npx` are NOT on the system PATH. Use the bundled binary:
 
 ```bash
 .tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/<tool>
 ```
 
-Common aliases for this session:
+Aliases:
 ```bash
 alias node='.tools/node-v22.22.3-darwin-arm64/bin/node'
 alias vite='node node_modules/.bin/vite'
@@ -17,18 +19,38 @@ alias wrangler='node node_modules/.bin/wrangler'
 alias tsc='node node_modules/.bin/tsc'
 ```
 
-## TypeScript check
+### Windows PC — system Node v24 (installed via winget)
+`node` and `npm` are on the system PATH (`C:\Program Files\nodejs`).
+Run binaries directly — do **not** prefix with `node`:
 
 ```bash
-.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/tsc --noEmit
+node_modules/.bin/tsc --noEmit
+node_modules/.bin/vite build
+node_modules/.bin/wrangler deploy
 ```
+
+**npm on Windows requires the corporate proxy cert — always use:**
+```bash
+NODE_OPTIONS=--use-system-ca npm install
+```
+
+## TypeScript check
+
+**Mac:** `.tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/tsc --noEmit`  
+**Windows:** `node_modules/.bin/tsc --noEmit`
 
 Always run this before deploying. Zero errors required.
 
 ## Build + deploy (ALWAYS both together)
 
+**Mac:**
 ```bash
 .tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/vite build && .tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/wrangler deploy
+```
+
+**Windows:**
+```bash
+node_modules/.bin/vite build && node_modules/.bin/wrangler deploy
 ```
 
 **Never run `wrangler deploy` alone.** The Worker serves `dist/` as static assets — if you skip `vite build`, the deployed frontend will be stale.
@@ -56,11 +78,15 @@ There is an older worker named `tradingetf` (no hyphen) — **do not deploy to i
 ## D1 database operations
 
 ```bash
-# Query
+# Query — Mac
 .tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/wrangler d1 execute trading-etf-db --remote --command "SELECT ..."
+# Query — Windows
+node_modules/.bin/wrangler d1 execute trading-etf-db --remote --command "SELECT ..."
 
-# Run migration file
+# Run migration file — Mac
 .tools/node-v22.22.3-darwin-arm64/bin/node node_modules/.bin/wrangler d1 execute trading-etf-db --remote --file=schema/some-migration.sql
+# Run migration file — Windows
+node_modules/.bin/wrangler d1 execute trading-etf-db --remote --file=schema/some-migration.sql
 ```
 
 Always use `--remote` to target production D1. Omit it for local dev.

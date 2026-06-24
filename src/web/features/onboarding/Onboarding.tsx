@@ -1,14 +1,23 @@
 import { useState } from 'react'
-import { useApp, type MarketScope, type UiMode } from '../../app/providers/AppContext'
+import { useApp, type MarketScope } from '../../app/providers/AppContext'
 import styles from './Onboarding.module.css'
+
+type TabIntro = { icon: string; name: string; desc: string }
+
+const TAB_MAP: TabIntro[] = [
+  { icon: '📊', name: '大市', desc: '今日市場結論同信心指標' },
+  { icon: '🗺️', name: '板塊', desc: '邊個方向最強、邊個轉弱' },
+  { icon: '🎯', name: '機會', desc: '符合形態的股票同 ETF' },
+  { icon: '💼', name: '組合', desc: '你的持倉、止損同風險限額' },
+  { icon: '📈', name: '驗證', desc: '看漲訊號的實際結算戰績' },
+]
 
 export function Onboarding() {
   const { completeOnboarding } = useApp()
   const [screen, setScreen] = useState<1 | 2 | 3>(1)
   const [scope, setScope] = useState<MarketScope>('US')
-  const [mode, setMode] = useState<UiMode>('simple')
 
-  const finish = () => completeOnboarding(scope, mode)
+  const finish = () => completeOnboarding(scope, 'pro')
 
   return (
     <div className={styles.bg}>
@@ -39,21 +48,20 @@ export function Onboarding() {
 
         {screen === 2 && (
           <Step
-            title="你的投資經驗？"
-            subtitle="決定顯示深度，進階模式隨時可開"
+            title="App 有咩？"
+            subtitle="底部 5 個頁面，由「大市」今日結論出發，再去其他頁面深入"
           >
-            <ChoiceGrid>
-              <Choice selected={mode === 'simple'} onClick={() => setMode('simple')}>
-                <span className={styles.flag}>🌱</span>
-                <strong>新手 / 輕鬆看</strong>
-                <small>白話解釋，重點展示</small>
-              </Choice>
-              <Choice selected={mode === 'pro'} onClick={() => setMode('pro')}>
-                <span className={styles.flag}>📊</span>
-                <strong>進階</strong>
-                <small>完整技術指標與研究室</small>
-              </Choice>
-            </ChoiceGrid>
+            <div className={styles.mapList}>
+              {TAB_MAP.map(tab => (
+                <div key={tab.name} className={styles.mapRow}>
+                  <span className={styles.mapIcon}>{tab.icon}</span>
+                  <div className={styles.mapBody}>
+                    <strong>{tab.name}</strong>
+                    <small>{tab.desc}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
             <div className={styles.btnRow}>
               <button className={styles.back} onClick={() => setScreen(1)}>← 返回</button>
               <button className={styles.next} onClick={() => setScreen(3)}>下一步 →</button>
@@ -68,7 +76,6 @@ export function Onboarding() {
           >
             <div className={styles.summary}>
               <SummaryRow icon="🌍" label="市場" value={scope === 'US' ? '🇺🇸 美股' : '🇭🇰 港股'} />
-              <SummaryRow icon="👁️" label="模式" value={mode === 'simple' ? '簡易（推薦新手）' : '進階'} />
             </div>
             <p className={styles.disclaimer}>
               此 App 為研究工具，所有資訊僅供參考，不構成投資建議；現有信號與統計屬研究結果展示，edge 尚未證實。

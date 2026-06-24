@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { useIntraday } from '../../shared/hooks/useIntraday'
 import { usePortfolioStore, type PortfolioPosition, type PositionTier, type JournalAction, type JournalEntry, type PaperPosition } from './usePortfolioStore'
 import { type PortfolioConfig, type EtfSleeve, maxSingleStockValue, etfBaseValue, regimeRiskKey, etfRef, SLEEVE_ORDER, BUILTIN_PRESETS } from './portfolioConfig'
+import { TabIntroBanner } from '../../shared/components/TabIntroBanner'
 import styles from './PortfolioView.module.css'
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -58,12 +59,14 @@ function PositionRow({
   onRemove,
   prevClose,
   hardStopPct,
+  onPnl,
 }: {
   pos: PortfolioPosition
   onEdit: (id: string) => void
   onRemove: (id: string) => void
   prevClose?: number | null
   hardStopPct: number
+  onPnl?: (id: string, pnl: number | null) => void
 }) {
   const priceState = usePositionPrice(pos.ticker, prevClose)
   const costBasis = pos.shares * pos.entryPrice
@@ -72,6 +75,9 @@ function PositionRow({
   const livePrice = priceState.status === 'ok' ? priceState.price : null
   const pnlHKD = livePrice !== null ? (livePrice - pos.entryPrice) * pos.shares : null
   const pnlPct = livePrice !== null ? (livePrice - pos.entryPrice) / pos.entryPrice : null
+
+  // Report live P&L up so the parent can show an aggregated total (no extra fetch).
+  useEffect(() => { onPnl?.(pos.id, pnlHKD) }, [pnlHKD, pos.id, onPnl])
 
   const distToStopPct = pos.stopLoss !== null && livePrice !== null
     ? (livePrice - pos.stopLoss) / livePrice
@@ -305,18 +311,20 @@ function sleeveLabel(t: ETFTargetItem): string {
   return t.sleeve || SLEEVE_LABEL[etfRef(t.ticker).sleeve] || ''
 }
 
-function PortfolioPnLSummary({ positions, etfTargets, cfg, onAddEtf, onRemoveEtf }: {
+function PortfolioPnLSummary({ positions, etfTargets, cfg, onAddEtf, onRemoveEtf, livePnl }: {
   positions: PortfolioPosition[]
   etfTargets: ETFTargetItem[]
   cfg: PortfolioConfig
   onAddEtf: (ticker: string, allocPct: number) => void
   onRemoveEtf: (id: string) => void
+  livePnl: { sum: number; covered: number; total: number }
 }) {
   const [showAddEtf, setShowAddEtf] = useState(false)
   const [newTicker, setNewTicker] = useState('')
   const [newAlloc, setNewAlloc] = useState('10')
   const money = (v: number) => fmtMoney(v, cfg.currency)
   const totalInvested = positions.reduce((s, p) => s + p.shares * p.entryPrice, 0)
+  const livePnlPct = totalInvested > 0 ? livePnl.sum / totalInvested : null
   const allocPct = totalInvested > 0 ? (totalInvested / cfg.capitalBase) * 100 : 0
   const etfBase = etfBaseValue(cfg)
   const etfTotalAlloc = etfTargets.reduce((s, t) => s + t.allocationPct, 0)
@@ -359,8 +367,18 @@ function PortfolioPnLSummary({ positions, etfTargets, cfg, onAddEtf, onRemoveEtf
       </div>
       <div className={styles.pnlSummaryCard}>
         <span>Live P&L</span>
-        <strong className={styles.pnlLiveNote}>per row above</strong>
-        <small>15-min delayed · indicative only</small>
+        {livePnl.covered > 0 ? (
+          <strong style={{ color: livePnl.sum >= 0 ? 'var(--color-gain)' : 'var(--color-loss)' }}>
+            {livePnl.sum >= 0 ? '+' : ''}{money(livePnl.sum)}
+            {livePnlPct !== null && <span className={styles.pnlLivePct}> {fmtPct(livePnlPct)}</span>}
+          </strong>
+        ) : (
+          <strong className={styles.pnlLiveNote}>{positions.length === 0 ? '—' : '載入中…'}</strong>
+        )}
+        <small>
+          15-min delayed · indicative only
+          {livePnl.total > 0 && livePnl.covered < livePnl.total && ` · ${livePnl.covered}/${livePnl.total} 已報價`}
+        </small>
       </div>
     </div>
   )
@@ -792,7 +810,12 @@ function SystemPaperReference() {
   )
 
   const allSignals = data.signals
-  if (allSignals.length === 0) return null
+  if (allSignals.length === 0) return (
+    <div className={styles.cockpitCard}>
+      <h3>System Signal Reference / 系統訊號參考</h3>
+      <p className={styles.subtle}>暫無已結算信號 · 數據每日更新後顯示。</p>
+    </div>
+  )
 
   // ── Filter ──────────────────────────────────────────────────────
   const filtered = allSignals.filter(s => {
@@ -1079,15 +1102,16 @@ function ConfigBar({ cfg, onApplyPreset, onUpdateConfig }: {
 type SubTab = 'portfolio' | 'etf' | 'plan'
 
 function PortfolioSubNav({ active, onChange }: { active: SubTab; onChange: (t: SubTab) => void }) {
-  const tabs: { id: SubTab; label: string }[] = [
-    { id: 'portfolio', label: '組合 Portfolio' },
-    { id: 'etf', label: 'ETF 配置 Allocation' },
-    { id: 'plan', label: '計劃參考 Plan' },
+  const tabs: { id: SubTab; icon: string; label: string }[] = [
+    { id: 'portfolio', icon: '📊', label: '組合 Portfolio' },
+    { id: 'etf', icon: '🧩', label: 'ETF 配置 Allocation' },
+    { id: 'plan', icon: '📋', label: '計劃參考 Plan' },
   ]
   return (
     <div className={styles.subNav}>
       {tabs.map(t => (
         <button key={t.id} className={active === t.id ? styles.subNavActive : styles.subNavItem} onClick={() => onChange(t.id)}>
+          <span className={styles.subNavIcon}>{t.icon}</span>
           {t.label}
         </button>
       ))}
@@ -1304,6 +1328,20 @@ export default function PortfolioView() {
   const [showJournal, setShowJournal] = useState(false)
   const screenerRef = useRef<HTMLDivElement>(null)
 
+  // Aggregated live P&L — each PositionRow reports its P&L up (no extra fetch).
+  const [pnlMap, setPnlMap] = useState<Record<string, number | null>>({})
+  const reportPnl = useCallback((id: string, pnl: number | null) => {
+    setPnlMap(m => (m[id] === pnl ? m : { ...m, [id]: pnl }))
+  }, [])
+  const livePnl = useMemo(() => {
+    let sum = 0, covered = 0
+    for (const p of store.positions) {
+      const v = pnlMap[p.id]
+      if (v != null) { sum += v; covered++ }
+    }
+    return { sum, covered, total: store.positions.length }
+  }, [pnlMap, store.positions])
+
   const regime = snapshot.status === 'ok' ? snapshot.snapshot.regime : 'neutral'
   const sectorMap = useMemo(() => {
     const m: Record<string, string> = {}
@@ -1367,6 +1405,10 @@ export default function PortfolioView() {
 
   return (
     <div className={styles.portfolio}>
+      <TabIntroBanner
+        tabId="portfolio"
+        message="記錄你嘅持倉、止損同風險限額;亦有 ETF 配置同紙上追蹤。"
+      />
       <ConfigBar cfg={store.config} onApplyPreset={store.applyPreset} onUpdateConfig={store.updateConfig} />
       <PortfolioSubNav active={subTab} onChange={setSubTab} />
 
@@ -1402,6 +1444,7 @@ export default function PortfolioView() {
         cfg={store.config}
         onAddEtf={(ticker, allocPct) => store.addEtfTarget({ ticker, name: ticker, allocationPct: allocPct })}
         onRemoveEtf={store.removeEtfTarget}
+        livePnl={livePnl}
       />
 
       <section className={styles.panelCard}>
@@ -1427,7 +1470,7 @@ export default function PortfolioView() {
             <table className={styles.positionsTable}>
               <thead><tr><th>Ticker</th><th className={styles.numHeader}>Shares</th><th className={styles.numHeader}>Entry $</th><th className={styles.numHeader}>Live $</th><th className={styles.numHeader}>Cost Basis</th><th className={styles.numHeader}>P&L</th><th className={styles.numHeader}>Stop</th><th className={styles.numHeader}>Days</th><th></th></tr></thead>
               <tbody>
-                {store.positions.map(p => <PositionRow key={p.id} pos={p} onEdit={id => { const pos = store.positions.find(x => x.id === id); if (pos) { setEditingPosition(pos); setShowAddPosition(true) } }} onRemove={store.removePosition} prevClose={prevCloseMap[p.ticker]} hardStopPct={store.config.risk.hardStopPct} />)}
+                {store.positions.map(p => <PositionRow key={p.id} pos={p} onEdit={id => { const pos = store.positions.find(x => x.id === id); if (pos) { setEditingPosition(pos); setShowAddPosition(true) } }} onRemove={store.removePosition} prevClose={prevCloseMap[p.ticker]} hardStopPct={store.config.risk.hardStopPct} onPnl={reportPnl} />)}
               </tbody>
             </table>
           </div>
@@ -1480,7 +1523,7 @@ export default function PortfolioView() {
           onRemove={store.removePaperPosition}
           prevCloseMap={prevCloseMap}
           hardStopPct={store.config.risk.hardStopPct}
-          onGoToScreener={() => screenerRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          onGoToScreener={() => { setSubTab('portfolio'); requestAnimationFrame(() => screenerRef.current?.scrollIntoView({ behavior: 'smooth' })) }}
         />
       </section>
 

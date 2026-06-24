@@ -58,8 +58,21 @@
 
 .heroUp   { color: var(--color-gain); font-weight: 600; }
 .heroDown { color: var(--color-loss); font-weight: 600; }
+.heroNeutral { color: var(--text-muted); font-weight: 600; }
 .heroTotal { color: var(--text-secondary); }
 .heroDivider { color: var(--text-muted); }
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 56px 24px;
+  text-align: center;
+}
+.emptyIcon { font-size: 44px; line-height: 1; opacity: 0.7; }
+.emptyState h2 { font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0; }
+.emptyState p  { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0; max-width: 320px; }
 
 .heroSecond {
   font-size: 11px;

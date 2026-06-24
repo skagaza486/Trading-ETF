@@ -754,13 +754,13 @@ export function IndexDetail() {
         </div>
       </div>
 
-      {/* Tab content */}
+      {/* Tab content — snapshot-dependent tabs show loading instead of false "無快照資料" */}
       {tab === 'overview'  && <OverviewTab bars={bars} snap={snapData} />}
-      {tab === 'breadth'   && <BreadthTab stocks={stocks} />}
-      {tab === 'holdings'  && <HoldingsTab stocks={stocks} />}
+      {tab === 'breadth'   && (snap.status === 'loading' ? <p className={styles.empty}>載入快照中…</p> : <BreadthTab stocks={stocks} />)}
+      {tab === 'holdings'  && (snap.status === 'loading' ? <p className={styles.empty}>載入快照中…</p> : <HoldingsTab stocks={stocks} />)}
       {tab === 'technical' && <TechnicalTab bars={bars} />}
       {tab === 'risk'      && <RiskTab bars={bars} />}
-      {tab === 'context'   && <ContextTab snap={snapData} stocks={stocks} />}
+      {tab === 'context'   && (snap.status === 'loading' ? <p className={styles.empty}>載入快照中…</p> : <ContextTab snap={snapData} stocks={stocks} />)}
     </div>
   )
 }

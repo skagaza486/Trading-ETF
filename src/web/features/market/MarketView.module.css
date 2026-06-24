@@ -317,6 +317,10 @@
   gap: 14px;
 }
 
+.navHubSection .sectionHeader {
+  margin-bottom: 10px;
+}
+
 .storyCard,
 .focusCard,
 .railCard,
@@ -608,23 +612,12 @@
 
 @media (min-width: 960px) {
   .storyGrid {
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
     align-items: start;
   }
 
-  .sideRail {
-    grid-column: 3;
-    grid-row: 1 / span 3;
-  }
-
   .storyLiquidity {
-    grid-column: 2;
-  }
-}
-
-@media (min-width: 1200px) {
-  .storyGrid {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.95fr) 340px;
+    grid-column: 1 / -1;
   }
 }
 

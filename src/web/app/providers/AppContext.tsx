@@ -53,7 +53,7 @@ function save<T>(key: string, value: T) {
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [scope, setScopeState] = useState<MarketScope>(() => load('web:scope', 'US'))
-  const [mode, setModeState] = useState<UiMode>(() => load('web:mode', 'simple'))
+  const [mode, setModeState] = useState<UiMode>(() => 'pro')
   const [view, setViewState] = useState<ViewId>('market')
   const [prevView, setPrevView] = useState<ViewId>('market')
   const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null)
@@ -86,8 +86,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
     setViewState(prevView)
   }
 
-  const completeOnboarding = (s: MarketScope, m: UiMode) => {
-    setScope(s); setMode(m)
+  const completeOnboarding = (s: MarketScope, _m: UiMode) => {
+    setScope(s); setMode('pro')
     setOnboardingDone(true)
     save('web:onboarded', true)
   }

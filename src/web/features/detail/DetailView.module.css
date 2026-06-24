@@ -1,5 +1,34 @@
 .view { display: flex; flex-direction: column; gap: 14px; }
 
+/* Sticky mini-nav — chunk the long detail page into 5 jump groups */
+.miniNav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 0;
+  margin: -4px 0;
+  background: var(--bg-base);
+  scrollbar-width: none;
+}
+.miniNav::-webkit-scrollbar { display: none; }
+.miniNav button {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.miniNav button:hover { color: var(--text-primary); border-color: var(--accent); }
+.scrollAnchor { height: 0; scroll-margin-top: 52px; }
+
 .header { display: flex; align-items: flex-start; gap: 12px; }
 
 .headerInfo { flex: 1; min-width: 0; }

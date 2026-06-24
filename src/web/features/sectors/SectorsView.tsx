@@ -11,6 +11,7 @@ import {
   getStockDayPct,
   type SectorLeadership,
 } from '../../shared/market/sectorLeadership'
+import { TabIntroBanner } from '../../shared/components/TabIntroBanner'
 import styles from './SectorsView.module.css'
 
 function sectorVerdict(sector: SectorLeadership) {
@@ -46,6 +47,20 @@ export function SectorsView() {
   if (snap.status === 'loading') return <LoadingScreen message="載入板塊資料…" />
   if (snap.status === 'error')   return <ErrorScreen message={snap.message} />
 
+  if (sectors.length === 0) return (
+    <div className={styles.view}>
+      <TabIntroBanner
+        tabId="sectors"
+        message="睇邊個板塊最強、邊個轉弱,搵今日值得優先研究嘅方向。"
+      />
+      <div className={styles.emptyState}>
+        <span className={styles.emptyIcon}>🗺️</span>
+        <h2>暫無板塊資料</h2>
+        <p>今日快照未包含足夠個股,板塊強弱需待下次資料更新後重新計算。</p>
+      </div>
+    </div>
+  )
+
   const hero = sectors[0]
   const second = sectors[1]
   const focusSector = sectors.find(sec => sec.sectorZh === expanded) ?? hero
@@ -58,6 +73,10 @@ export function SectorsView() {
 
   return (
     <div className={styles.view}>
+      <TabIntroBanner
+        tabId="sectors"
+        message="睇邊個板塊最強、邊個轉弱,搵今日值得優先研究嘅方向。"
+      />
       {hero && (
         <section className={styles.summaryCard}>
           <div className={styles.summaryBlock}>
@@ -74,7 +93,9 @@ export function SectorsView() {
               <span className={styles.heroDivider}>·</span>
               <span className={styles.heroDown}>{hero.bearish} 偏弱</span>
               <span className={styles.heroDivider}>·</span>
-              <span className={styles.heroTotal}>{hero.count} 檔</span>
+              <span className={styles.heroNeutral}>{Math.max(0, hero.count - hero.bullish - hero.bearish)} 觀望</span>
+              <span className={styles.heroDivider}>·</span>
+              <span className={styles.heroTotal}>共 {hero.count} 檔</span>
             </div>
             <p className={styles.heroVerdict}>{sectorVerdict(hero)}</p>
             {(second || hero.topTicker) && (
@@ -181,9 +202,7 @@ export function SectorsView() {
               <span className={`${styles.dayPct} ${(sec.avgDayPct ?? 0) >= 0 ? styles.bull : styles.bear}`}>
                 {sec.avgDayPct === null ? '今日 —' : `今日 ${sec.avgDayPct >= 0 ? '+' : ''}${sec.avgDayPct.toFixed(1)}%`}
               </span>
-              {mode === 'pro' && (
-                <span className={styles.rs}>RS {sec.avgRs.toFixed(0)}</span>
-              )}
+              <span className={styles.rs}>RS {sec.avgRs.toFixed(0)}</span>
               <span className={styles.chevron}>{isExpanded ? '▲' : '▼'}</span>
             </button>
 
@@ -206,7 +225,6 @@ export function SectorsView() {
                         <span className={`${styles.stockDay} ${(dayPct ?? 0) >= 0 ? styles.bull : styles.bear}`}>
                           {dayPct === null ? '—' : `${dayPct >= 0 ? '+' : ''}${dayPct.toFixed(1)}%`}
                         </span>
-                        {mode === 'pro' && <span className={styles.stockRs}>RS {s.rsRank ?? '—'}</span>}
                         <SignalBadge label={s.label} />
                       </button>
                     )

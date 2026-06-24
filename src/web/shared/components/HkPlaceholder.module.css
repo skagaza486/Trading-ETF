@@ -10,3 +10,17 @@
 .flag  { font-size: 52px; line-height: 1; }
 .title { font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0; }
 .desc  { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin: 0; }
+
+.backBtn {
+  margin-top: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent-dim);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.backBtn:hover { background: var(--accent); color: var(--bg-base); }
