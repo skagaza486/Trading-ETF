@@ -1,13 +1,20 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useSnapshot } from '../../shared/hooks/useSnapshot'
 import { useIntraday } from '../../shared/hooks/useIntraday'
-import { usePortfolioStore, RISK_LIMITS, type PortfolioPosition, type PositionTier, type JournalAction, type JournalEntry, type PaperPosition } from './usePortfolioStore'
+import { usePortfolioStore, type PortfolioPosition, type PositionTier, type JournalAction, type JournalEntry, type PaperPosition } from './usePortfolioStore'
+import { type PortfolioConfig, type EtfSleeve, maxSingleStockValue, etfBaseValue, regimeRiskKey, etfRef, SLEEVE_ORDER, BUILTIN_PRESETS } from './portfolioConfig'
 import styles from './PortfolioView.module.css'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
+function fmtMoney(value: number, currency = 'HKD'): string {
+  const prefix = currency === 'HKD' ? 'HK$' : currency === 'USD' ? 'US$' : `${currency} `
+  return `${prefix}${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+}
+
+// Back-compat alias for call sites without a config in scope.
 function fmtHKD(value: number): string {
-  return `HK$${value.toLocaleString('en-HK', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+  return fmtMoney(value, 'HKD')
 }
 
 function fmtPct(value: number): string {
@@ -28,16 +35,18 @@ type PriceState =
   | { status: 'error' }
   | { status: 'ok'; price: number; prevClose: number | null }
 
-function usePositionPrice(ticker: string): PriceState {
+function usePositionPrice(ticker: string, snapshotPrevClose?: number | null): PriceState {
   const state = useIntraday(ticker, '1D')
   if (state.status === 'loading') return { status: 'loading' }
   if (state.status === 'error' || state.status === 'idle') return { status: 'error' }
   const bars = state.bars
-  if (bars.length < 2) return { status: 'error' }
+  if (bars.length < 1) return { status: 'error' }
+  // prevClose priority: snapshot prevClose (prior session close) > today's open (proxy) > null
+  const prevClose = snapshotPrevClose ?? (bars.length >= 1 ? bars[0].open : null)
   return {
     status: 'ok',
     price: bars[bars.length - 1].close,
-    prevClose: bars.length >= 2 ? bars[bars.length - 2].close : null,
+    prevClose,
   }
 }
 
@@ -47,12 +56,16 @@ function PositionRow({
   pos,
   onEdit,
   onRemove,
+  prevClose,
+  hardStopPct,
 }: {
   pos: PortfolioPosition
   onEdit: (id: string) => void
   onRemove: (id: string) => void
+  prevClose?: number | null
+  hardStopPct: number
 }) {
-  const priceState = usePositionPrice(pos.ticker)
+  const priceState = usePositionPrice(pos.ticker, prevClose)
   const costBasis = pos.shares * pos.entryPrice
   const held = daysHeld(pos.entryDate)
 
@@ -69,7 +82,7 @@ function PositionRow({
     : distToStopPct < 0.03 ? 'close'
     : 'far'
 
-  const hardStopHit = livePrice !== null && livePrice <= pos.entryPrice * 0.9
+  const hardStopHit = livePrice !== null && livePrice <= pos.entryPrice * (1 + hardStopPct)
 
   return (
     <tr className={`${styles.positionRow} ${hardStopHit ? styles.rowBreach : ''}`}>
@@ -156,11 +169,11 @@ function PositionForm({
       </div>
       <div className={styles.formRow}>
         <label>Shares<input type="number" value={form.shares || ''} onChange={e => setForm(p => ({ ...p, shares: Number(e.target.value) }))} placeholder="0" min={0} step={0.01} /></label>
-        <label>Entry Price (HKD)<input type="number" value={form.entryPrice || ''} onChange={e => setForm(p => ({ ...p, entryPrice: Number(e.target.value) }))} placeholder="0.00" min={0} step={0.01} /></label>
+        <label>Entry Price (USD)<input type="number" value={form.entryPrice || ''} onChange={e => setForm(p => ({ ...p, entryPrice: Number(e.target.value) }))} placeholder="0.00" min={0} step={0.01} /></label>
         <label>Entry Date<input type="date" value={form.entryDate} onChange={e => setForm(p => ({ ...p, entryDate: e.target.value }))} /></label>
       </div>
       <div className={styles.formRow}>
-        <label>Stop Loss (HKD, optional)<input type="number" value={form.stopLoss ?? ''} onChange={e => { const v = e.target.value; setForm(p => ({ ...p, stopLoss: v === '' ? null : Number(v) })) }} placeholder="e.g. 90.00" min={0} step={0.01} /></label>
+        <label>Stop Loss (USD, optional)<input type="number" value={form.stopLoss ?? ''} onChange={e => { const v = e.target.value; setForm(p => ({ ...p, stopLoss: v === '' ? null : Number(v) })) }} placeholder="e.g. 90.00" min={0} step={0.01} /></label>
         <label className={styles.formNotes}>Notes<input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Optional" /></label>
       </div>
       <div className={styles.formActions}>
@@ -186,7 +199,7 @@ function JournalForm({ onSave, onCancel }: { onSave: (e: typeof EMPTY_JOURNAL) =
       </div>
       <div className={styles.formRow}>
         <label>Shares<input type="number" value={form.shares || ''} onChange={e => setForm(p => ({ ...p, shares: Number(e.target.value) }))} placeholder="0" min={0} step={0.01} /></label>
-        <label>Price (HKD)<input type="number" value={form.price || ''} onChange={e => setForm(p => ({ ...p, price: Number(e.target.value) }))} placeholder="0.00" min={0} step={0.01} /></label>
+        <label>Price (USD)<input type="number" value={form.price || ''} onChange={e => setForm(p => ({ ...p, price: Number(e.target.value) }))} placeholder="0.00" min={0} step={0.01} /></label>
       </div>
       <label className={styles.formReason}>Entry Reason *<textarea value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} placeholder="Why this trade? Per EXECUTION_PLAN §11." rows={3} required /></label>
       <label className={styles.formReason}>Exit Conditions<textarea value={form.exitConditions} onChange={e => setForm(p => ({ ...p, exitConditions: e.target.value }))} placeholder="When will you exit?" rows={2} /></label>
@@ -202,60 +215,147 @@ function JournalForm({ onSave, onCancel }: { onSave: (e: typeof EMPTY_JOURNAL) =
 
 type RiskAlert = { severity: 'warn' | 'info' | 'breach'; message: string }
 
-function computeRiskAlerts(positions: PortfolioPosition[], journal: JournalEntry[], regime: string): RiskAlert[] {
+function computeRiskAlerts(
+  positions: PortfolioPosition[],
+  journal: JournalEntry[],
+  regime: string,
+  cfg: PortfolioConfig,
+  sectorMap: Record<string, string>,
+): RiskAlert[] {
   const alerts: RiskAlert[] = []
+  const { risk } = cfg
+  const money = (v: number) => fmtMoney(v, cfg.currency)
 
-  if (positions.length > RISK_LIMITS.maxPositions)
-    alerts.push({ severity: 'breach', message: `${positions.length} positions (limit: ${RISK_LIMITS.maxPositions})` })
-  else if (positions.length >= RISK_LIMITS.maxPositions - 2)
-    alerts.push({ severity: 'warn', message: `${positions.length} positions — approaching limit of ${RISK_LIMITS.maxPositions}` })
+  if (positions.length > risk.maxPositions)
+    alerts.push({ severity: 'breach', message: `${positions.length} positions (limit: ${risk.maxPositions})` })
+  else if (positions.length >= risk.maxPositions - 2)
+    alerts.push({ severity: 'warn', message: `${positions.length} positions — approaching limit of ${risk.maxPositions}` })
 
+  const stockCap = maxSingleStockValue(cfg)
   positions.forEach(p => {
     const v = p.shares * p.entryPrice
-    if (v > RISK_LIMITS.maxSingleStockHKD)
-      alerts.push({ severity: 'breach', message: `${p.ticker}: ${fmtHKD(v)} exceeds HK$50K limit` })
+    if (v > stockCap)
+      alerts.push({ severity: 'breach', message: `${p.ticker}: ${money(v)} exceeds ${money(stockCap)} single-position cap (${(risk.maxSingleStockPct * 100).toFixed(0)}%)` })
   })
 
   const totalInvested = positions.reduce((s, p) => s + p.shares * p.entryPrice, 0)
-  const cashPct = Math.max(0, 1 - totalInvested / 500_000)
-  const regimeKey = regime === 'long_friendly' ? 'RISK_ON' : regime === 'short_friendly' ? 'RISK_OFF' : 'NEUTRAL'
-  const minCash = RISK_LIMITS.minCashPct[regimeKey] ?? 0.15
+
+  // Single-sector concentration (EXECUTION_PLAN §2 — was unimplemented)
+  if (totalInvested > 0 && Object.keys(sectorMap).length > 0) {
+    const bySector: Record<string, number> = {}
+    positions.forEach(p => {
+      const sector = sectorMap[p.ticker] ?? 'Unknown'
+      bySector[sector] = (bySector[sector] ?? 0) + p.shares * p.entryPrice
+    })
+    for (const [sector, val] of Object.entries(bySector)) {
+      if (sector === 'Unknown') continue
+      const pct = val / totalInvested
+      if (pct > risk.maxSingleSectorPct)
+        alerts.push({ severity: 'breach', message: `${sector} ${(pct * 100).toFixed(0)}% of book — exceeds ${(risk.maxSingleSectorPct * 100).toFixed(0)}% sector cap` })
+    }
+  }
+
+  const cashPct = Math.max(0, 1 - totalInvested / cfg.capitalBase)
+  const regimeKey = regimeRiskKey(regime)
+  const minCash = risk.minCashPct[regimeKey] ?? 0.15
   if (cashPct < minCash)
     alerts.push({ severity: 'breach', message: `Cash ${(cashPct * 100).toFixed(0)}% below ${regimeKey} floor ${(minCash * 100).toFixed(0)}%` })
 
-  // 3-consecutive-loss flag
+  // 3-consecutive-loss flag (proxy: recent closes — journal has no realised P&L yet)
   const closedTrades = journal.filter(e => e.action === 'CLOSE' || e.action === 'SELL').sort((a, b) => b.date.localeCompare(a.date))
   const recentCloses = closedTrades.filter(e => (Date.now() - new Date(e.date).getTime()) / 86400000 <= 14)
-  if (recentCloses.length >= 3)
-    alerts.push({ severity: 'warn', message: `${recentCloses.length} closes in last 14 days — check P&L. Pause 2 weeks if 3 consecutive losses.` })
+  if (recentCloses.length >= risk.consecutiveLossPause)
+    alerts.push({ severity: 'warn', message: `${recentCloses.length} closes in last 14 days — check P&L. Pause 2 weeks if ${risk.consecutiveLossPause} consecutive losses.` })
 
   // Monthly new-position counter
   const thisMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
   const buysThisMonth = journal.filter(e => e.action === 'BUY' && e.date.startsWith(thisMonth)).length
-  if (buysThisMonth >= RISK_LIMITS.maxNewPerMonth)
-    alerts.push({ severity: 'breach', message: `${buysThisMonth} new positions this month (limit: ${RISK_LIMITS.maxNewPerMonth})` })
-  else if (buysThisMonth >= RISK_LIMITS.maxNewPerMonth - 1)
-    alerts.push({ severity: 'warn', message: `${buysThisMonth}/${RISK_LIMITS.maxNewPerMonth} new positions this month` })
+  if (buysThisMonth >= risk.maxNewPerMonth)
+    alerts.push({ severity: 'breach', message: `${buysThisMonth} new positions this month (limit: ${risk.maxNewPerMonth})` })
+  else if (buysThisMonth >= risk.maxNewPerMonth - 1)
+    alerts.push({ severity: 'warn', message: `${buysThisMonth}/${risk.maxNewPerMonth} new positions this month` })
 
   return alerts
 }
 
 // ── P&L Summary Bar ──────────────────────────────────────────────────
 
-function PortfolioPnLSummary({ positions }: { positions: PortfolioPosition[] }) {
+type ETFTargetItem = { id: string; ticker: string; name: string; allocationPct: number; sleeve: string }
+
+const SLEEVE_INFO: Record<string, string> = {
+  '核心': '全市場 Beta 基石，追蹤 S&P 500，長期持有不擇時',
+  '增長': '科技傾斜，長期超額回報潛力高，波動也較大',
+  '收入': 'Covered call 每月派息，升市上限被鎖、跌市有 premium 緩衝',
+  '小型': '分散大型股集中風險，景氣復甦期表現佳',
+  '避險': '與股票低相關性，通脹對沖，極端風險時保值',
+  '現金': '零風險月派息，等同現金，等待機會時收息',
+}
+
+const SLEEVE_LABEL: Record<string, string> = {
+  'US Equity Beta': '核心',
+  'Growth': '增長',
+  'Small/Mid Cap': '小型',
+  'Intl Equity': '國際',
+  'Gold / Real Assets': '避險',
+  'Bonds / Cash': '現金',
+  'Other': '',
+}
+
+function sleeveLabel(t: ETFTargetItem): string {
+  return t.sleeve || SLEEVE_LABEL[etfRef(t.ticker).sleeve] || ''
+}
+
+function PortfolioPnLSummary({ positions, etfTargets, cfg, onAddEtf, onRemoveEtf }: {
+  positions: PortfolioPosition[]
+  etfTargets: ETFTargetItem[]
+  cfg: PortfolioConfig
+  onAddEtf: (ticker: string, allocPct: number) => void
+  onRemoveEtf: (id: string) => void
+}) {
+  const [showAddEtf, setShowAddEtf] = useState(false)
+  const [newTicker, setNewTicker] = useState('')
+  const [newAlloc, setNewAlloc] = useState('10')
+  const money = (v: number) => fmtMoney(v, cfg.currency)
   const totalInvested = positions.reduce((s, p) => s + p.shares * p.entryPrice, 0)
-  const allocPct = totalInvested > 0 ? (totalInvested / 500_000) * 100 : 0
+  const allocPct = totalInvested > 0 ? (totalInvested / cfg.capitalBase) * 100 : 0
+  const etfBase = etfBaseValue(cfg)
+  const etfTotalAlloc = etfTargets.reduce((s, t) => s + t.allocationPct, 0)
+
   return (
     <div className={styles.pnlSummary}>
       <div className={styles.pnlSummaryCard}>
         <span>Portfolio Value (book)</span>
-        <strong>{fmtHKD(totalInvested)}</strong>
-        <small>{allocPct.toFixed(0)}% of Phase 1 HK$500K</small>
+        <strong>{money(totalInvested)}</strong>
+        <small>{allocPct.toFixed(0)}% of {cfg.presetName}</small>
       </div>
       <div className={styles.pnlSummaryCard}>
-        <span>ETF Base Target</span>
-        <strong>HK$300,000</strong>
-        <small>SPY 40% · QQQ 25% · IWM 15% · GLD 10% · SGOV 10%</small>
+        <span>ETF Base Target<button className={styles.inlineAddBtn} title="Add ETF target" onClick={() => setShowAddEtf(v => !v)}>+</button></span>
+        {showAddEtf && (
+          <div className={styles.addEtfRow}>
+            <input className={styles.etfInput} placeholder="Ticker e.g. JEPQ" value={newTicker} onChange={e => setNewTicker(e.target.value.toUpperCase())} maxLength={6} />
+            <input className={styles.etfAllocInput} type="number" min={1} max={100} value={newAlloc} onChange={e => setNewAlloc(e.target.value)} />
+            <span className={styles.unit}>%</span>
+            <button className={styles.etfAddBtn} onClick={() => { const pct = parseInt(newAlloc, 10) || 10; if (newTicker) { onAddEtf(newTicker, pct); setNewTicker(''); setNewAlloc('10'); setShowAddEtf(false) } }}>Add</button>
+          </div>
+        )}
+        <strong>{money(etfBase)}</strong>
+        <small>{(cfg.etfBasePct * 100).toFixed(0)}% of base</small>
+        <small>
+          {etfTargets.length === 0 ? 'No ETF targets configured' :
+            etfTargets.map(t => {
+              const sl = sleeveLabel(t)
+              const info = sl ? SLEEVE_INFO[sl] ?? '' : ''
+              return (
+                <span key={t.id} className={styles.etfChip} title={info ? `${sl} — ${info}` : t.name}>
+                  {t.ticker} {sl ? <span className={styles.etfChipSleeve}>{sl}</span> : null} {t.allocationPct}%
+                  <button className={styles.etfChipRemove} onClick={() => onRemoveEtf(t.id)}>×</button>
+                </span>
+              )
+            })}
+          {etfTotalAlloc > 0 && etfTotalAlloc !== 100 && (
+            <span className={styles.etfWarn}> ⚠ {etfTotalAlloc}% total</span>
+          )}
+        </small>
       </div>
       <div className={styles.pnlSummaryCard}>
         <span>Live P&L</span>
@@ -268,19 +368,21 @@ function PortfolioPnLSummary({ positions }: { positions: PortfolioPosition[] }) 
 
 // ── Allocation Summary ───────────────────────────────────────────────
 
-function AllocationSummary({ positions }: { positions: PortfolioPosition[] }) {
+function AllocationSummary({ positions, cfg }: { positions: PortfolioPosition[]; cfg: PortfolioConfig }) {
+  const money = (v: number) => fmtMoney(v, cfg.currency)
   const totalInvested = positions.reduce((s, p) => s + p.shares * p.entryPrice, 0)
-  const cashPct = Math.max(0, 1 - totalInvested / 500_000)
+  const cashPct = Math.max(0, 1 - totalInvested / cfg.capitalBase)
+  const minCashFloor = cfg.risk.minCashPct.NEUTRAL
   const byTier = { ETF: 0, Core: 0, Tactical: 0 }
   positions.forEach(p => { byTier[p.tier] += p.shares * p.entryPrice })
 
   return (
     <div className={styles.allocGrid}>
-      <div className={styles.allocCard}><span>Total Invested</span><strong>{fmtHKD(totalInvested)}</strong></div>
-      <div className={styles.allocCard}><span>Cash (Phase 1 HK$500K)</span><strong className={cashPct < 0.05 ? styles.breachText : ''}>{(cashPct * 100).toFixed(0)}%</strong></div>
-      <div className={styles.allocCard}><span>ETF Allocation</span><strong>{fmtHKD(byTier.ETF)}</strong><small>{totalInvested > 0 ? ((byTier.ETF / totalInvested) * 100).toFixed(0) : 0}%</small></div>
-      <div className={styles.allocCard}><span>Core / Tactical</span><strong>{fmtHKD(byTier.Core + byTier.Tactical)}</strong><small>{totalInvested > 0 ? (((byTier.Core + byTier.Tactical) / totalInvested) * 100).toFixed(0) : 0}%</small></div>
-      <div className={styles.allocCard}><span>Positions</span><strong>{positions.length}</strong><small>max {RISK_LIMITS.maxPositions}</small></div>
+      <div className={styles.allocCard}><span>Total Invested</span><strong>{money(totalInvested)}</strong></div>
+      <div className={styles.allocCard}><span>Cash ({money(cfg.capitalBase)} base)</span><strong className={cashPct < minCashFloor ? styles.breachText : ''}>{(cashPct * 100).toFixed(0)}%</strong></div>
+      <div className={styles.allocCard}><span>ETF Allocation</span><strong>{money(byTier.ETF)}</strong><small>{totalInvested > 0 ? ((byTier.ETF / totalInvested) * 100).toFixed(0) : 0}%</small></div>
+      <div className={styles.allocCard}><span>Core / Tactical</span><strong>{money(byTier.Core + byTier.Tactical)}</strong><small>{totalInvested > 0 ? (((byTier.Core + byTier.Tactical) / totalInvested) * 100).toFixed(0) : 0}%</small></div>
+      <div className={styles.allocCard}><span>Positions</span><strong>{positions.length}</strong><small>max {cfg.risk.maxPositions}</small></div>
     </div>
   )
 }
@@ -407,12 +509,16 @@ function PaperRow({
   pp,
   onClose,
   onRemove,
+  prevClose,
+  hardStopPct,
 }: {
   pp: PaperPosition
   onClose: (id: string, exitPrice: number) => void
   onRemove: (id: string) => void
+  prevClose?: number | null
+  hardStopPct: number
 }) {
-  const priceState = usePositionPrice(pp.ticker)
+  const priceState = usePositionPrice(pp.ticker, prevClose)
   const livePrice = priceState.status === 'ok' ? priceState.price : null
   const isOpen = pp.exitPrice === null
   const costBasis = pp.shares * pp.entryPrice
@@ -433,7 +539,7 @@ function PaperRow({
     : distToStopPct < 0.03 ? 'close'
     : 'far'
 
-  const hardStopHit = isOpen && livePrice !== null && livePrice <= pp.entryPrice * 0.9
+  const hardStopHit = isOpen && livePrice !== null && livePrice <= pp.entryPrice * (1 + hardStopPct)
 
   const [showClose, setShowClose] = useState(false)
   const [closePrice, setClosePrice] = useState(livePrice?.toFixed(2) ?? '')
@@ -513,10 +619,16 @@ function PaperTracker({
   paperPositions,
   onClose,
   onRemove,
+  prevCloseMap,
+  hardStopPct,
+  onGoToScreener,
 }: {
   paperPositions: PaperPosition[]
   onClose: (id: string, exitPrice: number) => void
   onRemove: (id: string) => void
+  prevCloseMap: Record<string, number>
+  hardStopPct: number
+  onGoToScreener: () => void
 }) {
   const openPositions = paperPositions.filter(p => p.exitPrice === null)
   const closedPositions = paperPositions.filter(p => p.exitPrice !== null)
@@ -535,10 +647,7 @@ function PaperTracker({
       <div className={styles.cockpitCard}>
         <h3>Paper P&L Tracker / 紙本盈虧追蹤</h3>
         <p className={styles.subtle}>No paper positions yet.</p>
-        <button className={styles.goScreenerBtn} onClick={() => {
-          const el = document.querySelector('button:has-text("📋 Track")');
-          if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }}>↑ Go to Screener</button>
+        <button className={styles.goScreenerBtn} onClick={onGoToScreener}>↑ Go to Screener</button>
         <p className={styles.subtle}>Go-live criteria (EXECUTION_PLAN §6): ≥ 4 consecutive weeks with ≥ 3 candidates + paper P&L positive + no single drawdown &gt; −15%.</p>
       </div>
     )
@@ -579,7 +688,7 @@ function PaperTracker({
             <table className={styles.positionsTable}>
               <thead><tr><th>Ticker</th><th className={styles.numHeader}>Shares</th><th className={styles.numHeader}>Entry $</th><th className={styles.numHeader}>Live $</th><th className={styles.numHeader}>Cost Basis</th><th className={styles.numHeader}>P&L</th><th className={styles.numHeader}>Stop</th><th className={styles.numHeader}>Days</th><th></th></tr></thead>
               <tbody>
-                {openPositions.map(pp => <PaperRow key={pp.id} pp={pp} onClose={onClose} onRemove={onRemove} />)}
+                {openPositions.map(pp => <PaperRow key={pp.id} pp={pp} onClose={onClose} onRemove={onRemove} prevClose={prevCloseMap[pp.ticker]} hardStopPct={hardStopPct} />)}
               </tbody>
             </table>
           </div>
@@ -696,10 +805,15 @@ function SystemPaperReference() {
   const hiddenCount = filtered.length - visible.length
 
   // ── Summary stats ────────────────────────────────────────────────
-  const wins = allSignals.filter(s => (s.ret5d ?? 0) > 0).length
+  // Only count signals where the return is actually settled (non-null).
+  // Including nulls as 0 dilutes both win rate and average return.
+  const settled5d = allSignals.filter(s => s.ret5d !== null)
+  const settledTotal = settled5d.length
+  const wins = settled5d.filter(s => s.ret5d! > 0).length
   const total = allSignals.length
-  const avgRet = allSignals.reduce((s, x) => s + (x.ret5d ?? 0), 0) / total
-  const avg1d = allSignals.reduce((s, x) => s + (x.ret1d ?? 0), 0) / total
+  const avgRet = settledTotal > 0 ? settled5d.reduce((s, x) => s + x.ret5d!, 0) / settledTotal : 0
+  const settled1d = allSignals.filter(s => s.ret1d !== null)
+  const avg1d = settled1d.length > 0 ? settled1d.reduce((s, x) => s + x.ret1d!, 0) / settled1d.length : 0
   const avg10d = allSignals.reduce((s, x) => {
     if (x.ret10d == null) return s
     return s + x.ret10d
@@ -766,13 +880,13 @@ function SystemPaperReference() {
           <span>Win Rate (5d)</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-              <div style={{ width: `${((wins / total) * 100).toFixed(0)}%`, height: '100%', borderRadius: 3, background: wins / total >= 0.5 ? 'var(--color-gain)' : 'var(--color-loss)', transition: 'width 0.4s' }} />
+              <div style={{ width: `${settledTotal > 0 ? ((wins / settledTotal) * 100).toFixed(0) : 0}%`, height: '100%', borderRadius: 3, background: settledTotal > 0 && wins / settledTotal >= 0.5 ? 'var(--color-gain)' : 'var(--color-loss)', transition: 'width 0.4s' }} />
             </div>
-            <strong style={{ color: wins / total >= 0.5 ? 'var(--color-gain)' : 'var(--color-loss)', fontSize: '0.95rem' }}>
-              {((wins / total) * 100).toFixed(0)}%
+            <strong style={{ color: settledTotal > 0 && wins / settledTotal >= 0.5 ? 'var(--color-gain)' : 'var(--color-loss)', fontSize: '0.95rem' }}>
+              {settledTotal > 0 ? ((wins / settledTotal) * 100).toFixed(0) : '—'}%
             </strong>
           </div>
-          <small>{wins}/{total}</small>
+          <small>{wins}/{settledTotal} settled</small>
         </div>
         <div className={styles.refSummaryCard}>
           <span>Avg 1d</span>
@@ -810,7 +924,7 @@ function SystemPaperReference() {
           <small>best day</small>
         </div>
         <div className={styles.refSummaryCard}>
-          <span>Proj. Annual / Worst</span>
+          <span>Best-Exit Annual ⚠️</span>
           <strong>
             {bestTotal > 0 && avgBestRet != null ? (
               <><span style={{ color: 'var(--color-gain)' }}>{fmtReturn(Math.pow(1 + avgBestRet, 250 / avgDays) - 1)}</span>
@@ -818,7 +932,7 @@ function SystemPaperReference() {
               <span style={{ color: 'var(--color-loss)' }}>{avgWorstRet != null ? fmtReturn(Math.pow(1 + avgWorstRet, 250 / avgDays) - 1) : '—'}</span></>
             ) : '—'}
           </strong>
-          <small>best / worst window</small>
+          <small>hindsight best exit — not achievable</small>
         </div>
       </div>
 
@@ -916,15 +1030,304 @@ function SystemPaperReference() {
   )
 }
 
+// ── Config bar (preset + capital base) ───────────────────────────────
+
+function ConfigBar({ cfg, onApplyPreset, onUpdateConfig }: {
+  cfg: PortfolioConfig
+  onApplyPreset: (presetId: string) => void
+  onUpdateConfig: (patch: Partial<PortfolioConfig>) => void
+}) {
+  const isCustom = cfg.presetId === 'custom'
+  return (
+    <div className={styles.configBar}>
+      <label className={styles.configField}>
+        <span>Preset</span>
+        <select
+          value={isCustom ? 'custom' : cfg.presetId}
+          onChange={e => { if (e.target.value !== 'custom') onApplyPreset(e.target.value) }}
+        >
+          {isCustom && <option value="custom">Custom</option>}
+          {BUILTIN_PRESETS.map(p => <option key={p.presetId} value={p.presetId}>{p.presetName}</option>)}
+        </select>
+      </label>
+      <label className={styles.configField}>
+        <span>Capital base</span>
+        <input type="number" min={0} step={10000} value={cfg.capitalBase}
+          onChange={e => onUpdateConfig({ capitalBase: Math.max(0, Number(e.target.value)) })} />
+      </label>
+      <label className={styles.configField}>
+        <span>Currency</span>
+        <select value={cfg.currency} onChange={e => onUpdateConfig({ currency: e.target.value })}>
+          <option value="HKD">HKD</option>
+          <option value="USD">USD</option>
+        </select>
+      </label>
+      <label className={styles.configField}>
+        <span>ETF base %</span>
+        <input type="number" min={0} max={100} step={5} value={Math.round(cfg.etfBasePct * 100)}
+          onChange={e => onUpdateConfig({ etfBasePct: Math.min(1, Math.max(0, Number(e.target.value) / 100)) })} />
+      </label>
+      <span className={styles.configHint}>
+        {isCustom ? '✎ Custom config' : `${cfg.presetName}`} · single-stock cap {(cfg.risk.maxSingleStockPct * 100).toFixed(0)}% = {fmtMoney(maxSingleStockValue(cfg), cfg.currency)}
+      </span>
+    </div>
+  )
+}
+
+// ── Sub-tab navigation ───────────────────────────────────────────────
+
+type SubTab = 'portfolio' | 'etf' | 'plan'
+
+function PortfolioSubNav({ active, onChange }: { active: SubTab; onChange: (t: SubTab) => void }) {
+  const tabs: { id: SubTab; label: string }[] = [
+    { id: 'portfolio', label: '組合 Portfolio' },
+    { id: 'etf', label: 'ETF 配置 Allocation' },
+    { id: 'plan', label: '計劃參考 Plan' },
+  ]
+  return (
+    <div className={styles.subNav}>
+      {tabs.map(t => (
+        <button key={t.id} className={active === t.id ? styles.subNavActive : styles.subNavItem} onClick={() => onChange(t.id)}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── ETF Allocation Model (transparent, rules-based — NOT a signal) ────
+
+function EtfAllocationTab({ cfg, etfTargets, onAddEtf, onRemoveEtf, onUpdateEtf }: {
+  cfg: PortfolioConfig
+  etfTargets: { id: string; ticker: string; name: string; allocationPct: number }[]
+  onAddEtf: (ticker: string, allocPct: number) => void
+  onRemoveEtf: (id: string) => void
+  onUpdateEtf: (id: string, allocPct: number) => void
+}) {
+  const money = (v: number) => fmtMoney(v, cfg.currency)
+  const base = etfBaseValue(cfg)
+  const totalPct = etfTargets.reduce((s, t) => s + t.allocationPct, 0)
+
+  // Group weights by sleeve
+  const bySleeve = new Map<EtfSleeve, number>()
+  for (const t of etfTargets) {
+    const sleeve = etfRef(t.ticker).sleeve
+    bySleeve.set(sleeve, (bySleeve.get(sleeve) ?? 0) + t.allocationPct)
+  }
+  const sleeveRows = SLEEVE_ORDER
+    .filter(s => bySleeve.has(s))
+    .map(s => ({ sleeve: s, pct: bySleeve.get(s)! }))
+
+  // Concentration: how much sits in highly-correlated equity-beta sleeves
+  const equityBetaPct = (bySleeve.get('US Equity Beta') ?? 0) + (bySleeve.get('Growth') ?? 0) + (bySleeve.get('Small/Mid Cap') ?? 0)
+  const diversifierPct = (bySleeve.get('Gold / Real Assets') ?? 0) + (bySleeve.get('Bonds / Cash') ?? 0)
+  const equityShare = totalPct > 0 ? equityBetaPct / totalPct : 0
+
+  const [newTicker, setNewTicker] = useState('')
+  const [newAlloc, setNewAlloc] = useState('10')
+
+  return (
+    <>
+      <section className={styles.panelCard}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h2>ETF Allocation Model / ETF 配置模型</h2>
+            <p className={styles.subtle}>
+              Transparent, rules-based allocation aid — <strong>not a predictive signal</strong>. ETFs are beta
+              instruments (EXECUTION_PLAN §4: no edge claim). Diversification comes from holding
+              <em> low-correlation sleeves</em>, not more tickers in the same sleeve.
+            </p>
+          </div>
+        </div>
+
+        {/* Diversification headline */}
+        <div className={styles.allocGrid}>
+          <div className={styles.allocCard}>
+            <span>ETF Base</span><strong>{money(base)}</strong>
+            <small>{(cfg.etfBasePct * 100).toFixed(0)}% of {money(cfg.capitalBase)}</small>
+          </div>
+          <div className={styles.allocCard}>
+            <span>Total Target</span>
+            <strong className={totalPct !== 100 ? styles.breachText : ''}>{totalPct}%</strong>
+            <small>{totalPct === 100 ? '✓ balanced' : totalPct > 100 ? 'over-allocated' : 'under-allocated'}</small>
+          </div>
+          <div className={styles.allocCard}>
+            <span>Equity Beta</span>
+            <strong className={equityShare > 0.85 ? styles.breachText : ''}>{(equityShare * 100).toFixed(0)}%</strong>
+            <small>SPY/QQQ/IWM ≈ 0.85–0.95 corr</small>
+          </div>
+          <div className={styles.allocCard}>
+            <span>True Diversifiers</span>
+            <strong style={{ color: 'var(--color-gain)' }}>{diversifierPct}%</strong>
+            <small>gold + cash/bonds</small>
+          </div>
+        </div>
+
+        {equityShare > 0.85 && totalPct > 0 && (
+          <div className={styles.alertItem} data-severity="warn" style={{ marginTop: 12 }}>
+            ⚠️ {(equityShare * 100).toFixed(0)}% of the ETF base sits in highly-correlated US equity beta
+            (SPY/QQQ/IWM move together in a drawdown). The only real ballast is gold + cash/bonds ({diversifierPct}%).
+          </div>
+        )}
+      </section>
+
+      {/* Sleeve breakdown */}
+      <section className={styles.panelCard}>
+        <div className={styles.sectionHeader}><div><h2>By Sleeve / 按資產類別</h2><p className={styles.subtle}>Where the real diversification is — grouped by correlation behaviour.</p></div></div>
+        <div className={styles.sleeveList}>
+          {sleeveRows.map(({ sleeve, pct }) => (
+            <div key={sleeve} className={styles.sleeveRow}>
+              <span className={styles.sleeveName}>{sleeve}</span>
+              <div className={styles.sleeveBarTrack}>
+                <div className={styles.sleeveBarFill} data-sleeve={sleeve} style={{ width: `${Math.min(100, totalPct > 0 ? (pct / totalPct) * 100 : 0)}%` }} />
+              </div>
+              <span className={styles.sleevePct}>{pct}%</span>
+            </div>
+          ))}
+          {sleeveRows.length === 0 && <p className={styles.subtle}>No ETF targets configured.</p>}
+        </div>
+      </section>
+
+      {/* Per-ETF table with role + why */}
+      <section className={styles.panelCard}>
+        <div className={styles.sectionHeader}><div><h2>Targets / 目標明細</h2><p className={styles.subtle}>Each ETF's role and approximate correlation to SPY (illustrative reference).</p></div></div>
+        <div className={styles.tableWrap}>
+          <table className={styles.positionsTable}>
+            <thead><tr><th>Ticker</th><th>Sleeve</th><th>Role / 為什麼</th><th className={styles.numHeader}>~Corr SPY</th><th className={styles.numHeader}>Target %</th><th className={styles.numHeader}>Value</th><th></th></tr></thead>
+            <tbody>
+              {etfTargets.map(t => {
+                const ref = etfRef(t.ticker)
+                return (
+                  <tr key={t.id} className={styles.positionRow}>
+                    <td className={styles.tickerCell}><strong>{t.ticker}</strong></td>
+                    <td><span className={styles.sleeveTag} data-sleeve={ref.sleeve}>{ref.sleeve}</span></td>
+                    <td className={styles.etfRoleCell}>{ref.role}</td>
+                    <td className={styles.numCell} style={{ color: ref.corrToSpy >= 0.7 ? 'var(--color-loss)' : ref.corrToSpy <= 0.2 ? 'var(--color-gain)' : 'var(--text-secondary)' }}>{ref.corrToSpy.toFixed(2)}</td>
+                    <td className={styles.numCell}>
+                      <input className={styles.etfAllocInput} type="number" min={0} max={100} value={t.allocationPct}
+                        onChange={e => onUpdateEtf(t.id, Math.max(0, Math.min(100, Number(e.target.value))))} />
+                    </td>
+                    <td className={styles.numCell}>{money(base * t.allocationPct / 100)}</td>
+                    <td className={styles.actionsCell}><button className={styles.actionBtn} onClick={() => onRemoveEtf(t.id)} title="Remove">✕</button></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className={styles.addEtfRow} style={{ marginTop: 12 }}>
+          <input className={styles.etfInput} placeholder="Ticker e.g. TLT" value={newTicker} onChange={e => setNewTicker(e.target.value.toUpperCase())} maxLength={6} />
+          <input className={styles.etfAllocInput} type="number" min={1} max={100} value={newAlloc} onChange={e => setNewAlloc(e.target.value)} />
+          <span className={styles.unit}>%</span>
+          <button className={styles.etfAddBtn} onClick={() => { const pct = parseInt(newAlloc, 10) || 10; if (newTicker) { onAddEtf(newTicker, pct); setNewTicker(''); setNewAlloc('10') } }}>Add ETF</button>
+        </div>
+      </section>
+
+      <section className={styles.limitationsFooter}>
+        <h3>How to read this / 怎麼用</h3>
+        <ul>
+          <li>This is a <strong>framework, not a forecast</strong> — it tells you the structure of your basket, not what will go up.</li>
+          <li>Correlation figures are illustrative long-run references, not live-computed. They show <em>behaviour</em>, not precision.</li>
+          <li>Holding SPY + QQQ + IWM is mostly one bet (US equity beta). In a selloff they fall together.</li>
+          <li>Gold (GLD) and cash/bonds (SGOV/TLT) are the parts that hold up when equities drop — that's your ballast.</li>
+        </ul>
+      </section>
+    </>
+  )
+}
+
+// ── Plan reference (read-only worked example) ────────────────────────
+
+function PlanReferenceTab({ activePresetId, onApplyPreset }: { activePresetId: string; onApplyPreset: (id: string) => void }) {
+  const phases = BUILTIN_PRESETS.filter(p => p.presetId.startsWith('personal-'))
+  return (
+    <>
+      <section className={styles.panelCard}>
+        <div className={styles.sectionHeader}><div>
+          <h2>Capital Plan / 資本計劃</h2>
+          <p className={styles.subtle}>A worked example, not a rule. Reference for how the tool above is meant to be configured. Source: EXECUTION_PLAN §1–§2.</p>
+        </div></div>
+        <div className={styles.allocGrid}>
+          {phases.map(p => (
+            <div key={p.presetId} className={`${styles.allocCard} ${activePresetId === p.presetId ? styles.allocCardActive : ''}`}>
+              <span>{p.presetName.replace('Tony · ', '')}</span>
+              <strong>{fmtMoney(p.capitalBase, p.currency)}</strong>
+              <small>ETF base {(p.etfBasePct * 100).toFixed(0)}% · stocks {(100 - p.etfBasePct * 100).toFixed(0)}%</small>
+              <button className={styles.secondaryBtn} style={{ marginTop: 8 }} onClick={() => onApplyPreset(p.presetId)}>
+                {activePresetId === p.presetId ? '✓ Active' : 'Apply'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.panelCard}>
+        <div className={styles.sectionHeader}><div><h2>Risk Rules / 風控規則 (§2)</h2><p className={styles.subtle}>Non-negotiable. Stored as % of capital base so they scale across phases.</p></div></div>
+        <div className={styles.tableWrap}>
+          <table className={styles.positionsTable}>
+            <thead><tr><th>Rule</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr className={styles.positionRow}><td>Max single stock</td><td>10% of base</td></tr>
+              <tr className={styles.positionRow}><td>Max single sector</td><td>25% of book</td></tr>
+              <tr className={styles.positionRow}><td>Max positions</td><td>15 total (incl. ETFs)</td></tr>
+              <tr className={styles.positionRow}><td>Hard stop (stocks)</td><td>−10% from entry</td></tr>
+              <tr className={styles.positionRow}><td>Trailing stop (stocks)</td><td>−20% from peak</td></tr>
+              <tr className={styles.positionRow}><td>Min cash</td><td>5% RISK_ON / 15% NEUTRAL / 30% RISK_OFF</td></tr>
+              <tr className={styles.positionRow}><td>Pre-earnings</td><td>Reduce 50% one week before</td></tr>
+              <tr className={styles.positionRow}><td>Max new / month</td><td>4</td></tr>
+              <tr className={styles.positionRow}><td>3 consecutive losses</td><td>Pause 2 weeks</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={styles.limitationsFooter}>
+        <h3>Honest Limitations / 研究限制</h3>
+        <ul>
+          <li>Stock funnel is a discretionary heuristic, not a backtested system.</li>
+          <li>Fundamentals filter uses current data only — no point-in-time validation possible with free data.</li>
+          <li>Medium-term backtest is single-regime (2025-H2 bull). Other regimes unobserved.</li>
+          <li>5-day UPPER edge ≠ 3–6 month edge. Different holding period, different risk.</li>
+          <li>ETF allocation is a beta basket with no edge claim — sizing is judgment, not prediction.</li>
+        </ul>
+      </section>
+    </>
+  )
+}
+
 export default function PortfolioView() {
   const snapshot = useSnapshot()
   const store = usePortfolioStore()
+  const [subTab, setSubTab] = useState<SubTab>('portfolio')
   const [showAddPosition, setShowAddPosition] = useState(false)
   const [editingPosition, setEditingPosition] = useState<PortfolioPosition | null>(null)
   const [showJournal, setShowJournal] = useState(false)
+  const screenerRef = useRef<HTMLDivElement>(null)
 
   const regime = snapshot.status === 'ok' ? snapshot.snapshot.regime : 'neutral'
-  const alerts = useMemo(() => computeRiskAlerts(store.positions, store.journal, regime), [store.positions, store.journal, regime])
+  const sectorMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    if (snapshot.status === 'ok') {
+      for (const s of snapshot.snapshot.stocks) {
+        if (s.sector) m[s.ticker] = s.sector
+      }
+    }
+    return m
+  }, [snapshot])
+
+  const prevCloseMap = useMemo(() => {
+    const m: Record<string, number> = {}
+    if (snapshot.status === 'ok') {
+      for (const s of snapshot.snapshot.stocks) {
+        if (s.prevClose != null) m[s.ticker] = s.prevClose
+      }
+    }
+    return m
+  }, [snapshot])
+  const alerts = useMemo(
+    () => computeRiskAlerts(store.positions, store.journal, regime, store.config, sectorMap),
+    [store.positions, store.journal, regime, store.config, sectorMap],
+  )
 
   const handleSavePosition = (data: Omit<PortfolioPosition, 'id'>) => {
     if (editingPosition) { store.updatePosition(editingPosition.id, data); setEditingPosition(null) }
@@ -941,8 +1344,10 @@ export default function PortfolioView() {
       signalLabel: c.label,
       entryPrice: c.close ?? 0,
       entryDate: today,
-      shares: 100, // default paper size
-      stopLoss: c.close !== null ? +(c.close * 0.9).toFixed(2) : null, // −10% hard stop
+      shares: c.close !== null && c.close > 0
+        ? Math.max(1, Math.floor(maxSingleStockValue(store.config) / c.close))
+        : 1,
+      stopLoss: c.close !== null ? +(c.close * (1 + store.config.risk.hardStopPct)).toFixed(2) : null,
       exitPrice: null,
       exitDate: null,
       exitReason: '',
@@ -962,19 +1367,25 @@ export default function PortfolioView() {
 
   return (
     <div className={styles.portfolio}>
-      <section className={styles.regimeBanner}>
-        <div className={styles.regimeBadge} data-regime={regime}>
-          <span>Market Regime</span>
-          <strong>{regime === 'long_friendly' ? 'RISK_ON ↗' : regime === 'short_friendly' ? 'RISK_OFF ↘' : 'NEUTRAL →'}</strong>
-        </div>
-        <div className={styles.regimeRules}>
-          <span>Cash floor: {regime === 'long_friendly' ? '5%' : regime === 'short_friendly' ? '30%' : '15%'}</span>
-          <span>Max new/month: {RISK_LIMITS.maxNewPerMonth}</span>
-          <span>Max positions: {RISK_LIMITS.maxPositions}</span>
-          <span>Hard stop: −10%</span>
-        </div>
-      </section>
+      <ConfigBar cfg={store.config} onApplyPreset={store.applyPreset} onUpdateConfig={store.updateConfig} />
+      <PortfolioSubNav active={subTab} onChange={setSubTab} />
 
+      {subTab === 'etf' && (
+        <EtfAllocationTab
+          cfg={store.config}
+          etfTargets={store.etfTargets}
+          onAddEtf={(ticker, allocPct) => store.addEtfTarget({ ticker, name: ticker, allocationPct: allocPct })}
+          onRemoveEtf={store.removeEtfTarget}
+          onUpdateEtf={(id, allocPct) => store.updateEtfTarget(id, { allocationPct: allocPct })}
+        />
+      )}
+
+      {subTab === 'plan' && (
+        <PlanReferenceTab activePresetId={store.config.presetId} onApplyPreset={store.applyPreset} />
+      )}
+
+      {subTab === 'portfolio' && (
+      <>
       {alerts.length > 0 && (
         <section className={styles.alertsSection}>
           {alerts.map((a, i) => (
@@ -985,13 +1396,19 @@ export default function PortfolioView() {
         </section>
       )}
 
-      <PortfolioPnLSummary positions={store.positions} />
+      <PortfolioPnLSummary
+        positions={store.positions}
+        etfTargets={store.etfTargets}
+        cfg={store.config}
+        onAddEtf={(ticker, allocPct) => store.addEtfTarget({ ticker, name: ticker, allocationPct: allocPct })}
+        onRemoveEtf={store.removeEtfTarget}
+      />
 
       <section className={styles.panelCard}>
         <div className={styles.sectionHeader}>
-          <div><h2>Allocation / 配置概覽</h2><p className={styles.subtle}>Phase 1 capital: HK$500,000 · manual entry via Futu</p></div>
+          <div><h2>Allocation / 配置概覽</h2><p className={styles.subtle}>Capital base {fmtMoney(store.config.capitalBase, store.config.currency)} · manual entry via Futu</p></div>
         </div>
-        <AllocationSummary positions={store.positions} />
+        <AllocationSummary positions={store.positions} cfg={store.config} />
       </section>
 
       <section className={styles.panelCard}>
@@ -1003,14 +1420,14 @@ export default function PortfolioView() {
         {store.positions.length === 0 ? (
           <div className={styles.emptyState}>
             <p>No positions yet. Add your first position above.</p>
-            <p className={styles.subtle}>ETF reference: SPY 40%, QQQ 25%, IWM 15%, GLD 10%, SGOV 10% of HK$300K ETF base.</p>
+            <p className={styles.subtle}>ETF reference: see ETF Base Target card above.</p>
           </div>
         ) : (
           <div className={styles.tableWrap}>
             <table className={styles.positionsTable}>
               <thead><tr><th>Ticker</th><th className={styles.numHeader}>Shares</th><th className={styles.numHeader}>Entry $</th><th className={styles.numHeader}>Live $</th><th className={styles.numHeader}>Cost Basis</th><th className={styles.numHeader}>P&L</th><th className={styles.numHeader}>Stop</th><th className={styles.numHeader}>Days</th><th></th></tr></thead>
               <tbody>
-                {store.positions.map(p => <PositionRow key={p.id} pos={p} onEdit={id => { const pos = store.positions.find(x => x.id === id); if (pos) { setEditingPosition(pos); setShowAddPosition(true) } }} onRemove={store.removePosition} />)}
+                {store.positions.map(p => <PositionRow key={p.id} pos={p} onEdit={id => { const pos = store.positions.find(x => x.id === id); if (pos) { setEditingPosition(pos); setShowAddPosition(true) } }} onRemove={store.removePosition} prevClose={prevCloseMap[p.ticker]} hardStopPct={store.config.risk.hardStopPct} />)}
               </tbody>
             </table>
           </div>
@@ -1024,7 +1441,9 @@ export default function PortfolioView() {
           <div><h2>Decision Cockpit / 決策艙</h2><p className={styles.subtle}>Weekly screener candidates + trade journal.</p></div>
         </div>
         <div className={styles.cockpitGrid}>
-          <ScreenerPanel onTrackCandidate={handleTrackCandidate} />
+          <div ref={screenerRef}>
+            <ScreenerPanel onTrackCandidate={handleTrackCandidate} />
+          </div>
           <div className={styles.cockpitCard}>
             <div className={styles.journalHeader}>
               <h3>Trade Journal / 交易日誌</h3>
@@ -1059,6 +1478,9 @@ export default function PortfolioView() {
           paperPositions={store.paperPositions}
           onClose={handleClosePaper}
           onRemove={store.removePaperPosition}
+          prevCloseMap={prevCloseMap}
+          hardStopPct={store.config.risk.hardStopPct}
+          onGoToScreener={() => screenerRef.current?.scrollIntoView({ behavior: 'smooth' })}
         />
       </section>
 
@@ -1077,6 +1499,8 @@ export default function PortfolioView() {
           <li>Position data is browser-local. No cloud sync. Export/backup not yet built.</li>
         </ul>
       </section>
+      </>
+      )}
     </div>
   )
 }

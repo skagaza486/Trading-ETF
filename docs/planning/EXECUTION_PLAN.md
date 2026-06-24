@@ -36,6 +36,13 @@ Phase 2 (3 months): HK$1,500,000 (ETF 50% + Stocks 40% + Cash 10%)
 Phase 3 (6 months): HK$5,000,000 full (ETF 40% + Stocks 40% + Cash 10% + Alts 10%)
 ```
 
+> **Currency note (2026-06-24):** the Portfolio tool runs **all-USD** — instruments are US
+> ETFs/stocks traded via Futu, so cost basis and live prices stay in one currency. The HKD
+> figures above remain the capital-tier source of truth; the tool's presets carry USD
+> equivalents (@~7.8): Phase 1 ≈ US$64K, Phase 2 ≈ US$192K, Phase 3 ≈ US$640K. Risk limits are
+> stored as **% of capital base** (`portfolioConfig.ts`), so they hold across all three phases.
+> Capital base + currency are user-editable in the tool's config bar.
+
 ---
 
 ## 2. Risk Control (unchallenged, non-negotiable)
@@ -82,6 +89,14 @@ ETFs are beta instruments. No edge claim. No backtest needed.
 | T1.2 | Buy SPY/QQQ/IWM/GLD/SGOV (split over 2–3 days) | 5 ETF positions in Futu |
 | T1.3 | Set calendar reminder: monthly rebalance (1st trading day) | Reminder exists |
 | T1.4 | Monthly: check regime → adjust ETF weights per §3 rules | Done monthly |
+
+**ETF Allocation Model (Portfolio → ETF 配置 tab, Claude 2026-06-24):** a transparent,
+rules-based diversification view — **explicitly not a signal** (consistent with "no edge claim").
+Each ETF maps to an asset-class *sleeve* + *role* + an illustrative correlation-to-SPY
+(`ETF_REFERENCE` in `portfolioConfig.ts`). It surfaces what the basket actually *is*: e.g.
+SPY+QQQ+IWM are ~0.85–0.95 correlated (one equity-beta bet); the real ballast is GLD + SGOV.
+Shows equity-beta % vs true-diversifier % and flags >85% equity-beta concentration. Correlation
+figures are long-run references, not live-computed — they show behaviour, not precision.
 
 ### Track 2: Stock Funnel — PAPER-VALIDATE FIRST
 

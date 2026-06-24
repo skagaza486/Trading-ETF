@@ -516,7 +516,7 @@ export function MarketView() {
 
       <section className={styles.heroCard}>
         <div className={styles.heroTop}>
-          <div>
+          <div className={styles.heroLeft}>
             <span className={styles.heroEyebrow}>今日市場</span>
             <h1 className={styles.heroTitle}>{hero.title}</h1>
             <p className={styles.heroAction}>{hero.action}</p>
@@ -527,15 +527,11 @@ export function MarketView() {
               <strong>{hero.confidence} / 100</strong>
             </div>
             <div className={styles.heroProgress}>
-              <svg width="48" height="48" viewBox="0 0 48 48" style={{ display: 'block' }}>
-                <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
-                <circle cx="24" cy="24" r="20" fill="none"
-                  stroke={hero.confidence >= 60 ? 'var(--color-gain)' : hero.confidence >= 40 ? 'var(--color-warn)' : 'var(--color-loss)'}
-                  strokeWidth="4" strokeDasharray={`${(hero.confidence / 100) * 125.6} 125.6`}
-                  strokeLinecap="round" transform="rotate(-90 24 24)" style={{ transition: 'stroke-dasharray 0.5s' }} />
-                <text x="24" y="24" textAnchor="middle" dominantBaseline="central"
-                  fill="var(--text-primary)" fontSize="14" fontWeight="700">{hero.confidence}</text>
-              </svg>
+              <div className={styles.progressTrack}>
+                <div className={styles.progressFill}
+                  style={{ width: `${hero.confidence}%` }}
+                  data-level={hero.confidence >= 60 ? 'high' : hero.confidence >= 40 ? 'mid' : 'low'} />
+              </div>
             </div>
             <div className={styles.heroScale}>
               <span>保守</span>

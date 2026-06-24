@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { type PortfolioConfig, DEFAULT_CONFIG, BUILTIN_PRESETS } from './portfolioConfig'
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -51,45 +52,69 @@ export type PortfolioData = {
   positions: PortfolioPosition[]
   journal: JournalEntry[]
   paperPositions: PaperPosition[]
+  etfTargets: ETFTarget[]
+  config: PortfolioConfig
 }
 
-// Risk limits from EXECUTION_PLAN §2
-export const RISK_LIMITS = {
-  maxSingleStockHKD: 50_000,
-  maxSingleSectorPct: 0.25,
-  maxPositions: 15,
-  hardStopPct: -0.10,
-  trailingStopPct: -0.20,
-  minCashPct: { RISK_ON: 0.05, NEUTRAL: 0.15, RISK_OFF: 0.30 },
-  maxNewPerMonth: 4,
-  consecutiveLossPause: 3,
+// ETF Target Allocation
+export type ETFTarget = {
+  id: string
+  ticker: string
+  name: string
+  allocationPct: number // e.g. 40 for 40%
+  sleeve: string // role label: 核心 / 增長 / 收入 / 小型 / 避險 / 現金
 }
 
-const STORAGE_KEY = 'portfolio_v2'
+const DEFAULT_ETF_TARGETS: ETFTarget[] = [
+  { id: 'etf-default-spy', ticker: 'SPY', name: 'S&P 500', allocationPct: 35, sleeve: '核心' },
+  { id: 'etf-default-qqq', ticker: 'QQQ', name: 'Nasdaq 100', allocationPct: 15, sleeve: '增長' },
+  { id: 'etf-default-jepq', ticker: 'JEPQ', name: 'JPM Nasdaq Equity Premium Inc', allocationPct: 10, sleeve: '收入' },
+  { id: 'etf-default-iwm', ticker: 'IWM', name: 'Russell 2000', allocationPct: 15, sleeve: '小型' },
+  { id: 'etf-default-gld', ticker: 'GLD', name: 'Gold', allocationPct: 10, sleeve: '避險' },
+  { id: 'etf-default-sgov', ticker: 'SGOV', name: 'T-Bills 0-3M', allocationPct: 10, sleeve: '現金' },
+]
+
+const STORAGE_KEY = 'portfolio_v3'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function loadFromStorage(): PortfolioData {
+  const base: PortfolioData = {
+    positions: [], journal: [], paperPositions: [],
+    etfTargets: DEFAULT_ETF_TARGETS, config: DEFAULT_CONFIG,
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    // migrate v1 → v2 (add paperPositions)
-    if (!raw) {
-      const v1Raw = localStorage.getItem('portfolio_v1')
-      if (v1Raw) {
-        const v1 = JSON.parse(v1Raw)
-        return { positions: v1.positions ?? [], journal: v1.journal ?? [], paperPositions: [] }
-      }
-      return { positions: [], journal: [], paperPositions: [] }
-    }
-    const parsed = JSON.parse(raw) as PortfolioData
+      // migrate v2 → v3 (add config) then v1 → v2 (add paperPositions)
+      ?? localStorage.getItem('portfolio_v2')
+      ?? localStorage.getItem('portfolio_v1')
+    if (!raw) return base
+    const parsed = JSON.parse(raw) as Partial<PortfolioData>
     return {
       positions: Array.isArray(parsed.positions) ? parsed.positions : [],
       journal: Array.isArray(parsed.journal) ? parsed.journal : [],
       paperPositions: Array.isArray(parsed.paperPositions) ? parsed.paperPositions : [],
+      etfTargets: Array.isArray(parsed.etfTargets) && parsed.etfTargets.length > 0 ? parsed.etfTargets : DEFAULT_ETF_TARGETS,
+      config: resolveConfig(parsed.config),
     }
   } catch {
-    return { positions: [], journal: [], paperPositions: [] }
+    return base
   }
+}
+
+function isValidConfig(c: unknown): c is PortfolioConfig {
+  return !!c && typeof c === 'object'
+    && typeof (c as PortfolioConfig).capitalBase === 'number'
+    && !!(c as PortfolioConfig).risk
+}
+
+// Built-in presets always reflect the latest code (so HKD→USD, rule tweaks,
+// etc. propagate to existing localStorage). Only 'custom' configs are kept
+// verbatim from storage.
+function resolveConfig(stored: unknown): PortfolioConfig {
+  if (!isValidConfig(stored)) return DEFAULT_CONFIG
+  if (stored.presetId === 'custom') return stored
+  return BUILTIN_PRESETS.find(p => p.presetId === stored.presetId) ?? DEFAULT_CONFIG
 }
 
 function saveToStorage(data: PortfolioData) {
@@ -178,6 +203,54 @@ export function usePortfolioStore() {
     }))
   }, [])
 
+  // ── ETF Targets CRUD ──────────────────────────────────────────────
+
+  const addEtfTarget = useCallback((target: Omit<ETFTarget, 'id'>) => {
+    const id = crypto.randomUUID()
+    setData(prev => ({
+      ...prev,
+      etfTargets: [...prev.etfTargets, { ...target, id }],
+    }))
+    return id
+  }, [])
+
+  const updateEtfTarget = useCallback((id: string, patch: Partial<Omit<ETFTarget, 'id'>>) => {
+    setData(prev => ({
+      ...prev,
+      etfTargets: prev.etfTargets.map(t => (t.id === id ? { ...t, ...patch } : t)),
+    }))
+  }, [])
+
+  const removeEtfTarget = useCallback((id: string) => {
+    setData(prev => ({
+      ...prev,
+      etfTargets: prev.etfTargets.filter(t => t.id !== id),
+    }))
+  }, [])
+
+  // ── Config / preset ────────────────────────────────────────────────
+
+  const applyPreset = useCallback((presetId: string) => {
+    const preset = BUILTIN_PRESETS.find(p => p.presetId === presetId)
+    if (!preset) return
+    setData(prev => ({ ...prev, config: { ...preset, risk: { ...preset.risk, minCashPct: { ...preset.risk.minCashPct } } } }))
+  }, [])
+
+  const updateConfig = useCallback((patch: Partial<PortfolioConfig>) => {
+    setData(prev => ({
+      ...prev,
+      // any manual edit detaches from the named preset
+      config: { ...prev.config, ...patch, presetId: 'custom', presetName: patch.presetName ?? 'Custom' },
+    }))
+  }, [])
+
+  const updateRisk = useCallback((patch: Partial<PortfolioConfig['risk']>) => {
+    setData(prev => ({
+      ...prev,
+      config: { ...prev.config, presetId: 'custom', presetName: 'Custom', risk: { ...prev.config.risk, ...patch } },
+    }))
+  }, [])
+
   // ── Derived ────────────────────────────────────────────────────
 
   const positionsByTier = useCallback(() => {
@@ -201,6 +274,11 @@ export function usePortfolioStore() {
     positions: data.positions,
     journal: data.journal,
     paperPositions: data.paperPositions,
+    etfTargets: data.etfTargets,
+    config: data.config,
+    applyPreset,
+    updateConfig,
+    updateRisk,
     addPosition,
     updatePosition,
     removePosition,
@@ -209,6 +287,9 @@ export function usePortfolioStore() {
     addPaperPosition,
     updatePaperPosition,
     removePaperPosition,
+    addEtfTarget,
+    updateEtfTarget,
+    removeEtfTarget,
     positionsByTier,
     sectorAllocation,
   }

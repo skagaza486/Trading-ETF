@@ -83,3 +83,29 @@ Portfolio tab renders; positions persist across reload (localStorage); P&L + ris
 regime show correctly; journal captures entry reasons; cockpit lists candidates with the
 limitations note; `tsc` clean. Awaiting user OK for `vite build && wrangler deploy`.
 Updated task matrix in `MULTI_AI_WORKFLOW.md`.
+
+## Update → v2 refactor (Claude, 2026-06-24, deployed `trading-etf` d0b354b8)
+
+Claude reclaimed Zone D briefly (user-directed) to address two product gaps — **tool/plan
+conflation** and **ETF-basket has no rationale**. Changes:
+
+- **`portfolioConfig.ts` (new):** config/preset model. Risk limits are now `% of capitalBase`
+  (not absolute), and the personal 3-phase plan is DATA (`BUILTIN_PRESETS`), not hard-coded into
+  components. Store → `portfolio_v3`; built-in presets auto-resolve from code on load (preset edits
+  propagate; only `custom` kept verbatim). Migration preserves positions/journal/paper/etfTargets.
+- **All-USD:** instruments are USD via Futu → presets converted HKD→USD @~7.8 (P1 US$64K / P2 US$192K
+  / P3 US$640K); cost basis + Yahoo live price now share one currency. Config bar lets the user
+  change capital base / currency / ETF base %.
+- **Sub-tabs:** `組合 | ETF 配置 | 計劃參考` (in-page, no new bottom-nav item).
+- **ETF Allocation Model** (`ETF_REFERENCE`): transparent rules-based diversification view
+  (sleeve/role/corr, equity-beta vs ballast %), explicitly **not a signal** — answers "why these
+  ETFs" by exposing correlation structure (SPY/QQQ/IWM ≈ one bet; GLD+SGOV = real ballast).
+- **Plan tab:** read-only worked example of the 3-phase plan + §2 risk table + honest limitations;
+  one-click "Apply" loads a phase as preset.
+- Implemented the previously-missing §2 **single-sector 25% concentration alert**.
+
+⚠️ **Known-deferred bugs (flagged to user, NOT fixed this pass):** intraday `prevClose` day-change
+is wrong (uses prior intraday bar); `:has-text()` in paper-tracker "Go to Screener" is invalid CSS
+→ crashes on click; "Proj. Annual" stat is forward-looking-biased; journal stores no realised P&L
+(so consecutive-loss check is a proxy); no export/backup of localStorage. Next Zone-D owner: clear
+these.

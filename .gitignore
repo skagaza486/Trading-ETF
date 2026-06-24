@@ -25,3 +25,6 @@ models/folds_*.json
 
 # Third-party VS Code extension accidentally checked out into the repo root
 deepseek-v4-for-copilot/
+
+# Claude Code local settings
+.claude/

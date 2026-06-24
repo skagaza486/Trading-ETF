@@ -89,9 +89,22 @@ multi-AI collaboration rules now live in **[`docs/planning/`](docs/planning/)** 
 - **Frozen (run passively, not developed):** ML retrain, SignalPilot SP-5→SP-8, GATE_EDGE_v2.
 - **Reused unchanged:** snapshot pipeline, D1, signal engine, regime, PIT universe.
 - **Completed (T2.7–T2.11 by DeepSeek, 2026-06-24):** Screener extension → Portfolio cockpit → Paper
-  P&L tracker → System Signal Reference → Visual polish across all tabs. All deployed to
-  `trading-etf` (version 4beb21c7). Stock funnel is a **paper-validated discretionary heuristic,
-  not a backtested edge** — see EXECUTION_PLAN §9 limitations.
+  P&L tracker → System Signal Reference → Visual polish across all tabs. Stock funnel is a
+  **paper-validated discretionary heuristic, not a backtested edge** — see EXECUTION_PLAN §9 limitations.
+- **Portfolio v2 refactor (Claude, 2026-06-24, deployed `trading-etf` version d0b354b8):**
+  - **Tool / plan separation:** `src/web/features/portfolio/portfolioConfig.ts` — risk limits are now
+    `% of capitalBase` (never absolute), and the personal 3-phase plan is DATA (`BUILTIN_PRESETS`),
+    not logic baked into components. Store bumped to `portfolio_v3`; built-in presets auto-resolve
+    from code on load (so preset edits propagate; only `custom` configs are kept verbatim).
+  - **All-USD:** personal presets converted HKD→USD @~7.8 (Phase 1 US$64K / 2 US$192K / 3 US$640K);
+    cost basis + Yahoo live price now share one currency.
+  - **Sub-tabs:** `組合 | ETF 配置 | 計劃參考` inside the Portfolio view (no new bottom-nav item).
+  - **ETF Allocation Model** (`ETF_REFERENCE` sleeve/role/corr table): transparent rules-based
+    diversification view (sleeve grouping, equity-beta vs ballast %), explicitly **not a signal**.
+  - Added the previously-unimplemented §2 single-sector 25% concentration alert.
+  - ⚠️ Known-deferred (flagged, not fixed): intraday prevClose day-change bug, `:has-text()` crash in
+    paper-tracker "Go to Screener", forward-looking "Proj. Annual" stat, journal has no realised P&L,
+    no export/backup.
 - **In progress (Claude):** fundamentals pipeline (T2.4–T2.5); medium-term return settlement
   (T2.2 — code done, pending GH Actions verification).
 - The "Current sprint (5-day edge)" section below is **historical** — superseded by the pivot.

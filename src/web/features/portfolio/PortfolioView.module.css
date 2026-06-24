@@ -69,66 +69,113 @@
   font-style: italic;
 }
 
-/* ── Regime Banner ─────────────────────────────────────────────────── */
+/* ── ETF Target Chips ──────────────────────────────────────────────── */
 
-.regimeBanner {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 16px 22px;
+.inlineAddBtn {
+  margin-left: 6px;
+  padding: 0 4px;
   border: 1px solid var(--border-faint);
-  border-radius: var(--r-md);
-  background: var(--bg-surface);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
 }
-
-.regimeBadge {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 16px;
-  border-radius: var(--r-sm);
+.inlineAddBtn:hover {
   background: var(--accent-dim);
-  border: 1px solid var(--border-subtle);
-}
-
-.regimeBadge span {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-
-.regimeBadge strong {
-  font-size: 1rem;
-  font-weight: 700;
   color: var(--accent);
 }
 
-.regimeBadge[data-regime="short_friendly"] {
-  background: rgba(255, 123, 123, 0.12);
-  border-color: rgba(255, 123, 123, 0.2);
+.addEtfRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 2px;
 }
 
-.regimeBadge[data-regime="short_friendly"] strong {
+.etfInput {
+  width: 56px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-faint);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-family: inherit;
+}
+
+.etfAllocInput {
+  width: 40px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-faint);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.7rem;
+  font-family: inherit;
+}
+
+.unit {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.etfAddBtn {
+  padding: 2px 6px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.65rem;
+}
+.etfAddBtn:hover {
+  background: var(--accent-dim);
+}
+
+.etfChipSleeve {
+  font-size: 0.6rem;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.etfChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  margin-bottom: 2px;
+  padding: 1px 5px;
+  border: 1px solid var(--border-faint);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.etfChipRemove {
+  margin-left: 1px;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.etfChipRemove:hover {
   color: var(--color-loss);
 }
 
-.regimeBadge[data-regime="neutral"] {
-  background: rgba(255, 191, 60, 0.08);
-  border-color: rgba(255, 191, 60, 0.16);
-}
-
-.regimeBadge[data-regime="neutral"] strong {
+.etfWarn {
   color: var(--color-warn);
+  font-size: 0.65rem;
 }
 
-.regimeRules {
-  display: flex;
-  gap: 18px;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-}
+/* ── Regime Banner ─────────────────────────────────────────────────── */
 
 /* ── Alerts ─────────────────────────────────────────────────────────── */
 
@@ -726,14 +773,6 @@
   .pnlSummary {
     grid-template-columns: 1fr;
   }
-  .regimeBanner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .regimeRules {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
 }
 
 /* ── Screener Panel ─────────────────────────────────────────────────── */
@@ -1183,4 +1222,143 @@
   .refSummary { grid-template-columns: 1fr 1fr; }
   .refSummaryCard { padding: 7px 8px; }
   .refSummaryCard strong { font-size: 0.82rem; }
+}
+
+/* ── Config bar ─────────────────────────────────────────────────── */
+.configBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-faint);
+  border-radius: var(--r-sm);
+  background: var(--bg-elevated);
+}
+.configField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.configField span {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.configField input,
+.configField select {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-sm);
+  color: var(--text-primary);
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  min-width: 110px;
+}
+.configHint {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* ── Sub-tab navigation ─────────────────────────────────────────── */
+.subNav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-faint);
+}
+.subNavItem,
+.subNavActive {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.subNavItem:hover { color: var(--text-secondary); }
+.subNavActive {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+/* ── ETF sleeve breakdown ───────────────────────────────────────── */
+.sleeveList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sleeveRow {
+  display: grid;
+  grid-template-columns: 150px 1fr 48px;
+  align-items: center;
+  gap: 12px;
+}
+.sleeveName {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.sleeveBarTrack {
+  height: 14px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.sleeveBarFill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: width 0.4s;
+}
+.sleevePct {
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.sleeveTag {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.etfRoleCell {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* Sleeve colour coding — equity beta = warm (correlated), ballast = cool */
+.sleeveBarFill[data-sleeve="US Equity Beta"],
+.sleeveTag[data-sleeve="US Equity Beta"] { background: #d97757; color: #fff; }
+.sleeveBarFill[data-sleeve="Growth"],
+.sleeveTag[data-sleeve="Growth"] { background: #e0a458; color: #1a1a1a; }
+.sleeveBarFill[data-sleeve="Small/Mid Cap"],
+.sleeveTag[data-sleeve="Small/Mid Cap"] { background: #c2873f; color: #fff; }
+.sleeveBarFill[data-sleeve="Intl Equity"],
+.sleeveTag[data-sleeve="Intl Equity"] { background: #6b8fb5; color: #fff; }
+.sleeveBarFill[data-sleeve="Gold / Real Assets"],
+.sleeveTag[data-sleeve="Gold / Real Assets"] { background: #d4af37; color: #1a1a1a; }
+.sleeveBarFill[data-sleeve="Bonds / Cash"],
+.sleeveTag[data-sleeve="Bonds / Cash"] { background: #5fa777; color: #fff; }
+.sleeveBarFill[data-sleeve="Other"],
+.sleeveTag[data-sleeve="Other"] { background: rgba(255,255,255,0.18); }
+
+.allocCardActive {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+@media (max-width: 640px) {
+  .sleeveRow { grid-template-columns: 110px 1fr 40px; gap: 8px; }
+  .configHint { margin-left: 0; flex-basis: 100%; }
 }
