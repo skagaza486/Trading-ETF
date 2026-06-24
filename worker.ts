@@ -463,50 +463,84 @@ async function handleSignalsRead(env: Env, url: URL): Promise<Response> {
   const label = url.searchParams.get('label') ?? null
   const days = Math.min(parseInt(url.searchParams.get('days') ?? '365', 10), 730)
   const pointInTime = url.searchParams.get('point_in_time') === '1'
+  // Opt-in: include signals whose forward returns are not yet settled (ret5d IS NULL).
+  // Default stays settled-only so the Verify/Quant Lab tab is unaffected. SP-4 shadow
+  // inference needs fresh, unsettled signals (+ indicators_json) to score them live.
+  const includeUnsettled = url.searchParams.get('settled') === '0'
+    || url.searchParams.get('include_unsettled') === '1'
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-  const cols = [
+  const baseCols = [
     'ticker', 'signal_date', 'label', 'regime',
     'research_flags', 'rvol',
     'close_at_signal', 'next_open', 'ret1d', 'ret3d', 'ret5d', 'ret10d',
     'ret5d_vs_spy', 'ret10d_vs_spy',
     'mfe5d', 'mae5d', 'mfe10d', 'mae10d',
     'earnings_in_window', 'suggested_stop_loss', 'stop_loss_hit', 'atr_at_signal'
-  ].join(', ')
+  ]
+  // Only ship the heavy indicators_json + the extra ML feature columns when an inference client
+  // asks for unsettled rows — keeps the default Verify-tab payload lean. rs_rank/rs_vs_spy/
+  // ema50_slope are top-level snake_case columns the training export reads directly (not inside
+  // indicators_json), so build_features.py picks them up without a rename.
+  const cols = (includeUnsettled
+    ? [...baseCols, 'previous_label', 'rs_rank', 'rs_vs_spy', 'ema50_slope', 'indicators_json']
+    : baseCols
+  ).join(', ')
 
+  const settledClause = includeUnsettled ? '' : ' AND ret5d IS NOT NULL'
   const baseWhere = label
-    ? 'WHERE signal_date >= ? AND label = ? AND ret5d IS NOT NULL'
-    : 'WHERE signal_date >= ? AND ret5d IS NOT NULL'
+    ? `WHERE signal_date >= ? AND label = ?${settledClause}`
+    : `WHERE signal_date >= ?${settledClause}`
 
   const query = `SELECT ${cols} FROM signals ${baseWhere} ORDER BY signal_date DESC, ticker LIMIT 5000`
   const params = label ? [since, label] : [since]
   const { results } = await env.trading_etf_db.prepare(query).bind(...params).all()
 
-  // Shape rows into ForwardReturnRecord for client consumption
-  const rawRecords: ForwardReturnRecord[] = (results as Record<string, unknown>[]).map(row => ({
-    signalDate: row.signal_date as string,
-    ticker: row.ticker as string,
-    label: row.label as ForwardReturnRecord['label'],
-    closeAtSignal: (row.close_at_signal as number) ?? 0,
-    nextOpen: row.next_open as number | null,
-    ret1d: row.ret1d as number | null,
-    ret3d: row.ret3d as number | null,
-    ret5d: row.ret5d as number | null,
-    ret10d: row.ret10d as number | null,
-    ret5dVsSpy: row.ret5d_vs_spy as number | null,
-    ret10dVsSpy: row.ret10d_vs_spy as number | null,
-    mfe5d: row.mfe5d as number | null,
-    mfe10d: row.mfe10d as number | null,
-    mae5d: row.mae5d as number | null,
-    mae10d: row.mae10d as number | null,
-    earningsInWindow: row.earnings_in_window === 1,
-    regimeAtSignal: (row.regime as ForwardReturnRecord['regimeAtSignal']) ?? 'neutral',
-    researchFlags: row.research_flags ? (row.research_flags as string).split(',').filter(Boolean) as ForwardReturnRecord['researchFlags'] : [],
-    rvolAtSignal: row.rvol as number | null,
-    atrAtSignal: row.atr_at_signal as number | null,
-    suggestedStopLoss: row.suggested_stop_loss as number | null,
-    stopLossHit: row.stop_loss_hit === null ? null : row.stop_loss_hit === 1,
-  }))
+  // Shape rows into ForwardReturnRecord for client consumption. When includeUnsettled is set we
+  // attach the raw snake_case fields the ML feature pipeline (build_features.py) reads directly.
+  type SignalRecord = ForwardReturnRecord & {
+    indicators_json?: string | null
+    previous_label?: string | null
+    regime?: string | null
+    rs_rank?: number | null
+    rs_vs_spy?: number | null
+    ema50_slope?: number | null
+  }
+  const rawRecords: SignalRecord[] = (results as Record<string, unknown>[]).map(row => {
+    const rec: SignalRecord = {
+      signalDate: row.signal_date as string,
+      ticker: row.ticker as string,
+      label: row.label as ForwardReturnRecord['label'],
+      closeAtSignal: (row.close_at_signal as number) ?? 0,
+      nextOpen: row.next_open as number | null,
+      ret1d: row.ret1d as number | null,
+      ret3d: row.ret3d as number | null,
+      ret5d: row.ret5d as number | null,
+      ret10d: row.ret10d as number | null,
+      ret5dVsSpy: row.ret5d_vs_spy as number | null,
+      ret10dVsSpy: row.ret10d_vs_spy as number | null,
+      mfe5d: row.mfe5d as number | null,
+      mfe10d: row.mfe10d as number | null,
+      mae5d: row.mae5d as number | null,
+      mae10d: row.mae10d as number | null,
+      earningsInWindow: row.earnings_in_window === 1,
+      regimeAtSignal: (row.regime as ForwardReturnRecord['regimeAtSignal']) ?? 'neutral',
+      researchFlags: row.research_flags ? (row.research_flags as string).split(',').filter(Boolean) as ForwardReturnRecord['researchFlags'] : [],
+      rvolAtSignal: row.rvol as number | null,
+      atrAtSignal: row.atr_at_signal as number | null,
+      suggestedStopLoss: row.suggested_stop_loss as number | null,
+      stopLossHit: row.stop_loss_hit === null ? null : row.stop_loss_hit === 1,
+    }
+    if (includeUnsettled) {
+      rec.indicators_json = (row.indicators_json as string | null) ?? null
+      rec.previous_label = (row.previous_label as string | null) ?? null
+      rec.regime = (row.regime as string | null) ?? null
+      rec.rs_rank = (row.rs_rank as number | null) ?? null
+      rec.rs_vs_spy = (row.rs_vs_spy as number | null) ?? null
+      rec.ema50_slope = (row.ema50_slope as number | null) ?? null
+    }
+    return rec
+  })
 
   let records = rawRecords
   let coveredMonths: string[] = []

@@ -49,11 +49,16 @@ export async function handleSp4Shadow(request: Request, env: Env): Promise<Respo
   const rows = body.inferences as InferenceRow[]
   const now = new Date().toISOString()
   let written = 0
+  let skipped = 0          // dropped for missing required fields
+  let duplicates = 0       // UNIQUE-constraint conflicts (idempotent re-runs)
 
   for (const r of rows) {
-    if (!r.id || !r.inferenceDate || !r.ticker || !r.modelRunId) continue
+    if (!r.id || !r.inferenceDate || !r.ticker || !r.modelRunId) {
+      skipped++
+      continue
+    }
     try {
-      await env.SIGNALPILOT_DB.prepare(`
+      const res = await env.SIGNALPILOT_DB.prepare(`
         INSERT OR IGNORE INTO sp4_shadow_inferences
           (id, inference_date, account_id, ticker, signal_date, signal_label,
            prob_take, decision, model_run_id, schema_version, feature_hash, created_at)
@@ -72,13 +77,19 @@ export async function handleSp4Shadow(request: Request, env: Env): Promise<Respo
         r.featureHash ?? '',
         now,
       ).run()
-      written++
-    } catch {
-      // skip duplicate (UNIQUE constraint) silently
+      // INSERT OR IGNORE: a UNIQUE conflict yields 0 changes rather than throwing.
+      if (res.meta.changes > 0) written++
+      else duplicates++
+    } catch (err) {
+      // A genuine error here (FK violation, NOT NULL, schema drift) must NOT be silently
+      // swallowed — that masked an unregistered-model FK bug for weeks. Surface it.
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(`sp4.shadow insert failed for ${r.id} (${r.ticker}): ${message}`)
+      return jsonError(`Insert failed for ${r.ticker}: ${message}`, 500)
     }
   }
 
-  return json({ written, total: rows.length, date: rows[0]?.inferenceDate })
+  return json({ written, duplicates, skipped, total: rows.length, date: rows[0]?.inferenceDate })
 }
 
 // GET /api/sp4/shadow — read recent inferences

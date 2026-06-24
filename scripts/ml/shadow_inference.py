@@ -93,7 +93,9 @@ def load_model_and_meta(meta_path: pathlib.Path | None) -> tuple[object, dict]:
 
 def fetch_today_signals(date: str) -> pd.DataFrame:
     url = f"{ETF_WORKER_URL}/api/d1/signals"
-    resp = requests.get(url, params={"days": 2}, timeout=30)
+    # settled=0 → include today's unsettled signals (ret5d not yet known) and ship indicators_json;
+    # days=7 buffers across weekends/holidays so the requested date is always inside the window.
+    resp = requests.get(url, params={"days": 7, "settled": 0}, timeout=30)
     resp.raise_for_status()
     data = resp.json()
     rows = data.get("records", data) if isinstance(data, dict) else data
@@ -125,7 +127,8 @@ def fetch_today_signals(date: str) -> pd.DataFrame:
 
 def build_inference_features(df_signals: pd.DataFrame, feat_cols: list[str]) -> np.ndarray:
     schema = json.loads(SCHEMA_PATH.read_text())
-    features_df, _ = build(df_signals, schema)
+    # build() returns (features_df, targets, dropped); we only need features here.
+    features_df, *_ = build(df_signals, schema)
     available = [c for c in feat_cols if c in features_df.columns]
     missing   = [c for c in feat_cols if c not in features_df.columns]
     if missing:

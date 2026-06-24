@@ -156,11 +156,35 @@ python3 scripts/ml/evaluate.py --meta models/meta_v1.0.0_<run_id>.json --baselin
 
 ### Key data health
 
-> Single source of truth = `/api/d1/research-health`. Do not restate these numbers elsewhere; link here.
-> **Reconciled 2026-06-24 by DeepSeek (T2.0 ✅).**
+> Single source of truth = `/api/d1/research-health`. Do not restate live counts here; query the
+> endpoint. The notes below are qualitative/structural only.
+> **Last reconciled 2026-06-24 by DeepSeek (T2.0); counts drift daily as snapshots settle.**
 
-- `signals` total: **101,171** (100,582 settled with forward returns); eligible (LONG_BREAK/VCP/BOUNCE with ret5d_vs_spy settled): **536** (was 422 at 2026-06-23 — more signals settled since). Earnings ratio: **3.16%** (3,196 / 101,171).
-- `indicators_json` coverage: 419/422 was stale — recompute from /api/d1/research-health.
-- `earnings_ratio_pct`: **3.16%** verified 2026-06-24 (3,196 / 101,171; SEC Edgar; target ~11% — acceptable for training).
+- `signals`: grows daily as the nightly snapshot ingests + settles forward returns. For exact
+  totals, settled count, eligible (LONG_BREAK/VCP/BOUNCE) count, and date span → query
+  `/api/d1/research-health`. (As of 2026-06-24 it reported ~103.8k signals, ~102.3k settled.)
+- `indicators_json` coverage: recompute from `/api/d1/research-health` — do not trust any hardcoded ratio.
+- `earnings_ratio_pct`: **~2.8% as of 2026-06-24** (down from 3.16% — total signals grew faster than
+  earnings-window flags; SEC Edgar; target ~11% — still acceptable for training). Re-check via the endpoint.
 - `universe_snapshot_months`: **15 rows (2025-04→2026-06) with real PIT variation** ✅ HYP-015 resolved — S&P 500 Wikipedia PIT backfill applied. Each month has 565–568 tickers reflecting actual index membership changes (was previously the identical 299-ticker watchlist). Delisting bias caveat remains (SPLK/ATVI/FRC etc have no Yahoo prices).
-- `sp4_shadow_inferences`: accumulating nightly since 2026-06-23
+- `sp4_shadow_inferences`: ✅ **9 rows as of 2026-06-24 (first ever writes)** — pipeline unblocked &
+  verified end-to-end. It had been stuck at **0 rows** due to FOUR chained bugs, all fixed 2026-06-24:
+  1. `signalpilot-daily.yml` `workflow_run` condition bug (now gated on `conclusion == 'success'`).
+  2. `/api/d1/signals` was settled-only (hardcoded `ret5d IS NOT NULL`) and never shipped
+     `indicators_json` → SP-4 had no fresh signals to score. Fixed: added opt-in `?settled=0`
+     param (returns unsettled rows + `indicators_json` + `previous_label`); default stays
+     settled-only so the Verify/Quant Lab tab is unaffected. `shadow_inference.py` now calls
+     `?days=7&settled=0`.
+  3. `build_features.build()` returns a 3-tuple `(features, targets, dropped)` but
+     `shadow_inference.py` unpacked 2 → `ValueError`. Fixed (`features_df, *_ = build(...)`).
+  4. Promoted model `ef58f809` was never registered in `sp4_model_registry` (only the older
+     `8aa032a3` was), so every insert hit the `model_run_id` FK and was silently swallowed by the
+     handler's `catch {}`. Fixed by registering `ef58f809` via `POST /api/sp4/model` (2026-06-24).
+  5. (hardening) `shadowHandler.ts` `catch {}` swallowed ALL insert errors as "duplicate" — which
+     is what hid bug #4 for weeks. Fixed: UNIQUE conflicts are detected via `res.meta.changes`
+     (returned as `duplicates`), required-field drops as `skipped`, and any real DB error now
+     returns 500 instead of being silently eaten. Response shape: `{written, duplicates, skipped, total}`.
+  6. (feature parity) `rs_rank`, `rs_vs_spy`, `ema50_slope` were NaN-filled (they're top-level
+     snake_case D1 columns the training export reads, not inside `indicators_json`). Fixed: the
+     `?settled=0` path now SELECTs them too → all 33 features resolve (mean prob 0.2916 → 0.3209).
+  - Nightly should now self-sustain via `signalpilot-daily.yml`; re-verify after the next weekday run.
