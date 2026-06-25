@@ -104,13 +104,52 @@ Always use `--remote` to target production D1. Omit it for local dev.
 - **Research health endpoint**: `GET /api/d1/research-health` — aggregate counts for signals, earnings-window ratio, and universe-snapshot coverage
 - **Manual snapshot trigger**: `POST /api/admin/run-snapshot` — runs the snapshot job on demand inside the Worker. ⚠️ A single Worker invocation caps at ~43 stocks (Yahoo rate-limits the Worker egress IP); `buildDailySnapshot` fetches the full ~299-stock universe at once, so the manual trigger returns a partial snapshot. For the full universe, rely on the nightly GitHub Actions run or chunk the builder like `runBackfillChunk`.
 
-## ⚠️ DIRECTION CHANGE (2026-06-24): Personal Capital Management pivot
+## 🚀 REVAMP (2026-06-25) — 新 app「Capital Manager」
 
-The project pivoted from "SaaS product proving a 5-day edge" → **personal capital management
-tool for HK$5M (Phase 1 = HK$500K), executed manually via Futu.** The canonical plan and the
-multi-AI collaboration rules now live in **[`docs/planning/`](docs/planning/)** — read
-[`docs/planning/EXECUTION_PLAN.md`](docs/planning/EXECUTION_PLAN.md) and
-[`docs/planning/MULTI_AI_WORKFLOW.md`](docs/planning/MULTI_AI_WORKFLOW.md) **before any work**.
+> **任何 AI 進場前必讀：** [`docs/planning/REVAMP_PLAN.md`](docs/planning/REVAMP_PLAN.md)（唯一真相來源）
+> 和 [`docs/ZONE_MAP.md`](docs/ZONE_MAP.md)（repo 分區地圖）。
+> 以下為快速摘要；細節、phase 次序、DoD 全在 REVAMP_PLAN.md。
+
+### 方向（一句話）
+
+保留現有所有現狀，在同一 repo 起一個全新 app **Capital Manager** —— 兩個產品（ETF 自動配置 + 股票買賣策略），共用一條風險骨幹，研究訊號源只可「提議」，風險核心才能「裁決」，裁決路徑零 ML。
+
+### Repo 分區（四態）
+
+| Zone | 內容 | 規則 |
+|---|---|---|
+| 🟢 **LIVE-KEEP** | `trading-etf` worker · `snapshot.yml` | 必須留 live — 新 app 數據脊樑 |
+| 🔵 **UN-LIVE** | `signalpilot` worker（已 undeploy）· `signalpilot-daily.yml`（dispatch-only）| 停運，code/D1 留 repo；`git checkout baseline/pre-revamp` 可復活 |
+| 📦 **ARCHIVE** | `scripts/ml/` · `models/` · `GATE_EDGE*.md` | 純 code，不 live；ML 復活門檻見 REVAMP_PLAN §6 |
+| ♻️ **SHARED LIB** | `src/engine/` · `src/types/` | 新 app 唯讀重用 |
+| 🚀 **ACTIVE** | `capital/` worker · `src/capital-web/` · `capital-db` | 全新建設，所有工程在此 |
+
+### Capital Manager 新 worker
+
+- Worker name: `capital`（待建）
+- Config: `wrangler.capital.toml`（待建）
+- D1 — 讀訊號：唯讀綁定現有 `trading-etf-db`
+- D1 — 真錢狀態：新 `capital-db`（positions / cash\_ledger / realized\_pnl / risk\_state / trade\_log）
+
+### 當前 Phase（P0 — 架構與瘦身）✅
+
+- [x] `git tag baseline/pre-revamp`
+- [x] `REVAMP_PLAN.md` checked-in
+- [x] `signalpilot` worker undeploy
+- [x] `signalpilot-daily.yml` 改 dispatch-only
+- [x] 全文件更新（CLAUDE.md / ROADMAP.md / WORKLIST.md / SIGNALPILOT_ROADMAP.md / ZONE_MAP.md）
+- [ ] **下一 Phase = P1** — `capital-db` schema + `riskEngine.ts`（見 REVAMP_PLAN.md §4）
+
+### 什麼不動
+
+- `trading-etf` worker + `snapshot.yml` — 繼續 live，不改。
+- `src/engine/`、`src/types/`、snapshot 管線 — 新 app 當 library 用，不複製不分叉。
+- `signalpilot/` code、`signalpilot-daily.yml`、`models/`、`scripts/ml/` — code 留 repo，只是停運。
+
+### 歷史背景（供參考）
+
+以下「DIRECTION CHANGE (2026-06-24)」節為舊 personal capital management pivot 計劃紀錄，
+已被 REVAMP_PLAN.md 取代。保留作背景，不再執行。
 
 - **Frozen (run passively, not developed):** ML retrain, SignalPilot SP-5→SP-8, GATE_EDGE_v2.
 - **Reused unchanged:** snapshot pipeline, D1, signal engine, regime, PIT universe.
@@ -135,10 +174,12 @@ multi-AI collaboration rules now live in **[`docs/planning/`](docs/planning/)** 
   (T2.2 — code done, pending GH Actions verification).
 - The "Current sprint (5-day edge)" section below is **historical** — superseded by the pivot.
 
-## Current sprint (as of 2026-06-23) — HISTORICAL, superseded by the pivot above
+## 歷史紀錄 — 舊 sprint（2026-06-23，已被 REVAMP 取代）
+
+> ⚠️ 以下為舊「SaaS 5 天 edge」方向的 sprint 紀錄。**不再執行。** 新工程看 REVAMP_PLAN.md。
 
 **Context:** GPT is offline — Claude handles both `trading-etf` and SignalPilot lines.  
-**If you are another AI reading this:** role boundaries and task assignments are in [`docs/HANDOFF_GPT.md`](docs/HANDOFF_GPT.md). Full backlog with blocking deps is in [`WORKLIST.md`](WORKLIST.md). Read those before starting any work.
+**If you are another AI reading this:** current direction is in [`docs/planning/REVAMP_PLAN.md`](docs/planning/REVAMP_PLAN.md) and [`docs/ZONE_MAP.md`](docs/ZONE_MAP.md). The notes below are historical context only.
 
 ### What's running autonomously (no action needed)
 

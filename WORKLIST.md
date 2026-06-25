@@ -1,9 +1,9 @@
-# 長線工作清單（Web App + SignalPilot）
+# 長線工作清單（歷史紀錄）
 
-> ⚠️ **方向已轉變（2026-06-24）：個人資本管理 pivot。** 現行 backlog 與任務分配見
-> [`docs/planning/EXECUTION_PLAN.md`](docs/planning/EXECUTION_PLAN.md)（§4 兩線執行）＋
-> [`docs/planning/MULTI_AI_WORKFLOW.md`](docs/planning/MULTI_AI_WORKFLOW.md)（§2 任務矩陣）。
-> **本文件以下為舊 SaaS 方向 backlog，屬歷史紀錄、已被取代**（保留未刪除）。
+> 🚀 **REVAMP（2026-06-25）：** 新 app「Capital Manager」已啟動。
+> **現行 backlog → [`docs/planning/REVAMP_PLAN.md`](docs/planning/REVAMP_PLAN.md)**
+> Repo 分區 → [`docs/ZONE_MAP.md`](docs/ZONE_MAP.md)
+> **本文件以下為舊 SaaS 方向 backlog，屬歷史紀錄、已被取代。** 保留作背景，不再執行。
 
 > **建立：** 2026-06-23 · **治理來源：** [`ROADMAP.md`](ROADMAP.md) 北極星與決策閘（P0–P5）
 > **本檔角色：** 跨兩條產品線嘅單一 backlog。**排序、阻塞、依賴**以此為準；設計理由看各自 roadmap / plan。

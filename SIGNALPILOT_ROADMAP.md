@@ -1,9 +1,12 @@
 # SignalPilot Roadmap（執行追蹤）
 
-> ❄️ **凍結通知（2026-06-24）：** 因應個人資本管理 pivot，**SP-5→SP-8 無限期暫停**。
-> SP-0→SP-4（paper ledger + shadow inference）被動運行、唔好改動、唔好部署。
-> 詳見 [`docs/planning/EXECUTION_PLAN.md`](docs/planning/EXECUTION_PLAN.md) §0/§8 與
-> [`docs/planning/MULTI_AI_WORKFLOW.md`](docs/planning/MULTI_AI_WORKFLOW.md) Zone E（凍結，無 AI 觸碰）。
+> 🔵 **UN-LIVE 通知（2026-06-25）：** 因應 Capital Manager REVAMP，
+> **`signalpilot` worker 已 undeploy，`signalpilot-daily.yml` 已改為 dispatch-only（停止自動跑）。**
+> Code、config、`signalpilot-db`、`SP_CONTROL_KV` 全部保留 repo，隨時可由
+> `git checkout baseline/pre-revamp -- signalpilot/ wrangler.signalpilot.toml` + `npm run sp:deploy` 復活。
+> **不投工程、不改動、不部署。** 詳見 [`docs/planning/REVAMP_PLAN.md`](docs/planning/REVAMP_PLAN.md) §2 UN-LIVE。
+>
+> ❄️ **舊凍結通知（2026-06-24）：** 因應個人資本管理 pivot，**SP-5→SP-8 無限期暫停**。（仍有效，現升級為 UN-LIVE）
 
 > **狀態：** Active v1.0 · 建立 2026-06-23
 > **規格來源：** [`SIGNALPILOT_AI_TRADING_PLAN.md`](SIGNALPILOT_AI_TRADING_PLAN.md)（本文件只負責里程碑、排序、依賴與進度；設計理由看 plan）

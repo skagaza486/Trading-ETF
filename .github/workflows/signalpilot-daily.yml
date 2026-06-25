@@ -1,12 +1,14 @@
 name: SignalPilot daily batch (SP-2 + SP-4)
 
+# 🔵 UN-LIVE (2026-06-25): signalpilot worker has been undeployed as part of the
+# Capital Manager revamp. This workflow is now DISPATCH-ONLY (no automatic trigger).
+# Code and config are preserved for archival. To restore, see REVAMP_PLAN.md §P0.
+#
+# Original purpose:
 # Runs after the snapshot build so today's signals are already in D1.
 # SP-2: exits (time-stop / price-stop) → entries (eligibility → risk → size → fill)
 # SP-4: shadow inference — LightGBM scores today's signals (no trades)
 on:
-  workflow_run:
-    workflows: ['Daily snapshot']
-    types: [completed]
   workflow_dispatch:
     inputs:
       batch_date:

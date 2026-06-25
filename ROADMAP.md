@@ -1,10 +1,9 @@
 # ROADMAP
 
-> ⚠️ **方向已轉變（2026-06-24）：個人資本管理（HK$5M，Phase 1 = HK$500K，富途人手執行）。**
-> 唯一真實來源為 [`docs/planning/EXECUTION_PLAN.md`](docs/planning/EXECUTION_PLAN.md)，
-> 協作規則見 [`docs/planning/MULTI_AI_WORKFLOW.md`](docs/planning/MULTI_AI_WORKFLOW.md)。
-> **本文件以下內容為舊「SaaS 5 天 edge 產品」方向，屬歷史紀錄，已被取代**（保留作背景，未刪除）。
-> 5 天 edge 線（ML retrain、SP-5→SP-8、GATE_EDGE_v2）凍結，被動運行、不阻塞任何嘢。
+> 🚀 **REVAMP（2026-06-25）：** 新 app「Capital Manager」已啟動。
+> **唯一真相來源 → [`docs/planning/REVAMP_PLAN.md`](docs/planning/REVAMP_PLAN.md)**
+> Repo 分區地圖 → [`docs/ZONE_MAP.md`](docs/ZONE_MAP.md)
+> **本文件以下為舊「SaaS 5 天 edge 產品」方向，屬歷史紀錄，已被取代。** 保留作背景，不再執行。
 
 **產品定位：** 每日戰術信號工具，服務零售投資者（含 70+ 長者）。Explainable rule-based signals，real-data-first，研究驗證先於 UI 承諾。
 
