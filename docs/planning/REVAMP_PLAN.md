@@ -1,8 +1,8 @@
 # REVAMP PLAN — Capital Manager（新 app · 同一 repo · 保留現狀）
 
-> **版本：** 1.0 · **建立：** 2026-06-25 · **作者：** Tony + Claude
+> **版本：** 1.1 · **建立：** 2026-06-25 · **作者：** Tony + Claude
 > **取代：** 無（與 `EXECUTION_PLAN.md` 並存；EXECUTION_PLAN 是舊「pivot」計劃，本文件是「重新架構 + 新 app」計劃）
-> **狀態：** DRAFT — 待 Tony 拍板開工
+> **狀態：** 進行中 — P0–P4 ✅ 完成 · 當前 Phase = **P5**
 
 ---
 
@@ -122,14 +122,14 @@
 
 ## 4. 執行階段（增量,每階段獨立可交付、可回退）
 
-| Phase | 內容 | DoD（完成定義） | 估時 |
+| Phase | 內容 | DoD（完成定義） | 狀態 |
 |---|---|---|---|
-| **P0 — 架構與瘦身** | 寫本計劃 · `git tag baseline/pre-revamp` · **un-live signalpilot**(下方步驟)· 在凍結區 code 頂部加封存註記 | tag 存在;`signalpilot` worker 已 undeploy;`signalpilot-daily.yml` 休眠;`trading-etf` + `snapshot.yml` 仍 live | 1d |
-| **P1 — 風險核心** | `capital-db` schema · `riskEngine.ts` · 狀態重建 · 單元測試 | 給定持倉能正確列出踩線規則;狀態由 ledger 可重建 | 3–4d |
-| **P2 — 產品 A ETF** | ETF 自動配置引擎 + 再平衡行動卡 · regime 現金底 | 輸入 ETF 持倉 → 產出可執行再平衡清單;OFF 時叫高 SGOV | 2d |
-| **P3 — 產品 B 股票** | 進場閘 + sizing + `exitEngine.ts`(EOD) + 暫停機制 · `capital-daily.yml` | 移動止損觸發 → 產出註明規則的賣出卡;板塊超限 → 減持卡;三連敗 → 進場被擋 | 5–6d |
-| **P4 — 新前端** | `src/capital-web/` 雙分頁(ETF 配置 / 股票策略),從 capital-db 渲染行動卡 | 兩分頁可用、手機 responsive、無 client 端邏輯 | 3d |
-| **P5 — 上線爬升** | ETF 即時動真錢 · 股票兩週 paper 牆 → 通過 → Futu 真錢 + GTC 止損 | 見 §6 上線準則 | 持續 |
+| **P0 — 架構與瘦身** | 寫本計劃 · `git tag baseline/pre-revamp` · **un-live signalpilot**(下方步驟)· 在凍結區 code 頂部加封存註記 | tag 存在;`signalpilot` worker 已 undeploy;`signalpilot-daily.yml` 休眠;`trading-etf` + `snapshot.yml` 仍 live | ✅ **完成（2026-06-25）** |
+| **P1 — 風險核心** | `capital-db` schema · `riskEngine.ts` · 狀態重建 · 單元測試 | 給定持倉能正確列出踩線規則;狀態由 ledger 可重建 | ✅ **完成（2026-06-25）** — `schema/capital-r1-core.sql` · `src/engine/riskEngine.ts` · `src/types/capital.ts` · 38 tests |
+| **P2 — 產品 A ETF** | ETF 自動配置引擎 + 再平衡行動卡 · regime 現金底 | 輸入 ETF 持倉 → 產出可執行再平衡清單;OFF 時叫高 SGOV | ✅ **完成（2026-06-25）** — `src/capital-web/features/etf/EtfView.tsx` · ETF_REFERENCE sleeve 分組 · drift band 再平衡卡 · regime 現金底 |
+| **P3 — 產品 B 股票** | 進場閘 + sizing + `exitEngine.ts`(EOD) + 暫停機制 · `capital-daily.yml` | 移動止損觸發 → 產出註明規則的賣出卡;板塊超限 → 減持卡;三連敗 → 進場被擋 | ✅ **完成（2026-06-25）** — `exitEngine.ts` · `sizingEngine.ts` · `StocksView.tsx` · `capital-daily.yml` · 82 tests |
+| **P4 — 新前端** | `src/capital-web/` 雙分頁(ETF 配置 / 股票策略),從 capital-db 渲染行動卡;capital worker + `wrangler.capital.toml` + `capital-db` 正式 D1 | 兩分頁可用、手機 responsive;worker 有 GET positions / GET risk-state / POST eod-eval / POST record-result 端點 | ✅ **完成（2026-06-25）** — `capital/worker.ts` · `wrangler.capital.toml` · `capital/lib/auth.ts` · `useCapitalApi.ts` · StocksView 接線 · EtfView 局部接線 · capital-daily.yml 啟用 |
+| **P5 — 上線爬升** | ETF 即時動真錢 · 股票兩週 paper 牆 → 通過 → Futu 真錢 + GTC 止損 | 見 §6 上線準則 | ⬜ 待 P4 |
 
 ---
 

@@ -141,6 +141,11 @@ function attachLocalProxyMiddlewares(
 }
 
 export default defineConfig(({ mode }) => {
+  // Vitest config — keep Playwright tests out of the vitest run
+  const test = {
+    include: ['src/**/*.test.ts'],
+    exclude: ['tests/**', 'node_modules/**'],
+  }
   const env = loadEnv(mode, process.cwd(), '')
   const finnhubApiKey = env.FINNHUB_API_KEY || process.env.FINNHUB_API_KEY
 
@@ -163,11 +168,13 @@ export default defineConfig(({ mode }) => {
         '/api/d1':       'https://trading-etf.skagaza486.workers.dev',
       }
     },
+    test,
     build: {
       rollupOptions: {
         input: {
           main: 'index.html',
-          legacy: 'legacy.html'
+          legacy: 'legacy.html',
+          capital: 'capital.html',
         }
       }
     }

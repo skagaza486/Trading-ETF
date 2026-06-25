@@ -1,0 +1,25 @@
+# Capital Manager — separate control-plane Worker.
+# Deploy with: wrangler deploy --config wrangler.capital.toml
+# NEVER deploy this config to the `trading-etf` or `signalpilot` worker.
+name = "capital"
+compatibility_date = "2025-01-01"
+main = "capital/worker.ts"
+
+[observability]
+enabled = true
+
+# Write side: positions / cash / risk state
+# Create with: wrangler d1 create capital-db
+[[d1_databases]]
+binding = "CAPITAL_DB"
+database_name = "capital-db"
+database_id = "1f1afa7d-56b2-4dbc-a76e-233ed48c73bd"
+
+# Read-only: signals / regime (code discipline — never write to this binding)
+[[d1_databases]]
+binding = "TRADING_ETF_DB_RO"
+database_name = "trading-etf-db"
+database_id = "7a5b3490-d69f-457d-9f3a-64c7b9139a62"
+
+# Secrets (NEVER in this file; set via `wrangler secret put --config wrangler.capital.toml`):
+#   CAPITAL_AUTH_TOKEN  — single-user bearer token for all mutation endpoints

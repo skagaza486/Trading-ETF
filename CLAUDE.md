@@ -131,14 +131,48 @@ Always use `--remote` to target production D1. Omit it for local dev.
 - D1 — 讀訊號：唯讀綁定現有 `trading-etf-db`
 - D1 — 真錢狀態：新 `capital-db`（positions / cash\_ledger / realized\_pnl / risk\_state / trade\_log）
 
-### 當前 Phase（P0 — 架構與瘦身）✅
+### 完成 Phases
 
+**P0 ✅（2026-06-25）— 架構與瘦身**
 - [x] `git tag baseline/pre-revamp`
 - [x] `REVAMP_PLAN.md` checked-in
 - [x] `signalpilot` worker undeploy
 - [x] `signalpilot-daily.yml` 改 dispatch-only
 - [x] 全文件更新（CLAUDE.md / ROADMAP.md / WORKLIST.md / SIGNALPILOT_ROADMAP.md / ZONE_MAP.md）
-- [ ] **下一 Phase = P1** — `capital-db` schema + `riskEngine.ts`（見 REVAMP_PLAN.md §4）
+
+**P1 ✅（2026-06-25）— 風險核心**
+- [x] `schema/capital-r1-core.sql` — positions / cash_ledger / realized_pnl / risk_state / trade_log
+- [x] `src/engine/riskEngine.ts` — checkEntryGate / checkExitRules / recordTradeResult / isPaused / cashFloorForRegime
+- [x] `src/types/capital.ts` — Position, RiskState, GateResult, ExitSignal, RuleViolation 等
+- [x] 38 個單元測試
+
+**P2 ✅（2026-06-25）— 產品 A ETF 自動配置**
+- [x] `src/capital-web/features/etf/EtfView.tsx` — ETF sleeve 分組、drift band 再平衡卡、regime 現金底
+- [x] ETF_REFERENCE 整合（SPY/QQQ/IWM/GLD/SGOV 五個 sleeve）
+
+**P3 ✅（2026-06-25）— 產品 B 股票買賣策略**
+- [x] `src/engine/exitEngine.ts` — runEodExit（批次 EOD：硬止損/移動止損/板塊超限）
+- [x] `src/engine/sizingEngine.ts` — computePositionSize（單股 10% / 板塊 25% / 現金底三重限制）
+- [x] `src/capital-web/features/stocks/StocksView.tsx` — 完整 UI（進場閘 + sizing + 開倉管理 + EOD 評估 + 三連敗暫停）
+- [x] `.github/workflows/capital-daily.yml` — EOD stub，22:00 UTC Mon–Fri
+- [x] 82 個測試（全部通過，TypeScript zero errors）
+
+**P4 ✅（2026-06-25）— capital worker + capital-db + 前端接線**
+- [x] `wrangler d1 create capital-db` + 執行 `schema/capital-r1-core.sql`
+- [x] `wrangler.capital.toml` + `capital/worker.ts`（8 個端點）
+- [x] `capital/lib/auth.ts`（constant-time token compare）
+- [x] `src/capital-web/shared/hooks/useCapitalApi.ts`
+- [x] `StocksView.tsx` 從 localStorage 遷移到 API（含 loading/error state）
+- [x] `EtfView.tsx` regime + capitalBaseCents 改從 API 讀取
+- [x] `capital-daily.yml` curl 步驟啟用
+- [x] TypeScript zero errors（root tsconfig + tsconfig.capital.json）
+
+### 當前 Phase = P5 — 上線爬升
+
+- [ ] ETF sleeve 即時動真錢（設定 capital-db risk_state + 首次再平衡）
+- [ ] 股票策略：兩週 paper 牆 — 每日記錄候選 + 模擬盈虧
+- [ ] paper 牆通過條件（見 REVAMP_PLAN §6）→ Futu 真錢 + GTC 止損
+- [ ] 觀察 `capital-daily.yml` 首次真實 EOD 評估執行結果
 
 ### 什麼不動
 

@@ -1,6 +1,6 @@
 # ZONE MAP — repo 分區快速參考
 
-> **建立：** 2026-06-25 · **版本：** 1.0
+> **建立：** 2026-06-25 · **版本：** 1.1（更新：2026-06-25）
 > **任何 AI 進場前先讀此文件。** 細節、phase 次序、DoD 見 [`docs/planning/REVAMP_PLAN.md`](planning/REVAMP_PLAN.md)。
 
 ---
@@ -78,29 +78,52 @@ npm run sp:deploy
 
 | 物件 | 狀態 |
 |---|---|
-| `capital/` | 新 worker（待建）|
-| `wrangler.capital.toml` | 新 worker config（待建）|
-| `src/capital-web/` | 新前端（待建）|
-| `schema/capital-r1-core.sql` | capital-db schema（待建）|
-| `src/engine/riskEngine.ts` | 風險骨幹，純函數零 ML（待建）|
-| `src/engine/exitEngine.ts` | EOD 出場引擎（待建）|
-| `.github/workflows/capital-daily.yml` | EOD 評估夜更（待建）|
+| `capital/` | ✅ **已建**（P4）— worker.ts + lib/auth.ts + env.d.ts + worker-configuration.d.ts |
+| `wrangler.capital.toml` | ✅ **已建**（P4）— capital-db + TRADING_ETF_DB_RO（唯讀）|
+| `src/capital-web/` | ✅ **已建** — App + BottomNav + MarketContextView + EtfView + StocksView |
+| `schema/capital-r1-core.sql` | ✅ **已建**（P1）— positions / cash_ledger / realized_pnl / risk_state / trade_log |
+| `src/types/capital.ts` | ✅ **已建**（P1）— Position, RiskState, GateResult, ExitSignal, RuleViolation 等 |
+| `src/engine/riskEngine.ts` | ✅ **已建**（P1）— checkEntryGate, checkExitRules, recordTradeResult, isPaused, cashFloorForRegime |
+| `src/engine/exitEngine.ts` | ✅ **已建**（P3）— runEodExit（batch EOD：止損 + 板塊超限）|
+| `src/engine/sizingEngine.ts` | ✅ **已建**（P3）— computePositionSize（單股/板塊/現金底三重限制）|
+| `.github/workflows/capital-daily.yml` | ✅ **已建**（P3）— 22:00 UTC Mon–Fri stub；worker live 後取消注釋啟用 |
 
-**Capital worker 資訊（待建後填入）：**
+**Capital worker 資訊（P4 建立後填入）：**
 - Worker name: `capital`
 - D1 讀（唯讀）: `trading-etf-db`（signals / regime）
 - D1 寫: 新 `capital-db`（positions / cash / risk state）
+
+**測試覆蓋：** 4 個測試檔，82 個測試，全部通過（P1–P3 引擎）
 
 ---
 
 ## 當前 Phase
 
-**P0 ✅ 完成（2026-06-25）**
-- baseline tag、REVAMP_PLAN.md、文件全更新、signalpilot un-live
+**P0 ✅ 完成（2026-06-25）** — baseline tag、REVAMP_PLAN.md、文件全更新、signalpilot un-live
 
-**下一步 = P1 — 風險核心**
-→ `schema/capital-r1-core.sql` + `src/engine/riskEngine.ts` + 單元測試
-→ 見 [REVAMP_PLAN.md §4](planning/REVAMP_PLAN.md)
+**P1 ✅ 完成（2026-06-25）** — `schema/capital-r1-core.sql` · `riskEngine.ts` · `src/types/capital.ts` · 38 tests
+
+**P2 ✅ 完成（2026-06-25）** — `EtfView.tsx`（ETF 配置、sleeve 分組、drift band 再平衡卡、regime 現金底）
+
+**P3 ✅ 完成（2026-06-25）** — `exitEngine.ts` · `sizingEngine.ts` · `StocksView.tsx` · `capital-daily.yml` · 82 tests
+
+**P4 ✅ 完成（2026-06-25）** — capital worker · wrangler.capital.toml · useCapitalApi.ts · StocksView 接線 · capital-daily.yml 啟用
+
+**P5 🚧 進行中（2026-06-25）— 上線爬升**
+
+已完成：
+- risk_state 清除測試數據（last_3_results 重置為 []）
+- `schema/capital-p5-paper-trades.sql` — paper_trades 表建立並 migrate 到 capital-db
+- `src/capital-web/features/paper-wall/PaperWallView.tsx` — Paper 牆 tracker（週分組、通過條件即時計算）
+- capital worker 新增 4 個 paper-trades 端點
+- 底部導航新增「Paper 牆」第四個 tab
+- TypeScript zero errors · 兩個 worker 均已 redeploy
+
+待完成：
+→ ETF 動真錢：進入 ETF 配置 tab，輸入現有持倉，確認再平衡行動
+→ 股票策略：每週 ≥3 個 paper 候選，連續 4 週 → 通過條件 → Futu 真錢
+→ 設定 GitHub Secret `CAPITAL_AUTH_TOKEN` → `capital-daily.yml` EOD 評估自動啟動
+→ 見 [REVAMP_PLAN.md §4,§6](planning/REVAMP_PLAN.md)
 
 ---
 

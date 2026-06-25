@@ -1,0 +1,35 @@
+name: Capital Daily EOD
+
+# Runs at 22:00 UTC Mon–Fri (30 min after snapshot.yml at 21:30 UTC).
+# Calls the capital worker's EOD evaluation endpoint:
+#   1. Update peak prices for all open positions
+#   2. Check hard-stop / trailing-stop triggers
+#   3. Check sector overweight
+#   4. Persist exit cards to capital-db for morning review
+#
+# STUB — capital worker not yet provisioned (P4/P5).
+# When the worker is live, replace the echo steps with real curl calls.
+
+on:
+  schedule:
+    - cron: '0 22 * * 1-5'   # 22:00 UTC Mon–Fri
+  workflow_dispatch: {}       # allow manual trigger
+
+concurrency:
+  group: capital-daily
+  cancel-in-progress: false
+
+jobs:
+  eod-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run EOD evaluation
+        env:
+          CAPITAL_AUTH_TOKEN: ${{ secrets.CAPITAL_AUTH_TOKEN }}
+        run: |
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer $CAPITAL_AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{}' \
+            https://capital.skagaza486.workers.dev/api/capital/eod-eval

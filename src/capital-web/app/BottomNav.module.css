@@ -1,0 +1,72 @@
+.nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-h);
+  display: flex;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-faint);
+  z-index: 100;
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color var(--dur) var(--ease);
+  position: relative;
+  padding: 0;
+}
+
+.tab:hover {
+  color: var(--text-secondary);
+}
+
+.active {
+  color: var(--accent);
+}
+
+.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 0 0 2px 2px;
+}
+
+.icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.label {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.badge {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - 22px);
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--bg-overlay);
+  color: var(--text-muted);
+  border: 1px solid var(--border-faint);
+  border-radius: 3px;
+  padding: 1px 4px;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}
